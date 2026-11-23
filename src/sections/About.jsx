@@ -30,13 +30,13 @@ export default function About() {
     return () => ctx.revert()
   }, [])
 
-  const text = 'Na mitologia grega, Argus Panoptes era o gigante de cem olhos que nunca dormia — nada escapava ao seu olhar. É essa a filosofia por trás de cada projeto: enxergar cada detalhe, do pixel à conversão, para criar sites que não apenas impressionam, mas trabalham pelo seu negócio 24 horas por dia.'
+  const text = 'Na mitologia grega, Argus Panoptes era o gigante de cem olhos que nunca dormia — nada escapava ao seu olhar. A plataforma nasceu dessa ideia: enxergar cada estabelecimento de um território, entender quem tem mais aderência ao que você vende e entregar essas oportunidades nas suas mãos antes da concorrência.'
 
   return (
     <section className="section about" id="sobre" ref={root}>
       <div className="container">
         <FadeContent effect="mist" duration={1.6} threshold={0.2}>
-          <p className="eyebrow">// Sobre a Argus</p>
+          <p className="eyebrow">// Por que Argus</p>
         </FadeContent>
         <p className="manifesto">
           {text.split(' ').map((w, i) => <span className="w" key={i}>{w} </span>)}

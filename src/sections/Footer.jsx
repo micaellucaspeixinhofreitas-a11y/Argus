@@ -15,11 +15,11 @@ export default function Footer() {
         <div className="footer__top">
           <div className="footer__brand">
             <img src={`${import.meta.env.BASE_URL}argus-wordmark.webp`} alt="Argus" className="footer__mark" width="1410" height="622" />
-            <p>Design, código e performance para marcas que querem ser vistas.</p>
+            <p>Prospecção comercial geolocalizada: encontre, qualifique e capture empresas no seu território.</p>
           </div>
           <nav className="footer__nav" aria-label="Rodapé">
             {nav.map(n => <a key={n.href} href={n.href}>{n.label}</a>)}
-            <a href="#contato">Contato</a>
+            <a href="/entrar">Entrar</a>
           </nav>
           <div className="footer__social">
             <a href={contact.instagram} target="_blank" rel="noreferrer" aria-label="Instagram"><Icon name="instagram" size={20} /></a>

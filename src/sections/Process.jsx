@@ -26,13 +26,13 @@ export default function Process() {
   }, [])
 
   return (
-    <section className="section" id="processo" ref={root}>
+    <section className="section" id="como-funciona" ref={root}>
       <div className="container process-wrap">
         <div className="process-wrap__head">
           <SectionHead
-            eyebrow="// Processo"
-            title={<>Do briefing ao <span className="grad">lançamento</span> em 4 etapas.</>}
-            text="Um método transparente, com entregas claras e sua aprovação em cada fase. Você sempre sabe o que está acontecendo."
+            eyebrow="// Como funciona"
+            title={<>Do mapa ao <span className="grad">lead</span> em 4 etapas.</>}
+            text="Uma operação de prospecção completa, do alvo ao lead capturado, em poucos minutos."
           />
         </div>
         <ol className="process">

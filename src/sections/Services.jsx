@@ -12,12 +12,12 @@ const spotlight = e => {
 
 export default function Services() {
   return (
-    <section className="section" id="servicos">
+    <section className="section" id="modulos">
       <div className="container">
         <SectionHead
-          eyebrow="// Serviços"
-          title={<>Tudo que sua marca precisa <span className="grad">para dominar o digital.</span></>}
-          text="Do primeiro rascunho ao site no ar: design, desenvolvimento e otimização em um só lugar, com um único responsável pelo resultado."
+          eyebrow="// Módulos"
+          title={<>Tudo o que você precisa para <span className="grad">prospectar com precisão.</span></>}
+          text="Do alvo comercial à captura do lead, cada etapa é um módulo independente e conectado ao mapa."
         />
         <div className="services">
           {services.map((s, i) => (

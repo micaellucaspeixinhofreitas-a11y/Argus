@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useAuth } from '../lib/auth'
 import { nav, contact } from '../data'
 import Magnetic from '../components/Magnetic'
 import Glass from '../components/Glass'
@@ -6,6 +8,9 @@ import Glass from '../components/Glass'
 export default function Header() {
   const [scrolled, setScrolled] = useState(false)
   const [open, setOpen] = useState(false)
+  const { user } = useAuth()
+  const ctaHref = user ? '/app' : '/entrar?modo=cadastro'
+  const ctaLabel = user ? 'Abrir plataforma' : 'Começar grátis'
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40)
@@ -32,14 +37,16 @@ export default function Header() {
               <span className="nav__clip"><span data-text={item.label}>{item.label}</span></span>
             </a>
           ))}
-          <a className="nav__mobile-cta btn btn--primary" href="#contato" onClick={() => setOpen(false)}>
-            Iniciar projeto
-          </a>
+          {!user && <Link className="nav__mobile-link" to="/entrar" onClick={() => setOpen(false)}>Entrar</Link>}
+          <Link className="nav__mobile-cta btn btn--primary" to={ctaHref} onClick={() => setOpen(false)}>
+            {ctaLabel}
+          </Link>
         </nav>
 
         <div className="header__actions">
+          {!user && <Link className="header__login" to="/entrar">Entrar</Link>}
           <Magnetic>
-            <a className="btn btn--ghost btn--sm has-glass" href="#contato"><Glass radius={21} refract />Iniciar projeto</a>
+            <Link className="btn btn--ghost btn--sm has-glass" to={ctaHref}><Glass radius={21} refract />{ctaLabel}</Link>
           </Magnetic>
           <button
             className="burger"

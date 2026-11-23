@@ -10,10 +10,9 @@ import Marquee from './sections/Marquee'
 import About from './sections/About'
 import Services from './sections/Services'
 import Process from './sections/Process'
-import Projects from './sections/Projects'
+import RadarPreview from './sections/RadarPreview'
 import Differentials from './sections/Differentials'
 import Plans from './sections/Plans'
-import Testimonials from './sections/Testimonials'
 import Faq from './sections/Faq'
 import Contact from './sections/Contact'
 import Footer from './sections/Footer'
@@ -86,10 +85,9 @@ export default function App() {
         <About />
         <Services />
         <Process />
-        <Projects />
+        <RadarPreview />
         <Differentials />
         <Plans />
-        <Testimonials />
         <Faq />
         <Contact />
       </main>

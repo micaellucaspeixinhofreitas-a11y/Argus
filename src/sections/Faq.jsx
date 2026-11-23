@@ -12,7 +12,7 @@ export default function Faq() {
         <SectionHead
           eyebrow="// Dúvidas frequentes"
           title={<>Perguntas <span className="grad">frequentes.</span></>}
-          text="Não encontrou o que procurava? Me chame no WhatsApp — respondo em até 24 horas."
+          text="Não encontrou o que procurava? Fale com a gente pelo WhatsApp."
         />
         <div className="faq">
           {faq.map((item, i) => {

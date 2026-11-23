@@ -1,4 +1,4 @@
-// Todo o conteúdo do site em um só lugar — edite aqui sem mexer nos componentes.
+// Conteúdo da página de apresentação — edite aqui sem mexer nos componentes.
 
 export const contact = {
   whatsapp: '5500000000000', // TODO: seu número com DDI + DDD, só dígitos
@@ -9,144 +9,86 @@ export const contact = {
 }
 
 export const nav = [
-  { label: 'Serviços', href: '#servicos' },
-  { label: 'Processo', href: '#processo' },
-  { label: 'Projetos', href: '#projetos' },
+  { label: 'Como funciona', href: '#como-funciona' },
+  { label: 'Módulos', href: '#modulos' },
+  { label: 'Radar', href: '#radar' },
   { label: 'Planos', href: '#planos' },
   { label: 'FAQ', href: '#faq' },
 ]
 
+// Fatos reais da regra de créditos do plano Pro (configuráveis no painel admin)
 export const stats = [
-  { value: 50, suffix: '+', label: 'Projetos entregues' },
-  { value: 98, suffix: '%', label: 'Clientes satisfeitos' },
-  { value: 95, suffix: '+', label: 'Nota média no Lighthouse' },
-  { value: 24, suffix: 'h', label: 'Tempo de resposta' },
+  { value: 7000, suffix: '', label: 'Créditos por mês no plano Pro' },
+  { value: 700, suffix: '', label: 'Leads por dia, no máximo' },
+  { value: 1, suffix: '', label: 'Crédito por novo lead capturado' },
+  { value: 0, suffix: '', label: 'Cobrança por lead repetido' },
 ]
 
 export const services = [
   {
-    icon: 'landing',
-    title: 'Landing Pages',
-    text: 'Páginas de alta conversão, pensadas para campanhas, lançamentos e captação de leads — com copy, design e performance alinhados ao objetivo.',
-    tags: ['Conversão', 'A/B ready', 'Pixel & tags'],
+    icon: 'target',
+    title: 'Defina o alvo',
+    text: 'Informe um ou vários segmentos — clínicas, academias, imobiliárias ou qualquer palavra-chave — escolha o país e a localidade.',
+    tags: ['Múltiplos segmentos', 'Palavras-chave', 'Vários países'],
   },
   {
-    icon: 'site',
-    title: 'Sites Institucionais',
-    text: 'Presença digital sólida para empresas e profissionais. Estrutura clara, identidade forte e conteúdo fácil de atualizar.',
-    tags: ['Multi-páginas', 'CMS', 'Blog'],
+    icon: 'filter',
+    title: 'Qualificação',
+    text: 'Escolha os critérios que importam para você: tem telefone, tem e-mail, está sem website, sem redes sociais. A Argus classifica cada empresa.',
+    tags: ['Critérios reais', 'Nota de aderência', 'Opcional'],
   },
   {
-    icon: 'shop',
-    title: 'E-commerce',
-    text: 'Lojas virtuais rápidas e seguras, com checkout otimizado, integração de pagamentos, frete e gestão de estoque.',
-    tags: ['Pix & cartão', 'Frete', 'Catálogo'],
+    icon: 'layers',
+    title: 'Território',
+    text: 'Marque várias áreas no mapa, cada uma com seu próprio raio em quilômetros. A busca respeita exatamente os limites definidos.',
+    tags: ['Múltiplas áreas', 'Raio por área', 'Coordenadas salvas'],
   },
   {
-    icon: 'app',
-    title: 'Sistemas & Web Apps',
-    text: 'Painéis, áreas de membros, agendamentos e ferramentas sob medida para automatizar processos do seu negócio.',
-    tags: ['Dashboards', 'Login', 'APIs'],
+    icon: 'map',
+    title: 'Mapa de prospecção',
+    text: 'Pesquise cidades, bairros e endereços, navegue pelo território e veja as empresas encontradas direto no mapa.',
+    tags: ['Busca de endereços', 'Zoom', 'Pontos no mapa'],
   },
   {
-    icon: 'design',
-    title: 'UI/UX Design',
-    text: 'Interfaces autorais, prototipadas no Figma antes de qualquer linha de código. Você aprova cada tela antes do desenvolvimento.',
-    tags: ['Protótipo', 'Design system', 'Mobile first'],
+    icon: 'radar',
+    title: 'Radar de oportunidades',
+    text: 'Indicadores de empresas mapeadas, de alta aderência e sem website, com prioridade para quem mais precisa do que você vende.',
+    tags: ['Mapeadas', 'Alta aderência', 'Sem website'],
   },
   {
-    icon: 'seo',
-    title: 'SEO & Performance',
-    text: 'Sites que carregam em segundos e aparecem no Google. Otimização técnica, Core Web Vitals e estrutura semântica.',
-    tags: ['Core Web Vitals', 'Schema', 'Analytics'],
+    icon: 'bookmark',
+    title: 'Buscas salvas',
+    text: 'Guarde segmento, país, localidade, qualificação, raio e áreas. Recupere e execute de novo quando quiser.',
+    tags: ['Reutilizável', 'Histórico', 'Um clique'],
   },
 ]
 
 export const steps = [
-  {
-    n: '01',
-    title: 'Imersão',
-    text: 'Uma conversa para entender seu negócio, público, concorrentes e objetivos. Saio dela com um briefing claro e uma proposta sob medida.',
-    time: '1–2 dias',
-  },
-  {
-    n: '02',
-    title: 'Design',
-    text: 'Wireframes e layout de alta fidelidade no Figma. Você acompanha, comenta e aprova cada tela antes do código.',
-    time: '3–7 dias',
-  },
-  {
-    n: '03',
-    title: 'Desenvolvimento',
-    text: 'Código limpo, responsivo e animado, com foco em velocidade e SEO. Ambiente de teste online para você navegar em tempo real.',
-    time: '5–15 dias',
-  },
-  {
-    n: '04',
-    title: 'Lançamento',
-    text: 'Publicação no seu domínio, configuração de analytics, testes finais e treinamento. E eu continuo por perto no suporte.',
-    time: '1–2 dias',
-  },
-]
-
-// TODO: troque pelos seus projetos reais (imagem opcional em /public)
-export const projects = [
-  { title: 'Nébula Clinic', category: 'Site institucional', year: '2026', result: '+180% agendamentos', hue: 268 },
-  { title: 'Volt Store', category: 'E-commerce', year: '2026', result: '1.2s de carregamento', hue: 285 },
-  { title: 'Orbit Finance', category: 'Web app', year: '2025', result: 'Dashboard em tempo real', hue: 250 },
-  { title: 'Lumen Studio', category: 'Landing page', year: '2025', result: '12% de conversão', hue: 300 },
+  { n: '01', title: 'Defina o alvo', text: 'Segmento, país e localidade. Pode deixar o segmento em branco para ver todo tipo de comércio da região.', time: 'Alvo' },
+  { n: '02', title: 'Qualifique', text: 'Ative os critérios de aderência — por exemplo, empresas com telefone e sem website — e a nota mínima.', time: 'Opcional' },
+  { n: '03', title: 'Delimite o território', text: 'Clique no mapa para criar áreas, ajuste o raio de cada uma e sincronize. Use quantas regiões precisar.', time: 'Mapa' },
+  { n: '04', title: 'Mapeie e capture', text: 'A Argus consulta fontes reais, organiza os resultados sem duplicidade e você captura os leads que quiser.', time: 'Leads' },
 ]
 
 export const differentials = [
-  { title: 'Visão de 360°', text: 'Como o gigante de cem olhos da mitologia, enxergo cada detalhe: design, código, SEO, conversão e experiência.' },
-  { title: 'Feito do zero', text: 'Nada de templates genéricos. Cada projeto nasce da identidade e dos objetivos do seu negócio.' },
-  { title: 'Performance real', text: 'Sites leves, otimizados e com notas altas no Lighthouse — porque cada segundo de carregamento custa clientes.' },
-  { title: 'Comunicação direta', text: 'Você fala com quem projeta e programa. Sem intermediários, sem ruído, com atualizações constantes.' },
-  { title: 'Prazo cumprido', text: 'Cronograma definido na proposta e acompanhado etapa por etapa. Você sabe exatamente onde o projeto está.' },
-  { title: 'Suporte contínuo', text: 'Depois do lançamento, sigo disponível para ajustes, evoluções e manutenção do seu site.' },
+  { title: 'Empresas reais', text: 'Nada de dados fictícios: cada resultado vem de fontes públicas de estabelecimentos, com coordenadas e contatos quando cadastrados.' },
+  { title: 'Território sob controle', text: 'Várias áreas na mesma operação, cada uma com raio próprio. O que está fora do raio não entra.' },
+  { title: 'Sem duplicidade', text: 'A mesma empresa nunca aparece duas vezes e um lead já capturado nunca é cobrado de novo.' },
+  { title: 'Créditos transparentes', text: 'Você vê quantos créditos tem, quanto usou hoje e o limite diário antes de cada captura.' },
+  { title: 'Foco em prospecção', text: 'Não é um CRM inchado. A Argus faz uma coisa muito bem: encontrar quem pode virar seu cliente.' },
+  { title: 'Exportação em CSV', text: 'Leve seus leads capturados para a planilha ou para a ferramenta que você já usa.' },
 ]
 
-// TODO: ajuste os valores conforme sua tabela
-export const plans = [
-  {
-    name: 'Start',
-    price: 'R$ 1.490',
-    note: 'pagamento único',
-    desc: 'Para quem precisa de presença online rápida e profissional.',
-    features: ['Landing page de 1 página', 'Design exclusivo e responsivo', 'Animações de entrada', 'Formulário + WhatsApp', 'SEO básico', '30 dias de suporte'],
-    cta: 'Começar agora',
-  },
-  {
-    name: 'Pro',
-    price: 'R$ 3.490',
-    note: 'pagamento único',
-    desc: 'O site completo para empresas que querem se destacar.',
-    features: ['Até 6 páginas', 'Protótipo no Figma', 'Animações avançadas', 'Blog / painel editável', 'SEO técnico + Analytics', 'Hospedagem configurada', '90 dias de suporte'],
-    cta: 'Quero o Pro',
-    featured: true,
-  },
-  {
-    name: 'Custom',
-    price: 'Sob consulta',
-    note: 'projeto sob medida',
-    desc: 'E-commerce, sistemas e experiências 3D ou interativas.',
-    features: ['Escopo personalizado', 'E-commerce ou web app', 'Integrações e APIs', 'Área de login / membros', 'Experiências 3D (WebGL)', 'Suporte dedicado'],
-    cta: 'Solicitar orçamento',
-  },
-]
-
-// TODO: substitua por depoimentos reais
-export const testimonials = [
-  { name: 'Mariana Costa', role: 'Fundadora, Nébula Clinic', text: 'O site ficou exatamente com a cara da clínica — moderno e muito rápido. Os agendamentos online quase triplicaram no primeiro mês.' },
-  { name: 'Rafael Lima', role: 'CEO, Volt Store', text: 'Profissionalismo do início ao fim. Entendeu o que eu queria melhor do que eu mesmo, e entregou antes do prazo.' },
-  { name: 'Juliana Alves', role: 'Diretora criativa, Lumen Studio', text: 'As animações e os detalhes fazem toda a diferença. Nossos clientes comentam do site em toda reunião.' },
+export const segmentsLoop = [
+  'Clínicas', 'Restaurantes', 'Academias', 'Imobiliárias', 'Oficinas', 'Salões de beleza', 'Escritórios',
+  'Dentistas', 'Pet shops', 'Hotéis', 'Farmácias', 'Contabilidade', 'Advogados', 'Escolas', 'Lojas',
 ]
 
 export const faq = [
-  { q: 'Quanto tempo leva para meu site ficar pronto?', a: 'Landing pages ficam prontas em cerca de 7 a 10 dias úteis. Sites institucionais levam de 2 a 4 semanas, e projetos sob medida têm prazo definido na proposta.' },
-  { q: 'Preciso ter domínio e hospedagem?', a: 'Não. Eu cuido de tudo: ajudo a registrar o domínio, configuro a hospedagem e deixo o site no ar. Se você já tiver, uso o que existe.' },
-  { q: 'Vou conseguir editar o site depois?', a: 'Sim. Nos planos com painel editável você altera textos, imagens e posts sem precisar de código. Também ofereço planos de manutenção.' },
-  { q: 'O site funciona bem no celular?', a: 'Todos os projetos são mobile first: pensados primeiro para o celular e adaptados para tablets e desktops, com testes em vários dispositivos.' },
-  { q: 'Como funciona o pagamento?', a: 'Normalmente 50% na aprovação da proposta e 50% na entrega. Aceito Pix, transferência e cartão (com possibilidade de parcelamento).' },
-  { q: 'E se eu não gostar do design?', a: 'O design é aprovado por você antes de começar o desenvolvimento, com rodadas de ajuste incluídas. Você só segue quando estiver satisfeito.' },
+  { q: 'De onde vêm as empresas encontradas?', a: 'De fontes públicas de dados geográficos (OpenStreetMap). Cada empresa tem localização real e, quando cadastrados, telefone, site, e-mail, horário e redes sociais. A arquitetura permite adicionar outros provedores, como o Google Places.' },
+  { q: 'Como funcionam os créditos?', a: 'Mapear e consultar o radar não consome créditos. Cada novo lead capturado consome 1 crédito. No plano Pro são 7.000 créditos por mês, com limite de 700 por dia. Capturar de novo uma empresa que já é sua não cobra nada.' },
+  { q: 'Posso prospectar em várias regiões ao mesmo tempo?', a: 'Sim. Você marca quantas áreas quiser (até 10 por operação), cada uma com seu próprio raio, e a Argus junta tudo sem repetir empresas.' },
+  { q: 'O que é a qualificação?', a: 'São critérios que você escolhe — como ter telefone, ter e-mail ou não ter website. A Argus dá uma nota para cada empresa com base nos dados encontrados e destaca as de alta aderência.' },
+  { q: 'Funciona fora do Brasil?', a: 'Sim. Você escolhe o país e a busca de cidades, bairros e endereços passa a usar esse país como referência.' },
+  { q: 'Como pago a assinatura?', a: 'Por Pix ou cartão, em planos mensais ou trimestrais. Você acompanha a situação, a renovação e pode cancelar quando quiser pela própria plataforma.' },
 ]

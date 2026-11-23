@@ -1,13 +1,16 @@
 import { useEffect, useRef } from 'react'
 import { gsap } from 'gsap'
+import { Link } from 'react-router-dom'
+import { useAuth } from '../lib/auth'
 import Magnetic from '../components/Magnetic'
 import Icon from '../components/Icons'
 import Glass from '../components/Glass'
 
-const line1 = ['Sites', 'que', 'enxergam']
-const line2 = ['além', 'do', 'óbvio.']
+const line1 = ['Encontre', 'clientes', 'em']
+const line2 = ['qualquer', 'território.']
 
 export default function Hero({ ready }) {
+  const { user } = useAuth()
   const root = useRef(null)
   const logo = useRef(null)
 
@@ -53,7 +56,7 @@ export default function Hero({ ready }) {
       <div className="container hero__inner">
         <div className="hero__content">
           <p className="hero__eyebrow eyebrow">
-            <span className="pulse" /> Disponível para novos projetos
+            <span className="pulse" /> Prospecção comercial geolocalizada
           </p>
           <h1 className="hero__title">
             <span className="hero__line">
@@ -61,23 +64,23 @@ export default function Hero({ ready }) {
             </span>
             <span className="hero__line">
               {line2.map(w => (
-                <span className={`hero__word ${w === 'óbvio.' ? 'grad' : ''}`} key={w}><span>{w}</span></span>
+                <span className={`hero__word ${w === 'território.' ? 'grad' : ''}`} key={w}><span>{w}</span></span>
               ))}
             </span>
           </h1>
           <p className="hero__lead">
-            Eu sou a <strong>Argus</strong> — estúdio de criação de sites que une design autoral, código de alta
-            performance e animações que prendem o olhar. Landing pages, sites institucionais e e-commerces
-            feitos para transformar visitantes em clientes.
+            A <strong>Argus</strong> transforma uma região do mapa em uma área de prospecção: defina o segmento,
+            marque o território e descubra empresas reais, qualificadas pelo que você procura — prontas para
+            virar seus leads.
           </p>
           <div className="hero__ctas">
             <Magnetic>
-              <a href="#contato" className="btn btn--primary">
-                Quero meu site <Icon name="arrow" size={18} />
-              </a>
+              <Link to={user ? '/app' : '/entrar?modo=cadastro'} className="btn btn--primary">
+                {user ? 'Abrir plataforma' : 'Começar grátis'} <Icon name="arrow" size={18} />
+              </Link>
             </Magnetic>
             <Magnetic>
-              <a href="#projetos" className="btn btn--ghost has-glass"><Glass radius={27} refract />Ver projetos</a>
+              <a href="#como-funciona" className="btn btn--ghost has-glass"><Glass radius={27} refract />Como funciona</a>
             </Magnetic>
           </div>
         </div>
@@ -89,10 +92,10 @@ export default function Hero({ ready }) {
       </div>
 
       <div className="container hero__hud" aria-hidden="true">
-        <span>[ 01 — DESIGN ]</span>
-        <span>[ 02 — CÓDIGO ]</span>
-        <span>[ 03 — PERFORMANCE ]</span>
-        <a href="#servicos" className="scroll-cue">Role <i /></a>
+        <span>[ 01 — ALVO ]</span>
+        <span>[ 02 — TERRITÓRIO ]</span>
+        <span>[ 03 — LEADS ]</span>
+        <a href="#como-funciona" className="scroll-cue">Role <i /></a>
       </div>
     </section>
   )

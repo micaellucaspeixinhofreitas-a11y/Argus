@@ -1,0 +1,338 @@
+// Ponto único da API (todas as rotas /api/* chegam aqui via rewrite do vercel.json).
+// Um único arquivo mantém o projeto dentro do limite de funções do plano gratuito da Vercel.
+import { query, tx } from './_lib/db.js'
+import { send, readJson, fail, HttpError, str, num } from './_lib/http.js'
+import { hashPassword, verifyPassword, sessionCookie, clearCookie, currentUser, requireUser, requireAdmin } from './_lib/auth.js'
+import { creditStatus, creditHistory, activePlan, TZ } from './_lib/credits.js'
+import { runMapping, runResults, captureLeads, geocode, parseConfig, LIMITS } from './_lib/mapping.js'
+import { catalogList } from './_lib/segments.js'
+import { criteriaList } from './_lib/qualify.js'
+import { createCheckout, periodMonths, paymentProvider } from './_lib/payments.js'
+
+export const config = { maxDuration: 60 }
+
+const routes = {}
+const on = (method, path, fn) => { routes[`${method} ${path}`] = fn }
+
+// ---------- saúde e metadados ----------
+on('GET', 'health', async () => {
+  let db = 'ok'
+  try { await query('select 1') } catch (e) { db = e.code === 'DB_NOT_CONFIGURED' ? 'not_configured' : 'error' }
+  return { ok: true, db, provider: process.env.PLACES_PROVIDER || 'osm', payments: paymentProvider() }
+})
+
+on('GET', 'meta', async () => ({ segments: catalogList(), criteria: criteriaList(), limits: LIMITS }))
+
+// ---------- autenticação ----------
+on('POST', 'auth/register', async ({ body }) => {
+  const email = str(body.email, 160).toLowerCase()
+  const name = str(body.name, 80)
+  const password = String(body.password || '')
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail(400, 'Informe um e-mail válido.')
+  if (password.length < 8) fail(400, 'A senha precisa ter pelo menos 8 caracteres.')
+  const hash = await hashPassword(password)
+  const user = await tx(async db => {
+    const exists = await db.query('select 1 from users where email = $1', [email])
+    if (exists.rows.length) fail(409, 'Já existe uma conta com este e-mail.')
+    // a primeira conta criada vira administradora da plataforma
+    const { rows: [{ n }] } = await db.query('select count(*)::int as n from users')
+    const { rows: [u] } = await db.query(
+      'insert into users (email, name, password_hash, is_admin) values ($1, $2, $3, $4) returning id, email, name, is_admin',
+      [email, name, hash, n === 0]
+    )
+    return u
+  })
+  return { status: 201, data: { user }, headers: { 'Set-Cookie': sessionCookie(user.id) } }
+})
+
+on('POST', 'auth/login', async ({ body }) => {
+  const email = str(body.email, 160).toLowerCase()
+  const { rows: [u] } = await query('select id, email, name, is_admin, password_hash from users where email = $1', [email])
+  if (!u || !(await verifyPassword(String(body.password || ''), u.password_hash))) fail(401, 'E-mail ou senha incorretos.')
+  delete u.password_hash
+  return { data: { user: u }, headers: { 'Set-Cookie': sessionCookie(u.id) } }
+})
+
+on('POST', 'auth/logout', async () => ({ data: { ok: true }, headers: { 'Set-Cookie': clearCookie() } }))
+
+on('GET', 'auth/me', async ({ req }) => {
+  const user = await currentUser(req)
+  if (!user) return { user: null }
+  return { user, credits: await creditStatus(user.id) }
+})
+
+// ---------- geolocalização ----------
+on('GET', 'geo/search', async ({ req, url }) => {
+  await requireUser(req)
+  return { results: await geocode(url.searchParams.get('q'), str(url.searchParams.get('country'), 2)) }
+})
+
+// ---------- mapeamento de oportunidades ----------
+on('POST', 'mapping/run', async ({ req, body }) => {
+  const user = await requireUser(req)
+  const result = await runMapping(user, body)
+  return { ...(await runResults(user, result.run_id)), credits: await creditStatus(user.id) }
+})
+
+on('GET', 'mapping/result', async ({ req, url }) => {
+  const user = await requireUser(req)
+  return runResults(user, Number(url.searchParams.get('run')))
+})
+
+on('GET', 'mapping/runs', async ({ req }) => {
+  const user = await requireUser(req)
+  const { rows } = await query(
+    `select id, config, status, total, high_fit, no_website, created_at from mapping_runs
+      where user_id = $1 order by created_at desc limit 30`, [user.id])
+  return { runs: rows }
+})
+
+// ---------- radar ----------
+on('GET', 'radar', async ({ req, url }) => {
+  const user = await requireUser(req)
+  const runId = Number(url.searchParams.get('run')) || null
+  const { rows: [all] } = await query(
+    `select count(distinct r.company_id)::int as mapped,
+            count(distinct r.company_id) filter (where r.high_fit)::int as high_fit,
+            count(distinct r.company_id) filter (where c.website is null)::int as no_website
+       from mapping_results r join mapping_runs m on m.id = r.run_id and m.user_id = $1
+       join companies c on c.id = r.company_id`, [user.id])
+  const { rows: [leads] } = await query(
+    `select count(*)::int as captured,
+            count(*) filter (where l.high_fit)::int as captured_high_fit,
+            count(*) filter (where c.website is null)::int as captured_no_website
+       from leads l join companies c on c.id = l.company_id where l.user_id = $1`, [user.id])
+  let run = null
+  if (runId) {
+    const r = await query('select id, total as mapped, high_fit, no_website from mapping_runs where id = $1 and user_id = $2', [runId, user.id])
+    run = r.rows[0] || null
+  }
+  // prioridade: alta aderência + sem presença digital, ainda não capturadas
+  const { rows: priority } = await query(
+    `select distinct on (c.id) c.id, c.name, c.category, r.score, r.high_fit, (c.website is null) as no_website, r.run_id
+       from mapping_results r join mapping_runs m on m.id = r.run_id and m.user_id = $1
+       join companies c on c.id = r.company_id
+       left join leads l on l.company_id = c.id and l.user_id = $1
+      where l.id is null and (r.high_fit or c.website is null)
+      order by c.id, r.run_id desc limit 400`, [user.id])
+  priority.sort((a, b) => (b.high_fit - a.high_fit) || (b.no_website - a.no_website) || ((b.score ?? -1) - (a.score ?? -1)))
+  return { run, all, leads, priority: priority.slice(0, 12) }
+})
+
+// ---------- leads ----------
+on('POST', 'leads/capture', async ({ req, body }) => {
+  const user = await requireUser(req)
+  const result = await captureLeads(user, { runId: body.runId, companyIds: body.companyIds }, creditStatus)
+  return { ...result, credits: await creditStatus(user.id) }
+})
+
+const leadsQuery = `
+  select l.id, l.captured_at, l.score, l.high_fit, l.run_id, c.id as company_id, c.name, c.category, c.phone, c.website,
+         c.email, c.address, c.city, c.opening_hours, c.social,
+         st_y(c.geom::geometry) as lat, st_x(c.geom::geometry) as lng
+    from leads l join companies c on c.id = l.company_id
+   where l.user_id = $1 and ($2 = '' or c.name ilike '%' || $2 || '%' or coalesce(c.category,'') ilike '%' || $2 || '%' or coalesce(c.city,'') ilike '%' || $2 || '%')
+   order by l.captured_at desc`
+
+on('GET', 'leads', async ({ req, url }) => {
+  const user = await requireUser(req)
+  const { rows } = await query(`${leadsQuery} limit 1000`, [user.id, str(url.searchParams.get('q'), 80)])
+  return { leads: rows }
+})
+
+on('GET', 'leads/export', async ({ req }) => {
+  const user = await requireUser(req)
+  const { rows } = await query(leadsQuery, [user.id, ''])
+  const cols = ['name', 'category', 'phone', 'website', 'email', 'address', 'city', 'lat', 'lng', 'score', 'captured_at']
+  const escCsv = v => {
+    const s = v == null ? '' : v instanceof Date ? v.toISOString() : String(v)
+    return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+  }
+  const csv = '﻿' + [cols.join(','), ...rows.map(r => cols.map(c => escCsv(r[c])).join(','))].join('\n')
+  return { raw: csv, contentType: 'text/csv; charset=utf-8', headers: { 'Content-Disposition': 'attachment; filename="leads-argus.csv"' } }
+})
+
+// ---------- buscas salvas ----------
+on('GET', 'searches', async ({ req }) => {
+  const user = await requireUser(req)
+  const { rows } = await query(
+    'select id, name, config, last_run_at, created_at from saved_searches where user_id = $1 order by created_at desc', [user.id])
+  return { searches: rows }
+})
+
+on('POST', 'searches', async ({ req, body }) => {
+  const user = await requireUser(req)
+  const config = parseConfig(body.config)
+  const name = str(body.name, 100) || [config.segments.join(', ') || 'Todos os segmentos', config.locality].filter(Boolean).join(' — ')
+  const points = config.areas.length
+    ? `st_setsrid(st_collect(array[${config.areas.map((_, i) => `st_makepoint($${i * 2 + 5}, $${i * 2 + 4})`).join(',')}]), 4326)::geography`
+    : 'null'
+  const params = [user.id, name, JSON.stringify(config)]
+  config.areas.forEach(a => params.push(a.lat, a.lng))
+  const { rows: [s] } = await query(
+    `insert into saved_searches (user_id, name, config, areas) values ($1, $2, $3, ${points})
+     returning id, name, config, last_run_at, created_at`, params)
+  return { status: 201, data: { search: s } }
+})
+
+on('DELETE', 'searches', async ({ req, url }) => {
+  const user = await requireUser(req)
+  await query('delete from saved_searches where id = $1 and user_id = $2', [Number(url.searchParams.get('id')), user.id])
+  return { ok: true }
+})
+
+// ---------- créditos ----------
+on('GET', 'credits', async ({ req }) => {
+  const user = await requireUser(req)
+  const { rows: ledger } = await query(
+    `select amount, reason, note, created_at from credit_ledger where user_id = $1 and (reason <> 'lead' or amount > 0)
+      order by created_at desc limit 20`, [user.id])
+  return { credits: await creditStatus(user.id), history: await creditHistory(user.id), adjustments: ledger, timezone: TZ }
+})
+
+// ---------- planos e assinaturas ----------
+on('GET', 'plans', async () => {
+  const { rows } = await query('select * from plans where active order by sort, monthly_credits')
+  return { plans: rows }
+})
+
+async function subscriptionState(userId) {
+  const { rows } = await query(
+    `select s.*, p.name as plan_name from subscriptions s join plans p on p.id = s.plan_id
+      where s.user_id = $1 order by s.created_at desc limit 10`, [userId])
+  return { current: await activePlan(userId), subscriptions: rows }
+}
+
+on('GET', 'subscription', async ({ req }) => {
+  const user = await requireUser(req)
+  return subscriptionState(user.id)
+})
+
+on('POST', 'subscription', async ({ req, body }) => {
+  const user = await requireUser(req)
+  const period = body.period === 'quarterly' ? 'quarterly' : 'monthly'
+  const method = body.paymentMethod === 'card' ? 'card' : 'pix'
+  const { rows: [plan] } = await query('select * from plans where id = $1 and active', [str(body.planId, 40)])
+  if (!plan) fail(404, 'Plano não encontrado.')
+  if (plan.price_monthly_cents === 0 && plan.price_quarterly_cents === 0) fail(400, 'Este plano é gratuito e já está disponível.')
+  await query(`update subscriptions set status = 'canceled', updated_at = now() where user_id = $1 and status = 'pending_payment'`, [user.id])
+  const { rows: [sub] } = await query(
+    `insert into subscriptions (user_id, plan_id, period, status, payment_method, payment_provider)
+     values ($1, $2, $3, 'pending_payment', $4, $5) returning *`,
+    [user.id, plan.id, period, method, paymentProvider()])
+  const checkout = await createCheckout(sub, plan)
+  await query(`insert into operations_log (user_id, type, detail) values ($1, 'subscribe', $2)`, [user.id, JSON.stringify({ plan: plan.id, period, method })])
+  return { status: 201, data: { subscription: sub, checkout, ...(await subscriptionState(user.id)) } }
+})
+
+on('POST', 'subscription/cancel', async ({ req, body }) => {
+  const user = await requireUser(req)
+  const resume = body.resume === true
+  await query(
+    `update subscriptions set cancel_at_period_end = $2, updated_at = now()
+      where user_id = $1 and status = 'active'`, [user.id, !resume])
+  await query(`update subscriptions set status = 'canceled', updated_at = now() where user_id = $1 and status = 'pending_payment'`, [user.id])
+  return subscriptionState(user.id)
+})
+
+// ---------- administração ----------
+on('GET', 'admin/overview', async ({ req }) => {
+  await requireAdmin(req)
+  const { rows: users } = await query(
+    `select u.id, u.email, u.name, u.is_admin, u.created_at,
+            (select json_build_object('id', s.id, 'plan_id', s.plan_id, 'status', s.status, 'period', s.period, 'current_period_end', s.current_period_end)
+               from subscriptions s where s.user_id = u.id order by s.created_at desc limit 1) as subscription,
+            (select count(*) from leads l where l.user_id = u.id)::int as leads,
+            (select count(*) from mapping_runs m where m.user_id = u.id)::int as runs
+       from users u order by u.created_at desc limit 500`)
+  const { rows: plans } = await query('select * from plans order by sort, monthly_credits')
+  const { rows: [totals] } = await query(
+    `select (select count(*) from users)::int as users, (select count(*) from companies)::int as companies,
+            (select count(*) from leads)::int as leads, (select count(*) from mapping_runs)::int as runs`)
+  return { users, plans, totals }
+})
+
+on('POST', 'admin/plans', async ({ req, body }) => {
+  await requireAdmin(req)
+  const id = str(body.id, 40).toLowerCase().replace(/[^a-z0-9_-]/g, '')
+  if (!id) fail(400, 'Informe o identificador do plano.')
+  const features = Array.isArray(body.features) ? body.features.map(f => str(f, 120)).filter(Boolean) : []
+  await tx(async db => {
+    if (body.is_default) await db.query('update plans set is_default = false')
+    await db.query(
+      `insert into plans (id, name, description, monthly_credits, daily_limit, price_monthly_cents, price_quarterly_cents, features, is_default, active, sort)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+       on conflict (id) do update set name=$2, description=$3, monthly_credits=$4, daily_limit=$5, price_monthly_cents=$6,
+         price_quarterly_cents=$7, features=$8, is_default=$9, active=$10, sort=$11, updated_at=now()`,
+      [id, str(body.name, 60) || id, str(body.description, 200), num(body.monthly_credits, 0, 10_000_000, 0),
+        num(body.daily_limit, 0, 1_000_000, 0), num(body.price_monthly_cents, 0, 100_000_000, 0),
+        num(body.price_quarterly_cents, 0, 100_000_000, 0), JSON.stringify(features), Boolean(body.is_default),
+        body.active !== false, num(body.sort, 0, 1000, 0)])
+  })
+  const { rows } = await query('select * from plans order by sort, monthly_credits')
+  return { plans: rows }
+})
+
+on('POST', 'admin/subscription', async ({ req, body }) => {
+  const admin = await requireAdmin(req)
+  const userId = Number(body.userId)
+  const action = body.action
+  if (action === 'activate') {
+    const { rows: [plan] } = await query('select * from plans where id = $1', [str(body.planId, 40)])
+    if (!plan) fail(404, 'Plano não encontrado.')
+    const period = body.period === 'quarterly' ? 'quarterly' : 'monthly'
+    await tx(async db => {
+      await db.query(`update subscriptions set status = 'canceled', updated_at = now() where user_id = $1 and status in ('active','pending_payment')`, [userId])
+      await db.query(
+        `insert into subscriptions (user_id, plan_id, period, status, payment_provider, current_period_start, current_period_end)
+         values ($1, $2, $3, 'active', 'manual', now(), now() + ($4 || ' months')::interval)`,
+        [userId, plan.id, period, String(periodMonths(period))])
+    })
+  } else if (action === 'cancel') {
+    await query(`update subscriptions set status = 'canceled', updated_at = now() where user_id = $1 and status in ('active','pending_payment')`, [userId])
+  } else fail(400, 'Ação inválida.')
+  await query(`insert into operations_log (user_id, type, detail) values ($1, 'admin_subscription', $2)`, [admin.id, JSON.stringify({ userId, action, plan: body.planId })])
+  return { ok: true }
+})
+
+on('POST', 'admin/credits', async ({ req, body }) => {
+  const admin = await requireAdmin(req)
+  const amount = Math.trunc(num(body.amount, -100000, 100000, 0))
+  if (!amount) fail(400, 'Informe a quantidade de créditos.')
+  await query(`insert into credit_ledger (user_id, amount, reason, note) values ($1, $2, 'admin_adjustment', $3)`,
+    [Number(body.userId), amount, str(body.note, 200) || `Ajuste por ${admin.email}`])
+  return { ok: true }
+})
+
+// ---------- despacho ----------
+export default async function handler(req, res) {
+  const url = new URL(req.url, 'http://localhost')
+  const path = (url.searchParams.get('r') || url.pathname.replace(/^\/api\/?/, '')).replace(/\/+$/, '')
+  const route = routes[`${req.method} ${path}`]
+  try {
+    if (!route) fail(404, 'Rota não encontrada.')
+    if (['POST', 'PUT', 'DELETE'].includes(req.method)) {
+      // proteção CSRF: aceita apenas JSON vindo da própria origem
+      const ct = req.headers['content-type'] || ''
+      if (req.method !== 'DELETE' && !ct.includes('application/json')) fail(415, 'Envie JSON.')
+      const origin = req.headers.origin
+      const host = req.headers['x-forwarded-host'] || req.headers.host
+      if (origin && host && new URL(origin).host !== host) fail(403, 'Origem não permitida.')
+    }
+    const body = ['POST', 'PUT'].includes(req.method) ? await readJson(req) : {}
+    const out = await route({ req, res, url, body })
+    if (out && out.raw !== undefined) {
+      res.statusCode = 200
+      res.setHeader('Content-Type', out.contentType)
+      for (const [k, v] of Object.entries(out.headers || {})) res.setHeader(k, v)
+      return res.end(out.raw)
+    }
+    if (out && out.data !== undefined) return send(res, out.status || 200, out.data, out.headers)
+    return send(res, 200, out)
+  } catch (err) {
+    const status = err instanceof HttpError || err.status ? err.status || 500 : 500
+    if (status >= 500) console.error(err)
+    const known = err instanceof HttpError || err.code === 'DB_NOT_CONFIGURED'
+    send(res, status, { error: known ? err.message : 'Erro interno. Tente novamente.', code: err.code })
+  }
+}

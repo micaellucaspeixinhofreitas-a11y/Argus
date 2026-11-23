@@ -35,7 +35,7 @@ export default function Differentials() {
         <SectionHead
           center
           eyebrow="// Por que a Argus"
-          title={<>Cem olhos em cada <span className="grad">detalhe.</span></>}
+          title={<>Cem olhos no seu <span className="grad">território.</span></>}
         />
         <div className="diff__grid has-glass">
           <Glass radius={20} refract />
