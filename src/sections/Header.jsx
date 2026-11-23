@@ -28,7 +28,7 @@ export default function Header() {
       <div className="container header__inner header__bar has-glass">
         <Glass radius={34} backgroundOpacity={0.7} refract />
         <a href="#top" className="brand" aria-label="Argus — início">
-          <img src={`${import.meta.env.BASE_URL}argus-wordmark.webp`} alt="Argus" className="brand__word" width="1410" height="622" />
+          <img src={`${import.meta.env.BASE_URL}argus-white.webp`} alt="Argus" className="brand__word" width="1400" height="423" />
         </a>
 
         <nav className="nav" aria-label="Principal">

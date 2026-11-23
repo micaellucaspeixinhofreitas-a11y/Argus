@@ -36,7 +36,7 @@ export default function Auth() {
     <main className="auth">
       <div className="auth__glow" aria-hidden="true" />
       <Link to="/" className="auth__brand" aria-label="Argus — início">
-        <img src="/argus-wordmark.webp" alt="Argus" width="1410" height="622" />
+        <img src="/argus-chrome.webp" alt="Argus" width="1400" height="454" />
       </Link>
       <form className="auth__card card has-glass" onSubmit={submit}>
         <Glass radius={20} refract />

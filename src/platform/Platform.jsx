@@ -72,7 +72,7 @@ export default function Platform() {
       <div className="pf">
         <header className="pf-top">
           <NavLink to="/" className="pf-brand" aria-label="Argus — início">
-            <img src="/argus-wordmark.webp" alt="Argus" width="1410" height="622" />
+            <img src="/argus-white.webp" alt="Argus" width="1400" height="423" />
           </NavLink>
           <nav className="pf-tabs" aria-label="Plataforma">
             {TABS.map(t => (
