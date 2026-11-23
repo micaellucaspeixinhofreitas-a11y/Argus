@@ -5,7 +5,8 @@ import { send, readJson, fail, HttpError, str, num } from './_lib/http.js'
 import { hashPassword, verifyPassword, sessionCookie, clearCookie, currentUser, requireUser, requireAdmin } from './_lib/auth.js'
 import { creditStatus, creditHistory, activePlan, TZ } from './_lib/credits.js'
 import { runMapping, runResults, captureLeads, geocode, parseConfig, LIMITS } from './_lib/mapping.js'
-import { catalogList } from './_lib/segments.js'
+import { catalogList, resolveSegments, ALL_BUSINESS } from './_lib/segments.js'
+import { provider } from './_lib/providers/index.js'
 import { criteriaList } from './_lib/qualify.js'
 import { createCheckout, periodMonths, paymentProvider } from './_lib/payments.js'
 
@@ -15,10 +16,24 @@ const routes = {}
 const on = (method, path, fn) => { routes[`${method} ${path}`] = fn }
 
 // ---------- saúde e metadados ----------
-on('GET', 'health', async () => {
+let lastSourceCheck = 0
+on('GET', 'health', async ({ url }) => {
   let db = 'ok'
   try { await query('select 1') } catch (e) { db = e.code === 'DB_NOT_CONFIGURED' ? 'not_configured' : 'error' }
-  return { ok: true, db, provider: process.env.PLACES_PROVIDER || 'osm', payments: paymentProvider() }
+  const out = { ok: true, db, provider: process.env.PLACES_PROVIDER || 'osm', payments: paymentProvider() }
+  // ?source=1: verifica se a fonte de dados responde (no máximo 1x por minuto por instância)
+  if (url.searchParams.get('source') && Date.now() - lastSourceCheck > 60_000) {
+    lastSourceCheck = Date.now()
+    try {
+      const prov = provider()
+      const [place] = await prov.geocode('Avenida Paulista, São Paulo', 'BR')
+      const found = await prov.searchPlaces({ areas: [{ lat: place.lat, lng: place.lng, radius_m: 400 }], segments: resolveSegments(['restaurantes']), allBusiness: ALL_BUSINESS, limit: 50 })
+      out.source = { ok: true, geocoded: place.display_name, sample: found.length, with_phone: found.filter(f => f.phone).length, without_website: found.filter(f => !f.website).length, example: found[0]?.name }
+    } catch (e) {
+      out.source = { ok: false, error: e.message }
+    }
+  }
+  return out
 })
 
 on('GET', 'meta', async () => ({ segments: catalogList(), criteria: criteriaList(), limits: LIMITS }))
