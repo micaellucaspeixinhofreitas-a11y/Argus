@@ -158,14 +158,31 @@ on('POST', 'auth/forgot', async ({ req, body }) => {
   return done
 })
 
+// Recuperação de emergência sem e-mail: ACCOUNT_RECOVERY="email|sha256 do token|validade ISO", definida pelo dono
+// do projeto na Vercel. Vale uma única vez (o uso fica registrado) e só até a validade.
+async function recoveryReset(db, token) {
+  const [email, hash, until] = String(process.env.ACCOUNT_RECOVERY || '').split('|')
+  if (!email || !hash || !until || new Date(until) < new Date()) return null
+  const given = Buffer.from(hashToken(token))
+  const expected = Buffer.from(hash)
+  if (given.length !== expected.length || !crypto.timingSafeEqual(given, expected)) return null
+  const { rows: [used] } = await db.query(`select 1 from operations_log where type = 'account_recovery' and detail->>'key' = $1`, [hash])
+  if (used) return null
+  const { rows: [u] } = await db.query('select id from users where email = $1', [email.toLowerCase()])
+  if (!u) return null
+  await db.query(`insert into operations_log (user_id, type, detail) values ($1, 'account_recovery', $2)`, [u.id, JSON.stringify({ key: hash })])
+  return { id: 0, user_id: u.id }
+}
+
 on('POST', 'auth/reset', async ({ body }) => {
   const token = str(body.token, 200)
   const password = String(body.password || '')
   if (password.length < 8) fail(400, 'A senha precisa ter pelo menos 8 caracteres.')
   const hash = await hashPassword(password)
   const user = await tx(async db => {
-    const { rows: [r] } = await db.query(
+    let { rows: [r] } = await db.query(
       `select id, user_id from password_resets where token_hash = $1 and used_at is null and expires_at > now() for update`, [hashToken(token)])
+    if (!r) r = await recoveryReset(db, token)
     if (!r) fail(400, 'Link inválido ou expirado. Peça um novo link de redefinição.', 'RESET_INVALID')
     // a troca de senha encerra todas as sessões abertas antes dela
     await db.query('update users set password_hash = $1, session_version = session_version + 1 where id = $2', [hash, r.user_id])
