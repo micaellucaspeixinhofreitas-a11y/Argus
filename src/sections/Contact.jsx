@@ -1,4 +1,3 @@
-import { contact } from '../data'
 import Icon from '../components/Icons'
 import SpecularLink from '../components/SpecularLink'
 import { useAuth } from '../lib/auth'
@@ -22,9 +21,6 @@ export default function Contact() {
             <SpecularLink to={user ? '/app' : '/entrar?modo=cadastro'}>
               {user ? 'Abrir plataforma' : 'Criar conta grátis'} <Icon name="arrow" size={18} />
             </SpecularLink>
-            <a href={`https://wa.me/${contact.whatsapp}`} target="_blank" rel="noreferrer" className="cta__link">
-              <Icon name="whatsapp" size={20} /> Falar com a equipe
-            </a>
           </div>
         </div>
       </div>

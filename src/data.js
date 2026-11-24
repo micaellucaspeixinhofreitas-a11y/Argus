@@ -1,11 +1,8 @@
 // Conteúdo da página de apresentação — edite aqui sem mexer nos componentes.
 
 export const contact = {
-  whatsapp: '5500000000000', // TODO: seu número com DDI + DDD, só dígitos
+  // canal para pedidos de privacidade (LGPD) e exclusão de conta — troque pelo e-mail oficial
   email: 'contato@argus.dev', // TODO
-  instagram: 'https://instagram.com/', // TODO
-  linkedin: 'https://linkedin.com/', // TODO
-  github: 'https://github.com/', // TODO
 }
 
 export const nav = [

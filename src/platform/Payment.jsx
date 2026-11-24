@@ -75,7 +75,7 @@ export default function Payment({ planId = 'pro', period = 'monthly' }) {
             <button className="btn btn--ghost btn--sm" onClick={copy}>{copied ? <><LuCheck /> Copiado</> : <><LuCopy /> Copiar código</>}</button>
             <ol className="pay__steps">
               <li>Pague o valor exato pelo QR Code ou pelo código Copia e Cola.</li>
-              <li>Clique em <strong>Já paguei</strong> para avisar a equipe.</li>
+              <li>Clique em <strong>Já paguei</strong> para registrar o pagamento.</li>
               <li>Após a confirmação, o plano Pro é liberado automaticamente nesta tela.</li>
             </ol>
             {reported

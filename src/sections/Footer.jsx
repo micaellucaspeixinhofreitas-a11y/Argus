@@ -1,12 +1,5 @@
-import { nav, contact } from '../data'
-import Icon from '../components/Icons'
-
-// máscara com o logo (estilo inline para o caminho ser resolvido a partir da página)
-const logoMask = `url(${import.meta.env.BASE_URL}argus-white.webp)`
-const logoMaskStyle = {
-  WebkitMaskImage: logoMask,
-  maskImage: logoMask,
-}
+import { Link } from 'react-router-dom'
+import { nav } from '../data'
 
 export default function Footer() {
   return (
@@ -21,14 +14,11 @@ export default function Footer() {
             {nav.map(n => <a key={n.href} href={n.href}>{n.label}</a>)}
             <a href="/entrar">Entrar</a>
           </nav>
-          <div className="footer__social">
-            <a href={contact.instagram} target="_blank" rel="noreferrer" aria-label="Instagram"><Icon name="instagram" size={20} /></a>
-            <a href={contact.linkedin} target="_blank" rel="noreferrer" aria-label="LinkedIn"><Icon name="linkedin" size={20} /></a>
-            <a href={contact.github} target="_blank" rel="noreferrer" aria-label="GitHub"><Icon name="github" size={20} /></a>
-            <a href={`mailto:${contact.email}`} aria-label="E-mail"><Icon name="mail" size={20} /></a>
-          </div>
+          <nav className="footer__legal" aria-label="Documentos legais">
+            <Link to="/termos">Termos de Uso</Link>
+            <Link to="/privacidade">Política de Privacidade</Link>
+          </nav>
         </div>
-        <div className="footer__word" aria-hidden="true" style={logoMaskStyle} />
         <div className="footer__bottom">
           <span>© {new Date().getFullYear()} Argus. Todos os direitos reservados.</span>
           <a href="#top">Voltar ao topo ↑</a>

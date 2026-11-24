@@ -25,8 +25,8 @@ export function AuthProvider({ children }) {
     await api('auth/login', { method: 'POST', body: { email, password } })
     return refresh()
   }
-  const register = async (name, email, password) => {
-    await api('auth/register', { method: 'POST', body: { name, email, password } })
+  const register = async (name, email, password, acceptTerms) => {
+    await api('auth/register', { method: 'POST', body: { name, email, password, acceptTerms } })
     return refresh()
   }
   const logout = async () => {

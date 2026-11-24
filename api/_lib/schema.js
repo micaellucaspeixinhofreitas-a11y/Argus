@@ -157,6 +157,20 @@ create table if not exists saved_searches (
 );
 create index if not exists saved_searches_user_idx on saved_searches(user_id, created_at desc);
 
+-- Redefinição de senha: guarda só o hash do token enviado por e-mail
+create table if not exists password_resets (
+  id bigserial primary key,
+  user_id bigint not null references users(id) on delete cascade,
+  token_hash text not null unique,
+  expires_at timestamptz not null,
+  used_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists password_resets_user_idx on password_resets(user_id, created_at desc);
+
+alter table users add column if not exists session_version integer not null default 0;
+alter table users add column if not exists accepted_terms_at timestamptz;
+
 create table if not exists operations_log (
   id bigserial primary key,
   user_id bigint references users(id) on delete cascade,
@@ -164,6 +178,7 @@ create table if not exists operations_log (
   detail jsonb not null default '{}',
   created_at timestamptz not null default now()
 );
+create index if not exists operations_log_type_idx on operations_log(type, created_at desc);
 `
 
 // Planos iniciais (só inseridos se ainda não existirem; editáveis no painel admin)

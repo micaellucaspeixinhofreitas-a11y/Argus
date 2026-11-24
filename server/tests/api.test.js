@@ -40,9 +40,29 @@ try {
 
   const email = `t${Date.now()}@ex.com`
   let r = await api('POST', 'auth/register', { name: 'Teste', email, password: 'senha-forte-1' })
+  assert.equal(r.status, 400, 'exige aceitar os termos')
+  r = await api('POST', 'auth/register', { name: 'Teste', email, password: 'senha-forte-1', acceptTerms: true })
   assert.equal(r.status, 201); const firstIsAdmin = r.data.user.is_admin
-  assert.equal((await api('POST', 'auth/register', { name: 'X', email, password: 'senha-forte-1' })).status, 409)
+  assert.equal((await api('POST', 'auth/register', { name: 'X', email, password: 'senha-forte-1', acceptTerms: true })).status, 409)
   r = await api('GET', 'auth/me'); assert.equal(r.data.user.email, email)
+
+  // redefinição de senha: resposta genérica, token de uso único, sessões antigas encerradas
+  const { query: dbq } = await import('../../api/_lib/db.js')
+  const { hashToken } = await import('../../api/_lib/auth.js')
+  r = await api('POST', 'auth/forgot', { email: 'ninguem@ex.com' }); assert.equal(r.status, 200)
+  r = await api('POST', 'auth/forgot', { email }); assert.equal(r.status, 200)
+  const { rows: [pr] } = await dbq('select count(*)::int as n from password_resets'); assert.equal(pr.n, 1, 'só cria token para conta existente')
+  const oldCookie = cookie
+  await dbq(`insert into password_resets (user_id, token_hash, expires_at) select id, $1, now() + interval '1 hour' from users where email = $2`, [hashToken('tok-teste'), email])
+  assert.equal((await api('POST', 'auth/reset', { token: 'errado', password: 'nova-senha-123' })).status, 400)
+  r = await api('POST', 'auth/reset', { token: 'tok-teste', password: 'nova-senha-123' }, '')
+  assert.equal(r.status, 200); const newCookie = cookie
+  assert.equal((await api('GET', 'auth/me', null, oldCookie)).data.user, null, 'sessão antiga encerrada')
+  assert.equal((await api('POST', 'auth/reset', { token: 'tok-teste', password: 'outra-senha-123' })).status, 400, 'token de uso único')
+  assert.equal((await api('POST', 'auth/login', { email, password: 'senha-forte-1' })).status, 401)
+  r = await api('POST', 'auth/login', { email, password: 'nova-senha-123' }); assert.equal(r.status, 200)
+  r = await api('GET', 'auth/me'); assert.equal(r.data.user.email, email, 'nova sessão vale')
+  void newCookie
   assert.equal(r.data.credits.monthly_credits, 150); assert.equal(r.data.credits.daily_limit, 30)
 
   // mapeamento com 1 área de 1 km e qualificação "tem telefone" + "sem website"
@@ -101,7 +121,7 @@ try {
 
   // isolamento entre usuários
   const myCookie = cookie
-  await api('POST', 'auth/register', { name: 'Outro', email: `o${Date.now()}@ex.com`, password: 'senha-forte-2' }, '')
+  await api('POST', 'auth/register', { name: 'Outro', email: `o${Date.now()}@ex.com`, password: 'senha-forte-2', acceptTerms: true }, '')
   assert.equal((await api('GET', `mapping/result?run=${runId}`)).status, 404, 'outro usuário não vê o mapeamento')
   assert.equal((await api('GET', 'leads')).data.leads.length, 0)
   r = await api('POST', 'leads/capture', { companyIds: ids })

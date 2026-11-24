@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
-import { nav, contact } from '../data'
+import { nav } from '../data'
 import Magnetic from '../components/Magnetic'
 import Glass from '../components/Glass'
 
@@ -58,15 +58,6 @@ export default function Header() {
           </button>
         </div>
       </div>
-      <a
-        className="wa-float"
-        href={`https://wa.me/${contact.whatsapp}`}
-        target="_blank"
-        rel="noreferrer"
-        aria-label="Falar no WhatsApp"
-      >
-        <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.3-.5.1-1 .1-1.7-.1-.4-.1-.9-.3-1.5-.6-2.7-1.2-4.4-3.9-4.6-4.1-.1-.2-1.1-1.5-1.1-2.8 0-1.3.7-2 1-2.3.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.3.5-.4.4c-.1.1-.3.3-.1.6.2.3.7 1.2 1.6 1.9 1.1 1 2 1.3 2.3 1.4.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.7-.1l1.8.9c.3.1.5.2.5.3.1.2.1.7-.1 1.2z" /></svg>
-      </a>
     </header>
   )
 }

@@ -56,8 +56,9 @@ function unsign(token) {
 
 const secureFlag = () => (process.env.VERCEL ? '; Secure' : '')
 
-export function sessionCookie(userId) {
-  const token = sign({ uid: userId, exp: Math.floor(Date.now() / 1000) + MAX_AGE })
+// sv = versão das sessões do usuário; trocar a senha incrementa e derruba as sessões antigas
+export function sessionCookie(userId, sessionVersion = 0) {
+  const token = sign({ uid: userId, sv: sessionVersion, exp: Math.floor(Date.now() / 1000) + MAX_AGE })
   return `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${MAX_AGE}${secureFlag()}`
 }
 
@@ -66,8 +67,11 @@ export const clearCookie = () => `${COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Ma
 export async function currentUser(req) {
   const payload = unsign(parseCookies(req)[COOKIE])
   if (!payload) return null
-  const { rows } = await query('select id, email, name, is_admin, created_at from users where id = $1', [payload.uid])
-  return rows[0] || null
+  const { rows } = await query('select id, email, name, is_admin, created_at, session_version from users where id = $1', [payload.uid])
+  const user = rows[0]
+  if (!user || (payload.sv || 0) !== user.session_version) return null
+  delete user.session_version
+  return user
 }
 
 export async function requireUser(req) {
@@ -81,3 +85,7 @@ export async function requireAdmin(req) {
   if (!user.is_admin) fail(403, 'Acesso restrito ao administrador.')
   return user
 }
+
+// ---- redefinição de senha ----
+export const newResetToken = () => crypto.randomBytes(32).toString('base64url')
+export const hashToken = token => crypto.createHash('sha256').update(String(token)).digest('hex')

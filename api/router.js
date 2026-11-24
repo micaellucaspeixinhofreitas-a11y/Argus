@@ -2,7 +2,8 @@
 // Um único arquivo mantém o projeto dentro do limite de funções do plano gratuito da Vercel.
 import { query, tx } from './_lib/db.js'
 import { send, readJson, fail, HttpError, str, num } from './_lib/http.js'
-import { hashPassword, verifyPassword, sessionCookie, clearCookie, currentUser, requireUser, requireAdmin } from './_lib/auth.js'
+import { hashPassword, verifyPassword, sessionCookie, clearCookie, currentUser, requireUser, requireAdmin, newResetToken, hashToken } from './_lib/auth.js'
+import { sendMail } from './_lib/mail.js'
 import { creditStatus, creditHistory, activePlan, hasPro, TZ } from './_lib/credits.js'
 import { pixConfigured, pixPayload } from './_lib/pix.js'
 import { runMapping, runResults, captureLeads, geocode, parseConfig, LIMITS } from './_lib/mapping.js'
@@ -80,6 +81,7 @@ on('POST', 'auth/register', async ({ body }) => {
   const password = String(body.password || '')
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail(400, 'Informe um e-mail válido.')
   if (password.length < 8) fail(400, 'A senha precisa ter pelo menos 8 caracteres.')
+  if (body.acceptTerms !== true) fail(400, 'Para criar a conta, aceite os Termos de Uso e a Política de Privacidade.')
   const hash = await hashPassword(password)
   const user = await tx(async db => {
     const exists = await db.query('select 1 from users where email = $1', [email])
@@ -87,7 +89,7 @@ on('POST', 'auth/register', async ({ body }) => {
     // a primeira conta criada vira administradora da plataforma
     const { rows: [{ n }] } = await db.query('select count(*)::int as n from users')
     const { rows: [u] } = await db.query(
-      'insert into users (email, name, password_hash, is_admin) values ($1, $2, $3, $4) returning id, email, name, is_admin',
+      'insert into users (email, name, password_hash, is_admin, accepted_terms_at) values ($1, $2, $3, $4, now()) returning id, email, name, is_admin',
       [email, name, hash, n === 0]
     )
     return u
@@ -95,12 +97,81 @@ on('POST', 'auth/register', async ({ body }) => {
   return { status: 201, data: { user }, headers: { 'Set-Cookie': sessionCookie(user.id) } }
 })
 
+// limita tentativas por e-mail para dificultar ataques de força bruta
+const recentEvents = async (type, key, minutes) => {
+  const { rows: [{ n }] } = await query(
+    `select count(*)::int as n from operations_log where type = $1 and detail->>'key' = $2 and created_at > now() - make_interval(mins => $3)`,
+    [type, key, minutes])
+  return n
+}
+const logEvent = (type, key, userId = null) =>
+  query('insert into operations_log (user_id, type, detail) values ($1, $2, $3)', [userId, type, JSON.stringify({ key })])
+
 on('POST', 'auth/login', async ({ body }) => {
   const email = str(body.email, 160).toLowerCase()
-  const { rows: [u] } = await query('select id, email, name, is_admin, password_hash from users where email = $1', [email])
-  if (!u || !(await verifyPassword(String(body.password || ''), u.password_hash))) fail(401, 'E-mail ou senha incorretos.')
+  if ((await recentEvents('login_failed', email, 15)) >= 8) fail(429, 'Muitas tentativas. Aguarde 15 minutos ou redefina sua senha.')
+  const { rows: [u] } = await query('select id, email, name, is_admin, password_hash, session_version from users where email = $1', [email])
+  if (!u || !(await verifyPassword(String(body.password || ''), u.password_hash))) {
+    await logEvent('login_failed', email)
+    fail(401, 'E-mail ou senha incorretos.')
+  }
+  const sv = u.session_version
   delete u.password_hash
-  return { data: { user: u }, headers: { 'Set-Cookie': sessionCookie(u.id) } }
+  delete u.session_version
+  return { data: { user: u }, headers: { 'Set-Cookie': sessionCookie(u.id, sv) } }
+})
+
+// endereço público do site para montar o link do e-mail (nunca a partir do cabeçalho Host em produção)
+const appUrl = req => {
+  if (process.env.APP_URL) return process.env.APP_URL.replace(/\/+$/, '')
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+  return `http://${req.headers['x-forwarded-host'] || req.headers.host}`
+}
+
+const RESET_MINUTES = 60
+
+on('POST', 'auth/forgot', async ({ req, body }) => {
+  const email = str(body.email, 160).toLowerCase()
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail(400, 'Informe um e-mail válido.')
+  // resposta sempre igual: não revela se o e-mail tem conta
+  const done = { ok: true, message: 'Se houver uma conta com este e-mail, enviamos um link para redefinir a senha. Confira também a caixa de spam.' }
+  if ((await recentEvents('password_forgot', email, 60)) >= 3) return done
+  await logEvent('password_forgot', email)
+  const { rows: [u] } = await query('select id, name from users where email = $1', [email])
+  if (!u) return done
+  const token = newResetToken()
+  await query(`insert into password_resets (user_id, token_hash, expires_at) values ($1, $2, now() + make_interval(mins => $3))`,
+    [u.id, hashToken(token), RESET_MINUTES])
+  const link = `${appUrl(req)}/redefinir-senha?token=${token}`
+  const hello = u.name ? `Olá, ${u.name.replace(/[<>&"]/g, '')}!` : 'Olá!'
+  await sendMail({
+    to: email,
+    subject: 'Redefinir sua senha da Argus',
+    text: `${hello}\n\nRecebemos um pedido para redefinir a senha da sua conta na Argus.\nAbra o link abaixo em até ${RESET_MINUTES} minutos:\n\n${link}\n\nSe não foi você, ignore este e-mail: sua senha continua a mesma.`,
+    html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#111"><h2>${hello}</h2><p>Recebemos um pedido para redefinir a senha da sua conta na <strong>Argus</strong>.</p><p><a href="${link}" style="display:inline-block;padding:12px 22px;background:#7c3aed;color:#fff;border-radius:10px;text-decoration:none">Criar nova senha</a></p><p style="color:#555;font-size:14px">O link vale por ${RESET_MINUTES} minutos e só pode ser usado uma vez. Se não foi você, ignore este e-mail: sua senha continua a mesma.</p></div>`,
+  })
+  return done
+})
+
+on('POST', 'auth/reset', async ({ body }) => {
+  const token = str(body.token, 200)
+  const password = String(body.password || '')
+  if (password.length < 8) fail(400, 'A senha precisa ter pelo menos 8 caracteres.')
+  const hash = await hashPassword(password)
+  const user = await tx(async db => {
+    const { rows: [r] } = await db.query(
+      `select id, user_id from password_resets where token_hash = $1 and used_at is null and expires_at > now() for update`, [hashToken(token)])
+    if (!r) fail(400, 'Link inválido ou expirado. Peça um novo link de redefinição.', 'RESET_INVALID')
+    // a troca de senha encerra todas as sessões abertas antes dela
+    await db.query('update users set password_hash = $1, session_version = session_version + 1 where id = $2', [hash, r.user_id])
+    await db.query('update password_resets set used_at = now() where user_id = $1 and used_at is null', [r.user_id])
+    await db.query(`insert into operations_log (user_id, type, detail) values ($1, 'password_reset', '{}')`, [r.user_id])
+    const { rows: [u] } = await db.query('select id, email, name, is_admin, session_version from users where id = $1', [r.user_id])
+    return u
+  })
+  const sv = user.session_version
+  delete user.session_version
+  return { data: { user }, headers: { 'Set-Cookie': sessionCookie(user.id, sv) } }
 })
 
 on('POST', 'auth/logout', async () => ({ data: { ok: true }, headers: { 'Set-Cookie': clearCookie() } }))

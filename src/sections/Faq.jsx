@@ -11,7 +11,7 @@ export default function Faq() {
         <SectionHead
           eyebrow="// Dúvidas frequentes"
           title={<>Perguntas <span className="grad">frequentes.</span></>}
-          text="Não encontrou o que procurava? Fale com a gente pelo WhatsApp."
+          text="Tudo o que você precisa saber antes de começar a prospectar com a Argus."
         />
         <div className="faq">
           {faq.map((item, i) => {

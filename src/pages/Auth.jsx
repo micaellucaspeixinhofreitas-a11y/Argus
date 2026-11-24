@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
+import { api } from '../lib/api'
 
 export default function Auth() {
   const [params, setParams] = useSearchParams()
-  const mode = params.get('modo') === 'cadastro' ? 'register' : 'login'
+  const modo = params.get('modo')
+  const mode = modo === 'cadastro' ? 'register' : modo === 'recuperar' ? 'forgot' : 'login'
   const { user, loading, login, register } = useAuth()
   const navigate = useNavigate()
-  const [form, setForm] = useState({ name: '', email: '', password: '' })
+  const [form, setForm] = useState({ name: '', email: '', password: '', accept: false })
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
 
   const next = params.get('plano') && params.get('plano') !== 'gratuito' ? '/app/planos' : '/app'
@@ -16,13 +19,21 @@ export default function Auth() {
     if (!loading && user) navigate(next, { replace: true })
   }, [loading, user, navigate, next])
 
-  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
+  const set = k => e => {
+    if (k === 'accept' && e.target.checked) setError('')
+    setForm(f => ({ ...f, [k]: k === 'accept' ? e.target.checked : e.target.value }))
+  }
+  const go = m => { setError(''); setNotice(''); setParams(m ? { modo: m } : {}) }
+
   const submit = async e => {
     e.preventDefault()
     setError('')
+    setNotice('')
+    if (mode === 'register' && !form.accept) return setError('Para criar a conta, aceite os Termos de Uso e a Política de Privacidade.')
     setBusy(true)
     try {
-      if (mode === 'register') await register(form.name, form.email, form.password)
+      if (mode === 'register') await register(form.name, form.email, form.password, true)
+      else if (mode === 'forgot') setNotice((await api('auth/forgot', { method: 'POST', body: { email: form.email } })).message)
       else await login(form.email, form.password)
     } catch (err) {
       setError(err.code === 'DB_NOT_CONFIGURED' ? 'A plataforma ainda está sendo configurada. Tente novamente em instantes.' : err.message)
@@ -31,6 +42,13 @@ export default function Auth() {
     }
   }
 
+  const title = { register: 'Crie sua conta', forgot: 'Esqueceu a senha?', login: 'Entre na sua conta' }[mode]
+  const lead = {
+    register: 'Comece grátis e mapeie sua primeira região em minutos.',
+    forgot: 'Informe o e-mail da sua conta e enviaremos um link para criar uma nova senha.',
+    login: 'Continue de onde parou na sua prospecção.',
+  }[mode]
+
   return (
     <main className="auth">
       <div className="auth__glow" aria-hidden="true" />
@@ -38,10 +56,8 @@ export default function Auth() {
         <img src="/argus-chrome.webp" alt="Argus" width="1400" height="454" />
       </Link>
       <form className="auth__card card" onSubmit={submit}>
-        <h1>{mode === 'register' ? 'Crie sua conta' : 'Entre na sua conta'}</h1>
-        <p className="muted">
-          {mode === 'register' ? 'Comece grátis e mapeie sua primeira região em minutos.' : 'Continue de onde parou na sua prospecção.'}
-        </p>
+        <h1>{title}</h1>
+        <p className="muted">{lead}</p>
         {mode === 'register' && (
           <label className="field">
             <span>Nome</span>
@@ -52,21 +68,42 @@ export default function Auth() {
           <span>E-mail</span>
           <input type="email" required value={form.email} onChange={set('email')} placeholder="voce@empresa.com" autoComplete="email" />
         </label>
-        <label className="field">
-          <span>Senha</span>
-          <input type="password" required minLength={8} value={form.password} onChange={set('password')}
-            placeholder={mode === 'register' ? 'Mínimo de 8 caracteres' : 'Sua senha'}
-            autoComplete={mode === 'register' ? 'new-password' : 'current-password'} />
-        </label>
+        {mode !== 'forgot' && (
+          <label className="field">
+            <span>Senha</span>
+            <input type="password" required minLength={8} value={form.password} onChange={set('password')}
+              placeholder={mode === 'register' ? 'Mínimo de 8 caracteres' : 'Sua senha'}
+              autoComplete={mode === 'register' ? 'new-password' : 'current-password'} />
+          </label>
+        )}
+        {mode === 'login' && (
+          <button type="button" className="link auth__forgot" onClick={() => go('recuperar')}>Esqueci minha senha</button>
+        )}
+        {mode === 'register' && (
+          <label className="auth__terms">
+            <input type="checkbox" checked={form.accept} onChange={set('accept')} />
+            <span>
+              Li e aceito os <Link to="/termos" target="_blank">Termos de Uso</Link> e a{' '}
+              <Link to="/privacidade" target="_blank">Política de Privacidade</Link>.
+            </span>
+          </label>
+        )}
         {error && <p className="form-error" role="alert">{error}</p>}
+        {notice && <p className="form-notice" role="status">{notice}</p>}
         <button className="btn btn--primary btn--block" disabled={busy}>
-          {busy ? 'Aguarde…' : mode === 'register' ? 'Criar conta grátis' : 'Entrar'}
+          {busy ? 'Aguarde…' : mode === 'register' ? 'Criar conta grátis' : mode === 'forgot' ? 'Enviar link' : 'Entrar'}
         </button>
         <p className="auth__switch">
-          {mode === 'register' ? 'Já tem conta?' : 'Ainda não tem conta?'}{' '}
-          <button type="button" className="link" onClick={() => { setError(''); setParams(mode === 'register' ? {} : { modo: 'cadastro' }) }}>
-            {mode === 'register' ? 'Entrar' : 'Criar conta grátis'}
-          </button>
+          {mode === 'forgot' ? (
+            <button type="button" className="link" onClick={() => go(null)}>Voltar para o login</button>
+          ) : (
+            <>
+              {mode === 'register' ? 'Já tem conta?' : 'Ainda não tem conta?'}{' '}
+              <button type="button" className="link" onClick={() => go(mode === 'register' ? null : 'cadastro')}>
+                {mode === 'register' ? 'Entrar' : 'Criar conta grátis'}
+              </button>
+            </>
+          )}
         </p>
       </form>
     </main>

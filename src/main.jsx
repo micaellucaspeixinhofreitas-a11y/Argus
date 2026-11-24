@@ -4,6 +4,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './lib/auth'
 import App from './App'
 import Auth from './pages/Auth'
+import ResetPassword from './pages/ResetPassword'
+import Legal from './pages/Legal'
+import CookieNotice from './components/CookieNotice'
 import './index.css'
 
 // A plataforma (mapa etc.) é carregada sob demanda para a página inicial ficar leve
@@ -18,9 +21,13 @@ createRoot(document.getElementById('root')).render(
         <Routes>
           <Route path="/" element={<App />} />
           <Route path="/entrar" element={<Auth />} />
+          <Route path="/redefinir-senha" element={<ResetPassword />} />
+          <Route path="/privacidade" element={<Legal doc="privacy" />} />
+          <Route path="/termos" element={<Legal doc="terms" />} />
           <Route path="/app/*" element={<Suspense fallback={<Loading />}><Platform /></Suspense>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <CookieNotice />
       </BrowserRouter>
     </AuthProvider>
   </StrictMode>
