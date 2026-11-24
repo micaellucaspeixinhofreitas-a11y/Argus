@@ -7,6 +7,9 @@ import { creditStatus, creditHistory, activePlan, TZ } from './_lib/credits.js'
 import { runMapping, runResults, captureLeads, geocode, parseConfig, LIMITS } from './_lib/mapping.js'
 import { catalogList, resolveSegments, ALL_BUSINESS } from './_lib/segments.js'
 import { provider } from './_lib/providers/index.js'
+import * as googleSource from './_lib/providers/google.js'
+import * as tomtomSource from './_lib/providers/tomtom.js'
+const PAID_SOURCES = { google: googleSource, tomtom: tomtomSource }
 import { criteriaList } from './_lib/qualify.js'
 import { createCheckout, periodMonths, paymentProvider } from './_lib/payments.js'
 
@@ -32,6 +35,17 @@ on('GET', 'health', async ({ url }) => {
       out.source = { ok: true, provider: prov.name, geocoded: place.display_name, sample: found.length, google: by('google').length, tomtom: by('tomtom').length, osm: by('osm').length, with_phone: found.filter(f => f.phone).length, with_website: found.filter(f => f.website).length, example: found[0]?.name }
     } catch (e) {
       out.source = { ok: false, error: e.message }
+    }
+    // testa cada fonte com chave isoladamente (só contagens e mensagens de erro)
+    out.sources = {}
+    for (const [label, mod] of Object.entries(PAID_SOURCES)) {
+      if (!mod.available()) { out.sources[label] = 'sem chave'; continue }
+      try {
+        const r = await mod.searchPlaces({ areas: [{ lat: -23.5614, lng: -46.6559, radius_m: 500 }], segments: resolveSegments(['restaurantes']), allBusiness: ALL_BUSINESS, country: 'BR' })
+        out.sources[label] = { ok: true, results: r.length, with_phone: r.filter(x => x.phone).length, with_website: r.filter(x => x.website).length, example: r[0]?.name }
+      } catch (e) {
+        out.sources[label] = { ok: false, error: String(e.message).slice(0, 200) }
+      }
     }
   }
   // ?basemap=1: confere se a chave libera as imagens do mapa (só códigos HTTP)
