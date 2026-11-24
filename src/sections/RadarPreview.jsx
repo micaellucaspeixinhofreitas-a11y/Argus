@@ -1,7 +1,4 @@
-import { HugeiconsIcon } from '@hugeicons/react'
-import { Radar01Icon, Target02Icon, GlobeIcon, CallIcon, MapsLocation01Icon, Download04Icon } from '@hugeicons/core-free-icons'
 import Icon from '../components/Icons'
-import AnimatedList from '../components/AnimatedList'
 import SpecularLink from '../components/SpecularLink'
 import SectionHead from './SectionHead'
 import { useAuth } from '../lib/auth'
@@ -20,18 +17,6 @@ const INDICATORS = [
   { key: 'noweb', label: 'Sem website', hint: 'sem site institucional localizado' },
 ]
 
-const glyph = icon => <HugeiconsIcon icon={icon} size={18} strokeWidth={1.8} />
-
-// O que cada mapeamento entrega
-const LIST_ITEMS = [
-  { icon: glyph(Radar01Icon), title: 'Mapeadas', description: 'Identificadas no território', meta: 'Radar' },
-  { icon: glyph(Target02Icon), title: 'Alta aderência', description: 'Atendem aos seus critérios', meta: 'Radar' },
-  { icon: glyph(GlobeIcon), title: 'Sem website', description: 'Sem site localizado', meta: 'Radar' },
-  { icon: glyph(CallIcon), title: 'Telefone e endereço', description: 'Contato de cada empresa', meta: 'Lead' },
-  { icon: glyph(MapsLocation01Icon), title: 'Várias áreas no mapa', description: 'Cada área com seu raio', meta: 'Mapa' },
-  { icon: glyph(Download04Icon), title: 'Exportação em CSV', description: 'Leve seus leads para o CRM', meta: 'Leads' },
-]
-
 export default function RadarPreview() {
   const { user } = useAuth()
   return (
@@ -43,28 +28,11 @@ export default function RadarPreview() {
             title={<>Veja onde estão as <span className="grad">melhores oportunidades.</span></>}
             text="Cada mapeamento alimenta o radar com três indicadores calculados a partir dos dados realmente encontrados. A lista já vem priorizada por aderência e presença digital."
           />
-          <div className="radar-prev__list" data-reveal>
-            <AnimatedList
-              items={LIST_ITEMS}
-              onItemSelect={() => {}}
-              animation="pop"
-              theme="dark"
-              width={420}
-              maxHeight={440}
-              radius={14}
-              gap={8}
-              stagger={0.05}
-              fadeSize={56}
-              frame
-              showGradients
-              displayScrollbar
-              selectOnHover
-              enableArrowNavigation
-              loop={false}
-              animateOnce={false}
-              initialSelectedIndex={-1}
-            />
-          </div>
+          <ul className="radar-prev__list" data-reveal>
+            {INDICATORS.map(i => (
+              <li key={i.key}><span className={`dot dot--${i.key}`} /> <strong>{i.label}</strong> — {i.hint}</li>
+            ))}
+          </ul>
           <div data-reveal>
             <SpecularLink to={user ? '/app' : '/entrar?modo=cadastro'}>
               Mapear minha região <Icon name="arrow" size={18} />
