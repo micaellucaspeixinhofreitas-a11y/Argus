@@ -261,3 +261,7 @@
 @keyframes icon-float { 50% { transform: translateY(-6px); } }
 @media (prefers-reduced-motion: reduce) { .empty-state__icon { animation: none; } }
 @media (max-width: 700px) { .page__icon { width: 44px; height: 44px; } }
+.plan-card__icon { width: 52px; height: 52px; object-fit: contain; filter: drop-shadow(0 8px 16px rgba(139, 92, 246, .45)); margin-bottom: 2px; }
+.coupon__label { display: inline-flex; align-items: center; gap: 8px; }
+.coupon__label img, .h2-icon img { object-fit: contain; filter: drop-shadow(0 3px 8px rgba(139, 92, 246, .5)); }
+.h2-icon { display: flex; align-items: center; gap: 10px; }

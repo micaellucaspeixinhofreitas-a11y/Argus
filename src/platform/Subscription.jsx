@@ -65,7 +65,7 @@ export default function Subscription() {
     <div className="page">
       <header className="page__head">
         <div>
-          <img className="page__icon" src="/icons/escudo.webp" alt="" width="56" height="56" /><p className="eyebrow">// Planos</p><h1>Plano e <span className="grad">assinatura</span></h1>
+          <img className="page__icon" src="/icons/coroa.webp" alt="" width="56" height="56" /><p className="eyebrow">// Planos</p><h1>Plano e <span className="grad">assinatura</span></h1>
           <p className="muted">Compare limites, escolha a periodicidade, pague com Pix e acompanhe sua assinatura.</p>
         </div>
       </header>
@@ -114,6 +114,7 @@ export default function Subscription() {
           const isCurrent = current.id === p.id
           return (
             <article key={p.id} className={`card plan-card ${isCurrent ? "is-current" : ""} ${free ? "" : "is-featured"}`}>
+              <img className="plan-card__icon" src={`/icons/${free ? 'presente' : 'coroa'}.webp`} alt="" width="52" height="52" />
               <h3>{p.name}</h3>
               <p className="muted">{p.description}</p>
               <div className="plan-card__price">{free ? 'Grátis' : money(cents)}<small>{free ? '' : period === 'quarterly' ? '/trimestre' : '/mês'}</small></div>
@@ -142,7 +143,7 @@ export default function Subscription() {
           </div>
           <form className="coupon" onSubmit={e => { e.preventDefault(); applyCoupon() }}>
             <label className="field">
-              <span>Cupom de desconto</span>
+              <span className="coupon__label"><img src="/icons/presente.webp" alt="" width="22" height="22" /> Cupom de desconto</span>
               <div className="coupon__row">
                 <input value={couponInput} onChange={e => setCouponInput(e.target.value.toUpperCase())} placeholder="Ex.: LANCAMENTO20" autoComplete="off" />
                 {coupon

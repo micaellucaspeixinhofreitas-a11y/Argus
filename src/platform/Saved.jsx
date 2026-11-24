@@ -46,13 +46,13 @@ export default function Saved() {
     <div className="page">
       <header className="page__head">
         <div>
-          <img className="page__icon" src="/icons/terminal.webp" alt="" width="56" height="56" /><p className="eyebrow">// Buscas salvas</p><h1>Buscas <span className="grad">salvas</span></h1>
+          <img className="page__icon" src="/icons/dados.webp" alt="" width="56" height="56" /><p className="eyebrow">// Buscas salvas</p><h1>Buscas <span className="grad">salvas</span></h1>
           <p className="muted">Configurações de prospecção guardadas para reutilizar: segmento, país, localidade, qualificação, raio e áreas.</p>
         </div>
       </header>
       {error && <p className="form-error">{error}</p>}
       {searches === null ? <p className="muted">Carregando…</p> : searches.length === 0 ? (
-        <div className="card empty-state"><img className="empty-state__icon" src="/icons/terminal.webp" alt="" width="88" height="88" /><p><strong>Nenhuma busca salva.</strong> Na tela Prospectar, configure sua busca e clique em <em>Salvar busca</em>.</p></div>
+        <div className="card empty-state"><img className="empty-state__icon" src="/icons/dados.webp" alt="" width="88" height="88" /><p><strong>Nenhuma busca salva.</strong> Na tela Prospectar, configure sua busca e clique em <em>Salvar busca</em>.</p></div>
       ) : (
         <div className="saved-grid">
           {searches.map(s => (

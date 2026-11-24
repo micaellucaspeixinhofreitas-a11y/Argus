@@ -102,7 +102,7 @@ export default function Admin() {
 
   return (
     <div className="page">
-      <header className="page__head"><div><img className="page__icon" src="/icons/codigo.webp" alt="" width="56" height="56" /><p className="eyebrow">// Admin</p><h1><span className="grad">Administração</span></h1><p className="muted">Planos, limites, usuários e assinaturas.</p></div></header>
+      <header className="page__head"><div><img className="page__icon" src="/icons/engrenagem.webp" alt="" width="56" height="56" /><p className="eyebrow">// Admin</p><h1><span className="grad">Administração</span></h1><p className="muted">Planos, limites, usuários e assinaturas.</p></div></header>
       {msg && <p className="form-notice">{msg}</p>}
       {error && <p className="form-error">{error}</p>}
       <div className="stat-grid">
@@ -112,11 +112,11 @@ export default function Admin() {
         <div className="card stat-card"><small>Mapeamentos</small><strong>{fmtInt(data.totals.runs)}</strong></div>
       </div>
 
-      <h2>Planos</h2>
+      <h2 className="h2-icon"><img src="/icons/coroa.webp" alt="" width="26" height="26" /> Planos</h2>
       {data.plans.map(p => <PlanForm key={p.id + p.updated_at} plan={p} onSave={body => act(() => api('admin/plans', { method: 'POST', body }), 'Plano salvo.')} />)}
       <details className="card"><summary>Novo plano</summary><PlanForm plan={blankPlan} onSave={body => act(() => api('admin/plans', { method: 'POST', body }), 'Plano criado.')} /></details>
 
-      <h2>Cupons de desconto</h2>
+      <h2 className="h2-icon"><img src="/icons/presente.webp" alt="" width="26" height="26" /> Cupons de desconto</h2>
       <details className="card"><summary>Novo cupom</summary>
         <CouponForm plans={data.plans} onSave={async body => {
           setError(''); setMsg('')
@@ -149,7 +149,7 @@ export default function Admin() {
         </table>
       </div>
 
-      <h2>Últimos mapeamentos</h2>
+      <h2 className="h2-icon"><img src="/icons/codigo.webp" alt="" width="26" height="26" /> Últimos mapeamentos</h2>
       <div className="table-wrap card">
         <table className="table table--cards">
           <thead><tr><th>Quando</th><th>Usuário</th><th>Busca</th><th>Resultado</th></tr></thead>
@@ -167,7 +167,7 @@ export default function Admin() {
         </table>
       </div>
 
-      <h2>Usuários</h2>
+      <h2 className="h2-icon"><img src="/icons/usuario.webp" alt="" width="26" height="26" /> Usuários</h2>
       <div className="table-wrap card">
         <table className="table table--cards">
           <thead><tr><th>Usuário</th><th>Assinatura</th><th>Uso</th><th>Ações</th></tr></thead>
