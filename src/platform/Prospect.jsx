@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   LuTarget, LuFilter, LuLayers, LuSearch, LuX, LuTrash2, LuRefreshCw, LuPlay, LuSave, LuCrosshair,
   LuGlobe, LuPhone, LuMail, LuMapPin, LuCheck, LuLoader, LuLocateFixed,
+  LuScanSearch, LuGlobeLock,
 } from 'react-icons/lu'
 import MapView from './MapView'
 import ProLock from './ProLock'
@@ -473,13 +474,13 @@ export default function Prospect() {
           {stale && <p className="form-notice">Você alterou os critérios. Clique em <strong>Mapear oportunidades</strong> para atualizar os resultados.</p>}
           <div className="radar__cards">
             <button className={`radar-card ${filter === 'all' ? 'is-on' : ''}`} onClick={() => setFilter('all')}>
-              <small>Mapeadas</small><strong>{fmtInt(result?.run.total ?? 0)}</strong>
+              <span className="radar-card__ic"><LuScanSearch /></span><small>Mapeadas</small><strong>{fmtInt(result?.run.total ?? 0)}</strong>
             </button>
             <button className={`radar-card radar-card--fit ${filter === 'fit' ? 'is-on' : ''}`} onClick={() => setFilter('fit')}>
-              <small>Alta aderência</small><strong>{result && !result.run.config.qualification.criteria.length ? '—' : fmtInt(result?.run.high_fit ?? 0)}</strong>
+              <span className="radar-card__ic"><LuTarget /></span><small>Alta aderência</small><strong>{result && !result.run.config.qualification.criteria.length ? '—' : fmtInt(result?.run.high_fit ?? 0)}</strong>
             </button>
             <button className={`radar-card radar-card--noweb ${filter === 'noweb' ? 'is-on' : ''}`} onClick={() => setFilter('noweb')}>
-              <small>Sem website</small><strong>{fmtInt(result?.run.no_website ?? 0)}</strong>
+              <span className="radar-card__ic"><LuGlobeLock /></span><small>Sem website</small><strong>{fmtInt(result?.run.no_website ?? 0)}</strong>
             </button>
           </div>
           {result && !result.run.config.qualification.criteria.length && (
