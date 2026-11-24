@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { LuRadar, LuUsers, LuBookmark, LuCoins, LuCrown, LuShield, LuLogOut, LuHouse, LuUserCog, LuMenu, LuX, LuPlus, LuChevronRight } from 'react-icons/lu'
+import { LuRadar, LuUsers, LuBookmark, LuCoins, LuCrown, LuShield, LuLogOut, LuHouse, LuUserCog } from 'react-icons/lu'
+import Dock from '../components/Dock'
 import { useAuth } from '../lib/auth'
 import { api, fmtInt } from '../lib/api'
 import Prospect from './Prospect'
@@ -56,105 +57,103 @@ function ProspectProvider({ children }) {
   )
 }
 
-// Navegação lateral da plataforma
-const NAV = [
-  { group: 'Prospecção', items: [
-    { to: '/app', label: 'Prospectar', icon: LuRadar, exact: true },
-    { to: '/app/buscas', label: 'Buscas salvas', icon: LuBookmark },
-  ] },
-  { group: 'Resultados', items: [
-    { to: '/app/leads', label: 'Leads', icon: LuUsers },
-  ] },
-  { group: 'Conta', items: [
-    { to: '/app/creditos', label: 'Créditos', icon: LuCoins },
-    { to: '/app/planos', label: 'Planos', icon: LuCrown },
-    { to: '/app/conta', label: 'Minha conta', icon: LuUserCog },
-  ] },
-]
+// Dock de navegação da plataforma (fixa na parte de baixo)
+function PlatformDock() {
+  const { user, credits, logout } = useAuth()
+  const { setConfig, setResult } = useProspect()
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const at = path => (path === '/app' ? pathname === '/app' || pathname === '/app/' : pathname.startsWith(path))
+  const go = path => () => navigate(path)
+
+  const items = [
+    {
+      icon: <LuRadar />, label: 'Prospectar', active: at('/app'), onClick: go('/app'),
+      menu: [
+        { label: 'Nova prospecção', onClick: () => { setConfig(emptyConfig()); setResult(null); navigate('/app') } },
+        { label: 'Abrir buscas salvas', onClick: go('/app/buscas') },
+      ],
+    },
+    {
+      icon: <LuUsers />, label: 'Leads', active: at('/app/leads'), onClick: go('/app/leads'),
+      menu: [
+        { label: 'Ver leads capturados', onClick: go('/app/leads') },
+        { separator: true },
+        { label: 'Exportar CSV', onClick: () => { window.location.href = '/api/leads/export' } },
+      ],
+    },
+    { icon: <LuBookmark />, label: 'Buscas salvas', active: at('/app/buscas'), onClick: go('/app/buscas') },
+    {
+      icon: <LuCoins />, label: credits ? `Créditos · ${fmtInt(credits.available)} disponíveis` : 'Créditos',
+      active: at('/app/creditos'), onClick: go('/app/creditos'),
+      badge: credits && credits.can_spend === 0 ? '!' : undefined,
+    },
+    { icon: <LuUserCog />, label: 'Minha conta', active: at('/app/conta'), onClick: go('/app/conta') },
+    ...(user.is_admin ? [{ icon: <LuShield />, label: 'Admin', active: at('/app/admin'), onClick: go('/app/admin') }] : []),
+    { separator: true },
+    { icon: <LuHouse />, label: 'Página inicial', onClick: go('/') },
+    { icon: <LuLogOut />, label: 'Sair', onClick: async () => { await logout(); navigate('/') } },
+  ]
+
+  return (
+    <div className="pf-dock">
+      <Dock
+        items={items}
+        baseItemSize={50}
+        magnification={70}
+        panelHeight={68}
+        accentColor="#8b5cf6"
+        badgeColor="#f472b6"
+        position="bottom"
+        distance={200}
+        gap={10}
+        roundness={0.5}
+        bounce
+        autoHide={false}
+        tiles
+        showLabels
+        showIndicators
+        showBadges
+        spring={{ mass: 0.1, stiffness: 220, damping: 4 }}
+      />
+    </div>
+  )
+}
 
 const TITLES = [
   ['/app/leads', 'Leads'], ['/app/buscas', 'Buscas salvas'], ['/app/creditos', 'Créditos'],
   ['/app/planos', 'Planos'], ['/app/conta', 'Minha conta'], ['/app/admin', 'Administração'],
 ]
 
-function Sidebar({ open, onClose }) {
-  const { user, credits, pro, logout } = useAuth()
-  const navigate = useNavigate()
-  const groups = user.is_admin
-    ? [...NAV, { group: 'Administração', items: [{ to: '/app/admin', label: 'Admin', icon: LuShield }] }]
-    : NAV
-  const monthPct = credits?.monthly_credits ? Math.min(100, (credits.available / credits.monthly_credits) * 100) : 0
-  const initial = (user.name || user.email || '?').trim().charAt(0).toUpperCase()
-
-  return (
-    <>
-      <div className={`side-overlay ${open ? 'is-open' : ''}`} onClick={onClose} aria-hidden="true" />
-      <aside className={`side ${open ? 'is-open' : ''}`} aria-label="Navegação da plataforma">
-        <div className="side__top">
-          <NavLink to="/" className="side__brand" aria-label="Argus — página inicial">
-            <img src="/argus-white.webp" alt="Argus" width="1400" height="423" />
-          </NavLink>
-          <button className="side__close" onClick={onClose} aria-label="Fechar menu"><LuX /></button>
-        </div>
-
-        <nav className="side__nav">
-          {groups.map(g => (
-            <div className="side__group" key={g.group}>
-              <span className="side__label">{g.group}</span>
-              {g.items.map(({ to, label, icon: Icon, exact }) => (
-                <NavLink key={to} to={to} end={exact} className={({ isActive }) => `side__link ${isActive ? 'is-active' : ''}`} onClick={onClose}>
-                  <Icon aria-hidden="true" />
-                  <span>{label}</span>
-                  {to === '/app/creditos' && credits?.can_spend === 0 && <em className="side__badge">!</em>}
-                </NavLink>
-              ))}
-            </div>
-          ))}
-        </nav>
-
-        {credits && (
-          <div className="side__credits">
-            <div className="side__credits-head">
-              <span>Plano {credits.plan?.name || ''}</span>
-              {pro && <em className="side__pro">PRO</em>}
-            </div>
-            <strong>{fmtInt(credits.available)}<small> / {fmtInt(credits.monthly_credits)}</small></strong>
-            <span className="side__meter"><i style={{ width: `${monthPct}%` }} /></span>
-            <small className="side__muted">Hoje: {fmtInt(credits.today_used)} de {fmtInt(credits.daily_limit)} leads</small>
-            {!pro && <NavLink to="/app/planos" className="side__upgrade" onClick={onClose}><LuCrown aria-hidden="true" /> Assinar o Pro</NavLink>}
-          </div>
-        )}
-
-        <div className="side__user">
-          <span className="side__avatar" aria-hidden="true">{initial}</span>
-          <span className="side__who">
-            <strong>{user.name || 'Minha conta'}</strong>
-            <small>{user.email}</small>
-          </span>
-          <button className="side__icon" title="Sair" aria-label="Sair" onClick={async () => { await logout(); navigate('/') }}><LuLogOut /></button>
-        </div>
-        <NavLink to="/" className="side__home"><LuHouse aria-hidden="true" /> Página inicial</NavLink>
-      </aside>
-    </>
-  )
-}
-
-function TopBar({ onMenu }) {
-  const { setConfig, setResult } = useProspect()
-  const navigate = useNavigate()
+// Cabeçalho da plataforma: marca, página atual, plano, créditos e conta
+function TopBar() {
+  const { user, credits, pro } = useAuth()
   const { pathname } = useLocation()
   const title = TITLES.find(([p]) => pathname.startsWith(p))?.[1] || 'Prospectar'
+  const initial = (user.name || user.email || '?').trim().charAt(0).toUpperCase()
   return (
     <header className="topbar">
-      <button className="topbar__menu" onClick={onMenu} aria-label="Abrir menu"><LuMenu /></button>
-      <NavLink to="/app" className="topbar__logo" aria-label="Argus"><img src="/argus-white.webp" alt="" width="1400" height="423" /></NavLink>
-      <div className="topbar__crumbs">
-        <span>Argus</span><LuChevronRight aria-hidden="true" /><strong>{title}</strong>
-      </div>
-      <div className="topbar__actions">
-        <button className="btn btn--primary btn--sm topbar__new" onClick={() => { setConfig(emptyConfig()); setResult(null); navigate('/app') }}>
-          <LuPlus aria-hidden="true" /> <span>Nova prospecção</span>
-        </button>
+      <div className="topbar__inner">
+        <NavLink to="/" className="topbar__logo" aria-label="Argus — página inicial">
+          <img src="/argus-white.webp" alt="Argus" width="1400" height="423" />
+        </NavLink>
+        <span className="topbar__sep" aria-hidden="true">/</span>
+        <span className="topbar__title">{title}</span>
+        <div className="topbar__actions">
+          {credits && (
+            <NavLink to="/app/creditos" className="topbar__credits" title="Créditos disponíveis no mês · leads capturados hoje">
+              <LuCoins aria-hidden="true" />
+              <strong>{fmtInt(credits.available)}</strong>
+              <span>créditos</span>
+              <i aria-hidden="true" />
+              <small>{fmtInt(credits.today_used)}/{fmtInt(credits.daily_limit)} hoje</small>
+            </NavLink>
+          )}
+          <NavLink to="/app/planos" className={`topbar__plan ${pro ? '' : 'is-upgrade'}`}>
+            <LuCrown aria-hidden="true" /> <span>{pro ? 'Planos' : 'Assinar Pro'}</span>
+          </NavLink>
+          <NavLink to="/app/conta" className="topbar__avatar" title="Minha conta" aria-label="Minha conta">{initial}</NavLink>
+        </div>
       </div>
     </header>
   )
@@ -162,32 +161,28 @@ function TopBar({ onMenu }) {
 
 export default function Platform() {
   const { user, loading } = useAuth()
-  const { search, pathname } = useLocation()
-  const [menuOpen, setMenuOpen] = useState(false)
-  useEffect(() => { setMenuOpen(false) }, [pathname])
+  const { search } = useLocation()
   if (loading) return <div className="page-loading"><span className="spinner" /> Carregando…</div>
   if (!user) return <Navigate to="/entrar" replace />
 
   return (
     <ProspectProvider>
       <div className="pf app">
-        <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
-        <div className="app__main">
-          <TopBar onMenu={() => setMenuOpen(true)} />
-          <main className="pf-main app__content">
-            <Routes>
-              <Route index element={<Prospect />} />
-              <Route path="leads" element={<Leads />} />
-              <Route path="buscas" element={<Saved />} />
-              <Route path="creditos" element={<Credits />} />
-              <Route path="planos" element={<Subscription />} />
-              <Route path="conta" element={<Account />} />
-              <Route path="pagamento" element={<Navigate to={`/app/planos${search}`} replace />} />
-              {user.is_admin && <Route path="admin" element={<Admin />} />}
-              <Route path="*" element={<Navigate to="/app" replace />} />
-            </Routes>
-          </main>
-        </div>
+        <TopBar />
+        <main className="pf-main app__content">
+          <Routes>
+            <Route index element={<Prospect />} />
+            <Route path="leads" element={<Leads />} />
+            <Route path="buscas" element={<Saved />} />
+            <Route path="creditos" element={<Credits />} />
+            <Route path="planos" element={<Subscription />} />
+            <Route path="conta" element={<Account />} />
+            <Route path="pagamento" element={<Navigate to={`/app/planos${search}`} replace />} />
+            {user.is_admin && <Route path="admin" element={<Admin />} />}
+            <Route path="*" element={<Navigate to="/app" replace />} />
+          </Routes>
+        </main>
+        <PlatformDock />
       </div>
     </ProspectProvider>
   )
