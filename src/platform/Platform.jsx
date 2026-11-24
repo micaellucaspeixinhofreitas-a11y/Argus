@@ -1,10 +1,11 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { LuRadar, LuUsers, LuBookmark, LuCoins, LuCrown, LuShield, LuLogOut, LuHouse, LuUserCog } from 'react-icons/lu'
+import { LuRadar, LuUsers, LuBookmark, LuCoins, LuCrown, LuShield, LuLogOut, LuHouse, LuUserCog, LuLayoutDashboard } from 'react-icons/lu'
 import Dock from '../components/Dock'
 import { useAuth } from '../lib/auth'
 import { api, fmtInt } from '../lib/api'
 import Prospect from './Prospect'
+import Dashboard from './Dashboard'
 import Leads from './Leads'
 import Saved from './Saved'
 import Credits from './Credits'
@@ -67,10 +68,11 @@ function PlatformDock() {
   const go = path => () => navigate(path)
 
   const items = [
+    { icon: <LuLayoutDashboard />, label: 'Dashboard', active: at('/app'), onClick: go('/app') },
     {
-      icon: <LuRadar />, label: 'Prospectar', active: at('/app'), onClick: go('/app'),
+      icon: <LuRadar />, label: 'Prospectar', active: at('/app/prospectar'), onClick: go('/app/prospectar'),
       menu: [
-        { label: 'Nova prospecção', onClick: () => { setConfig(emptyConfig()); setResult(null); navigate('/app') } },
+        { label: 'Nova prospecção', onClick: () => { setConfig(emptyConfig()); setResult(null); navigate('/app/prospectar') } },
         { label: 'Abrir buscas salvas', onClick: go('/app/buscas') },
       ],
     },
@@ -121,6 +123,7 @@ function PlatformDock() {
 }
 
 const TITLES = [
+  ['/app/prospectar', 'Prospectar'],
   ['/app/leads', 'Leads'], ['/app/buscas', 'Buscas salvas'], ['/app/creditos', 'Créditos'],
   ['/app/planos', 'Planos'], ['/app/conta', 'Minha conta'], ['/app/admin', 'Administração'],
 ]
@@ -129,7 +132,7 @@ const TITLES = [
 function TopBar() {
   const { user, credits, pro } = useAuth()
   const { pathname } = useLocation()
-  const title = TITLES.find(([p]) => pathname.startsWith(p))?.[1] || 'Prospectar'
+  const title = TITLES.find(([p]) => pathname.startsWith(p))?.[1] || 'Dashboard'
   const initial = (user.name || user.email || '?').trim().charAt(0).toUpperCase()
   return (
     <header className="topbar">
@@ -171,7 +174,8 @@ export default function Platform() {
         <TopBar />
         <main className="pf-main app__content">
           <Routes>
-            <Route index element={<Prospect />} />
+            <Route index element={<Dashboard />} />
+            <Route path="prospectar" element={<Prospect />} />
             <Route path="leads" element={<Leads />} />
             <Route path="buscas" element={<Saved />} />
             <Route path="creditos" element={<Credits />} />

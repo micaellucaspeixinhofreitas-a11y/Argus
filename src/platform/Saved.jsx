@@ -34,7 +34,7 @@ export default function Saved() {
     setConfig(toDraft(s.config))
     setResult(null)
     if (runNow) setPendingRun({ savedSearchId: s.id })
-    navigate('/app')
+    navigate('/app/prospectar')
   }
   const remove = async s => {
     if (!window.confirm(`Excluir a busca "${s.name}"?`)) return

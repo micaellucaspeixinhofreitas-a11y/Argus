@@ -393,6 +393,65 @@ on('GET', 'radar', async ({ req, url }) => {
   return { run, all, leads, priority: priority.slice(0, 12) }
 })
 
+// ---------- dashboard (visão geral de tudo que o usuário produziu) ----------
+on('GET', 'dashboard', async ({ req, url }) => {
+  const user = await requireUser(req)
+  const days = [7, 30, 90].includes(Number(url.searchParams.get('dias'))) ? Number(url.searchParams.get('dias')) : 30
+  const uid = user.id
+  const [totals, prev, series, segments, cities, categories, quality, runs, leads, searches] = await Promise.all([
+    query(
+      `select (select count(*) from leads where user_id = $1)::int as leads,
+              (select count(*) from leads where user_id = $1 and high_fit)::int as leads_high_fit,
+              (select count(*) from mapping_runs where user_id = $1)::int as runs,
+              (select count(distinct r.company_id) from mapping_results r join mapping_runs m on m.id = r.run_id and m.user_id = $1)::int as mapped,
+              (select count(*) from saved_searches where user_id = $1)::int as searches,
+              (select count(*) from leads where user_id = $1 and captured_at > now() - make_interval(days => $2))::int as leads_period,
+              (select count(*) from mapping_runs where user_id = $1 and created_at > now() - make_interval(days => $2))::int as runs_period,
+              (select coalesce(-sum(amount), 0) from credit_ledger where user_id = $1 and amount < 0 and created_at > now() - make_interval(days => $2))::int as credits_period`,
+      [uid, days]),
+    query(
+      `select (select count(*) from leads where user_id = $1 and captured_at <= now() - make_interval(days => $2) and captured_at > now() - make_interval(days => $2 * 2))::int as leads,
+              (select count(*) from mapping_runs where user_id = $1 and created_at <= now() - make_interval(days => $2) and created_at > now() - make_interval(days => $2 * 2))::int as runs`,
+      [uid, days]),
+    query(
+      `with d as (select generate_series((now() at time zone $3)::date - ($2 - 1), (now() at time zone $3)::date, interval '1 day')::date as day)
+       select to_char(d.day, 'YYYY-MM-DD') as day,
+              (select count(*) from leads l where l.user_id = $1 and (l.captured_at at time zone $3)::date = d.day)::int as leads,
+              (select count(*) from mapping_runs m where m.user_id = $1 and (m.created_at at time zone $3)::date = d.day)::int as runs
+         from d order by d.day`,
+      [uid, days, TZ]),
+    query(
+      `select s as label, count(*)::int as n from mapping_runs m, jsonb_array_elements_text(coalesce(m.config->'segments', '[]'::jsonb)) s
+        where m.user_id = $1 group by s order by n desc, s limit 6`, [uid]),
+    query(
+      `select coalesce(nullif(c.city, ''), 'Sem cidade') as label, count(*)::int as n
+         from leads l join companies c on c.id = l.company_id where l.user_id = $1 group by 1 order by n desc, 1 limit 6`, [uid]),
+    query(
+      `select coalesce(nullif(split_part(c.category, ':', 2), ''), c.category, 'Outros') as label, count(*)::int as n
+         from leads l join companies c on c.id = l.company_id where l.user_id = $1 group by 1 order by n desc, 1 limit 6`, [uid]),
+    query(
+      `select count(*)::int as total,
+              count(*) filter (where c.phone is not null)::int as phone,
+              count(*) filter (where c.website is null)::int as no_website,
+              count(*) filter (where c.email is not null)::int as email,
+              count(*) filter (where l.high_fit)::int as high_fit
+         from leads l join companies c on c.id = l.company_id where l.user_id = $1`, [uid]),
+    query(
+      `select id, config, status, total, high_fit, no_website, created_at from mapping_runs
+        where user_id = $1 order by created_at desc limit 6`, [uid]),
+    query(
+      `select l.id, l.captured_at, l.high_fit, c.name, c.city, c.category, c.phone
+         from leads l join companies c on c.id = l.company_id where l.user_id = $1 order by l.captured_at desc limit 6`, [uid]),
+    query('select id, name, last_run_at from saved_searches where user_id = $1 order by coalesce(last_run_at, created_at) desc limit 4', [uid]),
+  ])
+  return {
+    days, totals: totals.rows[0], previous: prev.rows[0], series: series.rows,
+    segments: segments.rows, cities: cities.rows, categories: categories.rows, quality: quality.rows[0],
+    recentRuns: runs.rows, recentLeads: leads.rows, savedSearches: searches.rows,
+    credits: await creditStatus(uid),
+  }
+})
+
 // ---------- leads ----------
 on('POST', 'leads/capture', async ({ req, body }) => {
   const user = await requireUser(req)

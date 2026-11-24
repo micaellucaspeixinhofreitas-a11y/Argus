@@ -119,6 +119,11 @@ try {
   r = await api('POST', 'subscription', { planId: 'pro', period: 'quarterly', paymentMethod: 'pix' })
   assert.equal(r.status, 201); assert.equal(r.data.subscription.status, 'pending_payment')
 
+  // dashboard
+  r = await api('GET', 'dashboard?dias=7')
+  assert.equal(r.status, 200); assert.equal(r.data.series.length, 7); assert.ok(r.data.totals.leads >= 1); assert.ok(r.data.totals.runs >= 1)
+  assert.ok(r.data.recentLeads.length >= 1 && r.data.segments.find(x => x.label === 'dentistas'))
+
   // isolamento entre usuários
   const myCookie = cookie
   await api('POST', 'auth/register', { name: 'Outro', email: `o${Date.now()}@ex.com`, password: 'senha-forte-2', acceptTerms: true }, '')
