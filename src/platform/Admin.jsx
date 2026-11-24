@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api, money, fmtDate, fmtInt } from '../lib/api'
+import { api, money, fmtDate, fmtDateTime, fmtInt } from '../lib/api'
 
 const blankPlan = { id: '', name: '', description: '', monthly_credits: 0, daily_limit: 0, price_monthly_cents: 0, price_quarterly_cents: 0, features: [], is_default: false, active: true, sort: 10 }
 
@@ -37,6 +37,9 @@ function PlanForm({ plan, onSave }) {
     </form>
   )
 }
+
+const SECURITY_EVENTS = {"password_reset": "Senha redefinida por link", "account_recovery": "Recuperação de emergência usada", "account_password": "Senha trocada na conta", "account_profile": "Dados da conta alterados", "admin_subscription": "Assinatura alterada pelo admin", "admin_coupon": "Cupom criado/alterado", "coupon_free_activation": "Plano liberado com cupom de 100%"}
+const LIMIT_KINDS = { register: 'Cadastro', geo_search: 'Pesquisa de endereço', coupon_check: 'Teste de cupom', payment_pix: 'Geração de Pix', password_reset_try: 'Redefinição de senha' }
 
 const blankCoupon = { code: '', description: '', kind: 'percent', percent_off: 20, amount: '', plan_id: '', period: '', max_redemptions: '', max_per_user: 1, expires_at: '' }
 
@@ -86,7 +89,9 @@ export default function Admin() {
 
   const [runs, setRuns] = useState([])
   const [coupons, setCoupons] = useState([])
+  const [security, setSecurity] = useState(null)
   const load = () => {
+    api('admin/security').then(setSecurity).catch(() => {})
     api('admin/overview').then(setData).catch(e => setError(e.message))
     api('admin/coupons').then(d => setCoupons(d.coupons)).catch(() => {})
     api('admin/runs').then(d => setRuns(d.runs)).catch(() => {})
@@ -111,6 +116,45 @@ export default function Admin() {
         <div className="card stat-card"><small>Leads capturados</small><strong>{fmtInt(data.totals.leads)}</strong></div>
         <div className="card stat-card"><small>Mapeamentos</small><strong>{fmtInt(data.totals.runs)}</strong></div>
       </div>
+
+      <h2 className="h2-icon"><img src="/icons/escudo.webp" alt="" width="26" height="26" /> Atividade suspeita · 24 h</h2>
+      {security && (
+        <div className="sec-grid">
+          <div className="card">
+            <h3>Falhas de login</h3>
+            {security.bursts.length > 0 && (
+              <p className="form-error">Possível ataque: {security.bursts.map(b => `${b.n} falhas em 1 min para ${b.email}`).join(' · ')}</p>
+            )}
+            {security.failedLogins.length === 0 ? <p className="muted small">Nenhuma falha de login nas últimas 24 horas.</p> : (
+              <ul className="activity">
+                {security.failedLogins.map(f => (
+                  <li key={f.email}><span className={`activity__dot ${f.n >= 5 ? 'is-alert' : ''}`} /><div><strong>{f.email}</strong><small>última em {fmtDateTime(f.last)}</small></div><span className="activity__num">{fmtInt(f.n)} falha(s)</span></li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="card">
+            <h3>Bloqueios por excesso de requisições</h3>
+            {security.rateLimited.length === 0 ? <p className="muted small">Nenhum bloqueio nas últimas 24 horas.</p> : (
+              <ul className="activity">
+                {security.rateLimited.map(r => (
+                  <li key={r.kind}><span className="activity__dot is-alert" /><div><strong>{LIMIT_KINDS[r.kind] || r.kind}</strong><small>último em {fmtDateTime(r.last)}</small></div><span className="activity__num">{fmtInt(r.n)} bloqueio(s)</span></li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="card sec-grid__wide">
+            <h3>Ações sensíveis recentes</h3>
+            {security.events.length === 0 ? <p className="muted small">Nenhuma ação sensível registrada.</p> : (
+              <ul className="activity">
+                {security.events.map((e, i) => (
+                  <li key={i}><span className="activity__dot" /><div><strong>{SECURITY_EVENTS[e.type] || e.type}</strong><small>{e.email || '—'} · {fmtDateTime(e.created_at)}</small></div></li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
 
       <h2 className="h2-icon"><img src="/icons/coroa.webp" alt="" width="26" height="26" /> Planos</h2>
       {data.plans.map(p => <PlanForm key={p.id + p.updated_at} plan={p} onSave={body => act(() => api('admin/plans', { method: 'POST', body }), 'Plano salvo.')} />)}

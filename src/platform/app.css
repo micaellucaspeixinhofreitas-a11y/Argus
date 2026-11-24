@@ -398,3 +398,9 @@ a.activity__num { color: var(--acc-2); }
   .bk__spark { height: 64px; }
   .bk__hero { width: 72px; height: 72px; }
 }
+.sec-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.sec-grid__wide { grid-column: 1 / -1; }
+.app .sec-grid h3 { margin: 0 0 14px; font-size: 14px; font-weight: 600; }
+.activity__dot.is-alert { background: #fb7185; box-shadow: 0 0 8px rgba(251, 113, 133, .7); }
+@media (max-width: 800px) { .sec-grid { grid-template-columns: minmax(0, 1fr); } }
+.activity li .activity__dot.is-alert { background: #fb7185; box-shadow: 0 0 8px rgba(251, 113, 133, .7); }

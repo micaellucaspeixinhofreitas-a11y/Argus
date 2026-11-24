@@ -24,7 +24,11 @@ const on = (method, path, fn) => { routes[`${method} ${path}`] = fn }
 
 // ---------- saúde e metadados ----------
 let lastSourceCheck = 0
-on('GET', 'health', async ({ url }) => {
+on('GET', 'health', async ({ req, url }) => {
+  // os testes de fonte de dados e de mapas chamam APIs pagas: só o administrador pode disparar
+  if ((url.searchParams.get('source') || url.searchParams.get('basemap')) && !(await currentUser(req))?.is_admin) {
+    fail(403, 'Diagnóstico disponível só para administradores.')
+  }
   let db = 'ok'
   try { await query('select 1') } catch (e) { db = e.code === 'DB_NOT_CONFIGURED' ? 'not_configured' : 'error' }
   const out = { ok: true, db, provider: provider().name, payments: paymentProvider() }
@@ -79,12 +83,13 @@ const googleConfigured = () => Boolean(process.env.GOOGLE_CLIENT_ID && process.e
 on('GET', 'meta', async () => ({ segments: catalogList(), criteria: criteriaList(), limits: LIMITS, basemapKey: basemapKey(), googleAuth: googleConfigured() }))
 
 // ---------- autenticação ----------
-on('POST', 'auth/register', async ({ body }) => {
+on('POST', 'auth/register', async ({ req, body }) => {
+  await rateLimit('register', clientIp(req), 5, 60, 'Muitas contas criadas a partir desta conexão. Tente de novo mais tarde.')
   const email = str(body.email, 160).toLowerCase()
   const name = str(body.name, 80)
   const password = String(body.password || '')
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail(400, 'Informe um e-mail válido.')
-  if (password.length < 8) fail(400, 'A senha precisa ter pelo menos 8 caracteres.')
+  checkPasswordSize(password)
   if (body.acceptTerms !== true) fail(400, 'Para criar a conta, aceite os Termos de Uso e a Política de Privacidade.')
   const hash = await hashPassword(password)
   const user = await tx(async db => {
@@ -110,6 +115,24 @@ const recentEvents = async (type, key, minutes) => {
 }
 const logEvent = (type, key, userId = null) =>
   query('insert into operations_log (user_id, type, detail) values ($1, $2, $3)', [userId, type, JSON.stringify({ key })])
+
+// IP do cliente atrás do proxy da Vercel
+const clientIp = req => String(req.headers['x-real-ip'] || req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim().slice(0, 64) || 'desconhecido'
+
+// limite de requisições: registra o uso e recusa com 429 quando passa do máximo na janela
+async function rateLimit(type, key, max, minutes, message = 'Muitas requisições. Aguarde alguns minutos e tente de novo.') {
+  if ((await recentEvents(type, key, minutes)) >= max) {
+    await logEvent('rate_limited', `${type}:${key}`)
+    fail(429, message, 'RATE_LIMITED')
+  }
+  await logEvent(type, key)
+}
+
+const PASSWORD_MAX = 200
+const checkPasswordSize = (password, label = 'A senha') => {
+  if (password.length < 8) fail(400, `${label} precisa ter pelo menos 8 caracteres.`)
+  if (password.length > PASSWORD_MAX) fail(400, `${label} pode ter no máximo ${PASSWORD_MAX} caracteres.`)
+}
 
 on('POST', 'auth/login', async ({ body }) => {
   const email = str(body.email, 160).toLowerCase()
@@ -174,10 +197,11 @@ async function recoveryReset(db, token) {
   return { id: 0, user_id: u.id }
 }
 
-on('POST', 'auth/reset', async ({ body }) => {
+on('POST', 'auth/reset', async ({ req, body }) => {
+  await rateLimit('password_reset_try', clientIp(req), 10, 15)
   const token = str(body.token, 200)
   const password = String(body.password || '')
-  if (password.length < 8) fail(400, 'A senha precisa ter pelo menos 8 caracteres.')
+  checkPasswordSize(password)
   const hash = await hashPassword(password)
   const user = await tx(async db => {
     let { rows: [r] } = await db.query(
@@ -302,7 +326,7 @@ on('POST', 'account/password', async ({ req, body }) => {
   const me = await requireUser(req)
   const { raw } = await accountInfo(me.id)
   const password = String(body.newPassword || '')
-  if (password.length < 8) fail(400, 'A nova senha precisa ter pelo menos 8 caracteres.')
+  checkPasswordSize(password, 'A nova senha')
   await checkPassword(raw, body.currentPassword)
   // troca a senha e encerra as outras sessões; esta continua com um cookie novo
   const { rows: [u] } = await query(
@@ -337,7 +361,8 @@ on('GET', 'auth/me', async ({ req }) => {
 
 // ---------- geolocalização ----------
 on('GET', 'geo/search', async ({ req, url }) => {
-  await requireUser(req)
+  const me = await requireUser(req)
+  await rateLimit('geo_search', String(me.id), 40, 1, 'Muitas pesquisas de endereço seguidas. Aguarde um minuto.')
   return { results: await geocode(url.searchParams.get('q'), str(url.searchParams.get('country'), 2)) }
 })
 
@@ -478,6 +503,7 @@ on('GET', 'leads/export', async ({ req }) => {
   const { rows } = await query(leadsQuery, [user.id, ''])
   const cols = ['name', 'category', 'phone', 'website', 'email', 'address', 'city', 'lat', 'lng', 'score', 'captured_at']
   const escCsv = v => {
+    if (typeof v === 'string' && /^[=+\-@\t\r]/.test(v)) v = `'${v}`
     const s = v == null ? '' : v instanceof Date ? v.toISOString() : String(v)
     return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
   }
@@ -495,6 +521,8 @@ on('GET', 'searches', async ({ req }) => {
 
 on('POST', 'searches', async ({ req, body }) => {
   const user = await requireUser(req)
+  const { rows: [{ n }] } = await query('select count(*)::int as n from saved_searches where user_id = $1', [user.id])
+  if (n >= 100) fail(400, 'Você chegou ao limite de 100 buscas salvas. Exclua alguma para salvar outra.')
   const config = parseConfig(body.config)
   const name = str(body.name, 100) || [config.segments.join(', ') || 'Todos os segmentos', config.locality].filter(Boolean).join(' — ')
   const points = config.areas.length
@@ -580,6 +608,7 @@ const planAndPrice = async (planId, periodIn) => {
 
 on('POST', 'coupons/check', async ({ req, body }) => {
   const user = await requireUser(req)
+  await rateLimit('coupon_check', String(user.id), 15, 10, 'Muitas tentativas de cupom. Aguarde alguns minutos.')
   const { plan, period, price } = await planAndPrice(body.planId, body.period)
   const coupon = await findCoupon({ query }, body.code, { userId: user.id, plan, period })
   return { code: coupon.code, label: couponLabel(coupon), description: coupon.description, price_cents: price, ...applyCoupon(coupon, price) }
@@ -588,6 +617,7 @@ on('POST', 'coupons/check', async ({ req, body }) => {
 // ---------- pagamento por Pix (QR Code) ----------
 on('POST', 'payment/pix', async ({ req, body }) => {
   const user = await requireUser(req)
+  await rateLimit('payment_pix', String(user.id), 20, 10)
   const { plan, period, price } = await planAndPrice(body.planId, body.period)
   const code = normalizeCode(body.couponCode)
   return tx(async db => {
@@ -721,6 +751,26 @@ on('POST', 'admin/subscription', async ({ req, body }) => {
   return { ok: true }
 })
 
+// ---------- administração: atividade suspeita ----------
+on('GET', 'admin/security', async ({ req }) => {
+  await requireAdmin(req)
+  const [failed, bursts, limited, events] = await Promise.all([
+    query(`select detail->>'key' as email, count(*)::int as n, max(created_at) as last
+             from operations_log where type = 'login_failed' and created_at > now() - interval '24 hours'
+            group by 1 order by n desc limit 20`),
+    query(`select detail->>'key' as email, count(*)::int as n, min(created_at) as first, max(created_at) as last
+             from operations_log where type = 'login_failed' and created_at > now() - interval '24 hours'
+            group by 1, date_trunc('minute', created_at) having count(*) >= 5 order by last desc limit 20`),
+    query(`select split_part(detail->>'key', ':', 1) as kind, count(*)::int as n, max(created_at) as last
+             from operations_log where type = 'rate_limited' and created_at > now() - interval '24 hours'
+            group by 1 order by n desc`),
+    query(`select o.type, o.created_at, u.email, o.detail from operations_log o left join users u on u.id = o.user_id
+            where o.type in ('password_reset','account_recovery','account_password','account_profile','admin_subscription','admin_coupon','coupon_free_activation')
+            order by o.created_at desc limit 30`),
+  ])
+  return { failedLogins: failed.rows, bursts: bursts.rows, rateLimited: limited.rows, events: events.rows }
+})
+
 // ---------- administração: cupons ----------
 on('GET', 'admin/coupons', async ({ req }) => {
   await requireAdmin(req)
@@ -785,6 +835,7 @@ export default async function handler(req, res) {
       const origin = req.headers.origin
       const host = req.headers['x-forwarded-host'] || req.headers.host
       if (origin && host && new URL(origin).host !== host) fail(403, 'Origem não permitida.')
+      if (req.headers['sec-fetch-site'] === 'cross-site') fail(403, 'Origem não permitida.')
     }
     const body = ['POST', 'PUT'].includes(req.method) ? await readJson(req) : {}
     const out = await route({ req, res, url, body })

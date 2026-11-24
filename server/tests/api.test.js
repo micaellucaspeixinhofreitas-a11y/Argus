@@ -239,6 +239,55 @@ try {
   delete process.env.GOOGLE_CLIENT_ID
   cookie = beforePw; await api('POST', 'auth/login', { email: email2, password: 'senha-nova-999' })
 
+  // ===== proteções (revisão de segurança) =====
+  const raw = (path, init) => fetch(base + path, init).then(async r => ({ status: r.status, text: await r.text() }))
+  // diagnóstico das APIs pagas só para admin
+  assert.equal((await raw('health?source=1')).status, 403, 'diagnóstico exige admin')
+  assert.equal((await raw('health')).status, 200)
+  // CSRF: origem de outro site, navegador marcando cross-site e corpo que não é JSON são recusados
+  assert.equal((await raw('searches', { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'https://site-malicioso.example', Cookie: cookie }, body: '{}' })).status, 403)
+  assert.equal((await raw('searches', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Sec-Fetch-Site': 'cross-site', Cookie: cookie }, body: '{}' })).status, 403)
+  assert.equal((await raw('searches', { method: 'POST', headers: { 'Content-Type': 'text/plain', Cookie: cookie }, body: '{}' })).status, 415)
+  // rotas de admin recusam quem não é admin; sem login, 401
+  assert.equal((await raw('admin/security')).status, 401)
+  // senha gigante é recusada (evita custo alto de hash)
+  assert.equal((await api('POST', 'account/password', { currentPassword: 'senha-nova-999', newPassword: 'x'.repeat(201) })).status, 400)
+  // CSV: valores que começam com =, +, - ou @ não viram fórmula
+  {
+    const { query: q2 } = await import('../../api/_lib/db.js')
+    const me2 = (await api('GET', 'auth/me')).data.user
+    await q2(`update companies set name = '=HYPERLINK("http://mal.example")' where id = (select company_id from leads where user_id = $1 limit 1)`, [me2.id])
+    const csv = (await raw('leads/export', { headers: { Cookie: cookie } })).text
+    assert.ok(!/(^|,)"?=HYPERLINK/m.test(csv) && csv.includes("'=HYPERLINK"), 'fórmula neutralizada no CSV')
+  }
+  // limite de tentativas de cupom
+  {
+    let last = 0
+    for (let i = 0; i < 16; i++) last = (await api('POST', 'coupons/check', { code: `CHUTE${i}`, planId: 'pro', period: 'monthly' })).status
+    assert.equal(last, 429, 'força bruta de cupom bloqueada')
+  }
+  // limite de pesquisas de endereço
+  {
+    let last = 0
+    for (let i = 0; i < 41; i++) last = (await api('GET', 'geo/search?q=Pinheiros&country=BR')).status
+    assert.equal(last, 429, 'pesquisa de endereço limitada')
+  }
+  // link de redefinição expirado não funciona
+  {
+    const { query: q3 } = await import('../../api/_lib/db.js')
+    const { hashToken: ht } = await import('../../api/_lib/auth.js')
+    await q3(`insert into password_resets (user_id, token_hash, expires_at) select id, $1, now() - interval '1 minute' from users where email = $2`, [ht('tok-vencido'), email2])
+    assert.equal((await api('POST', 'auth/reset', { token: 'tok-vencido', password: 'qualquer-123' }, '')).status, 400, 'link vencido recusado')
+  }
+  // painel de atividade suspeita (admin) mostra falhas de login e bloqueios
+  if (firstIsAdmin) {
+    for (let i = 0; i < 3; i++) await api('POST', 'auth/login', { email: 'alvo@ex.com', password: 'errada' }, '')
+    cookie = beforePw; await api('POST', 'auth/login', { email: email2, password: 'senha-nova-999' })
+    r = await api('GET', 'admin/security')
+    assert.equal(r.status, 200); assert.ok(r.data.failedLogins.find(f => f.email === 'alvo@ex.com' && f.n === 3))
+    assert.ok(r.data.rateLimited.find(x => x.kind === 'coupon_check'))
+  }
+
   // logout
   await api('POST', 'auth/logout'); assert.equal((await api('GET', 'auth/me')).data.user, null)
   console.log('OK — todos os testes da API passaram' + (firstIsAdmin ? ' (incluindo admin)' : ''))
