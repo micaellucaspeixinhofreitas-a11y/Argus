@@ -3,6 +3,14 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { api } from '../lib/api'
 import AuthBackground from '../components/AuthBackground'
+import GoogleButton from '../components/GoogleButton'
+
+const GOOGLE_ERRORS = {
+  google_cancelado: 'O login com Google foi cancelado.',
+  google_falhou: 'Não foi possível entrar com o Google. Tente novamente.',
+  google_email: 'Sua conta Google não tem um e-mail confirmado.',
+  google_indisponivel: 'O login com Google ainda não está disponível.',
+}
 
 export default function Auth() {
   const [params, setParams] = useSearchParams()
@@ -11,7 +19,8 @@ export default function Auth() {
   const { user, loading, login, register } = useAuth()
   const navigate = useNavigate()
   const [form, setForm] = useState({ name: '', email: '', password: '', accept: false })
-  const [error, setError] = useState('')
+  const [error, setError] = useState(() => GOOGLE_ERRORS[params.get('erro')] || '')
+  const [google, setGoogle] = useState(false)
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -19,6 +28,8 @@ export default function Auth() {
   useEffect(() => {
     if (!loading && user) navigate(next, { replace: true })
   }, [loading, user, navigate, next])
+
+  useEffect(() => { api('meta').then(m => setGoogle(Boolean(m.googleAuth))).catch(() => {}) }, [])
 
   const set = k => e => {
     if (k === 'accept' && e.target.checked) setError('')
@@ -59,6 +70,15 @@ export default function Auth() {
       <form className="auth__card card" onSubmit={submit}>
         <h1>{title}</h1>
         <p className="muted">{lead}</p>
+        {google && mode !== 'forgot' && (
+          <>
+            <GoogleButton next={next} />
+            {mode === 'register' && (
+              <p className="auth__fine">Ao continuar com Google, você aceita os <Link to="/termos" target="_blank">Termos de Uso</Link> e a <Link to="/privacidade" target="_blank">Política de Privacidade</Link>.</p>
+            )}
+            <div className="auth__or"><span>ou com e-mail</span></div>
+          </>
+        )}
         {mode === 'register' && (
           <label className="field">
             <span>Nome</span>

@@ -2,7 +2,8 @@
 // Um único arquivo mantém o projeto dentro do limite de funções do plano gratuito da Vercel.
 import { query, tx } from './_lib/db.js'
 import { send, readJson, fail, HttpError, str, num } from './_lib/http.js'
-import { hashPassword, verifyPassword, sessionCookie, clearCookie, currentUser, requireUser, requireAdmin, newResetToken, hashToken } from './_lib/auth.js'
+import { hashPassword, verifyPassword, sessionCookie, clearCookie, currentUser, requireUser, requireAdmin, newResetToken, hashToken, NO_PASSWORD, hasPassword, oauthCookie, clearOauthCookie, readOauthCookie } from './_lib/auth.js'
+import crypto from 'node:crypto'
 import { sendMail } from './_lib/mail.js'
 import { creditStatus, creditHistory, activePlan, hasPro, TZ } from './_lib/credits.js'
 import { pixConfigured, pixPayload } from './_lib/pix.js'
@@ -72,7 +73,9 @@ let lastBasemapCheck = 0
 // A chave de mapas base da CARTO é pública por natureza (vai na URL das imagens do mapa)
 const basemapKey = () => process.env.CARTO_BASEMAPS_KEY || process.env.CARTO_API_TOKEN || ''
 
-on('GET', 'meta', async () => ({ segments: catalogList(), criteria: criteriaList(), limits: LIMITS, basemapKey: basemapKey() }))
+const googleConfigured = () => Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
+
+on('GET', 'meta', async () => ({ segments: catalogList(), criteria: criteriaList(), limits: LIMITS, basemapKey: basemapKey(), googleAuth: googleConfigured() }))
 
 // ---------- autenticação ----------
 on('POST', 'auth/register', async ({ body }) => {
@@ -111,6 +114,7 @@ on('POST', 'auth/login', async ({ body }) => {
   const email = str(body.email, 160).toLowerCase()
   if ((await recentEvents('login_failed', email, 15)) >= 8) fail(429, 'Muitas tentativas. Aguarde 15 minutos ou redefina sua senha.')
   const { rows: [u] } = await query('select id, email, name, is_admin, password_hash, session_version from users where email = $1', [email])
+  if (u && !hasPassword(u.password_hash)) fail(400, 'Esta conta usa o login com Google. Clique em "Continuar com Google" ou crie uma senha em "Esqueci minha senha".')
   if (!u || !(await verifyPassword(String(body.password || ''), u.password_hash))) {
     await logEvent('login_failed', email)
     fail(401, 'E-mail ou senha incorretos.')
@@ -172,6 +176,137 @@ on('POST', 'auth/reset', async ({ body }) => {
   const sv = user.session_version
   delete user.session_version
   return { data: { user }, headers: { 'Set-Cookie': sessionCookie(user.id, sv) } }
+})
+
+// ---------- login com Google (OAuth 2.0 / OpenID Connect) ----------
+const googleRedirectUri = req => `${appUrl(req)}/api/auth/google/callback`
+const safeNext = n => (typeof n === 'string' && /^\/(app|entrar)(\/|\?|$)/.test(n) ? n : '/app')
+
+on('GET', 'auth/google', async ({ req, url }) => {
+  if (!googleConfigured()) return { redirect: '/entrar?erro=google_indisponivel' }
+  const state = crypto.randomBytes(24).toString('base64url')
+  const params = new URLSearchParams({
+    client_id: process.env.GOOGLE_CLIENT_ID,
+    redirect_uri: googleRedirectUri(req),
+    response_type: 'code',
+    scope: 'openid email profile',
+    state,
+    prompt: 'select_account',
+  })
+  return {
+    redirect: `https://accounts.google.com/o/oauth2/v2/auth?${params}`,
+    headers: { 'Set-Cookie': oauthCookie(state, safeNext(url.searchParams.get('next'))) },
+  }
+})
+
+on('GET', 'auth/google/callback', async ({ req, url }) => {
+  const saved = readOauthCookie(req)
+  const back = code => ({ redirect: `/entrar?erro=${code}`, headers: { 'Set-Cookie': clearOauthCookie() } })
+  if (url.searchParams.get('error')) return back('google_cancelado')
+  const state = url.searchParams.get('state') || ''
+  if (!googleConfigured() || !saved || !state || saved.st !== state) return back('google_falhou')
+  // troca o código pelo token direto com o Google (servidor a servidor, via TLS)
+  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      code: url.searchParams.get('code') || '',
+      client_id: process.env.GOOGLE_CLIENT_ID,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET,
+      redirect_uri: googleRedirectUri(req),
+      grant_type: 'authorization_code',
+    }),
+    signal: AbortSignal.timeout(10_000),
+  })
+  if (!tokenRes.ok) return back('google_falhou')
+  const { access_token } = await tokenRes.json()
+  const infoRes = await fetch('https://openidconnect.googleapis.com/v1/userinfo', {
+    headers: { Authorization: `Bearer ${access_token}` }, signal: AbortSignal.timeout(10_000),
+  })
+  if (!infoRes.ok) return back('google_falhou')
+  const info = await infoRes.json()
+  if (!info.sub || !info.email || info.email_verified !== true) return back('google_email')
+  const email = String(info.email).toLowerCase().slice(0, 160)
+  const user = await tx(async db => {
+    let { rows: [u] } = await db.query('select id, session_version from users where google_sub = $1', [info.sub])
+    if (!u) {
+      // e-mail já cadastrado com senha: vincula a conta Google (o Google confirmou o e-mail)
+      ;({ rows: [u] } = await db.query('update users set google_sub = $1 where email = $2 returning id, session_version', [info.sub, email]))
+    }
+    if (!u) {
+      const { rows: [{ n }] } = await db.query('select count(*)::int as n from users')
+      ;({ rows: [u] } = await db.query(
+        `insert into users (email, name, password_hash, is_admin, google_sub, accepted_terms_at) values ($1, $2, $3, $4, $5, now())
+         returning id, session_version`,
+        [email, str(info.name, 80), NO_PASSWORD, n === 0, info.sub]))
+    }
+    return u
+  })
+  return { redirect: safeNext(saved.next), headers: { 'Set-Cookie': [clearOauthCookie(), sessionCookie(user.id, user.session_version)] } }
+})
+
+// ---------- minha conta ----------
+const accountInfo = async userId => {
+  const { rows: [u] } = await query(
+    'select id, name, email, created_at, password_hash, google_sub, session_version from users where id = $1', [userId])
+  return {
+    user: { id: u.id, name: u.name, email: u.email, created_at: u.created_at, has_password: hasPassword(u.password_hash), google: Boolean(u.google_sub) },
+    raw: u,
+  }
+}
+const checkPassword = async (raw, password) => {
+  if (!hasPassword(raw.password_hash)) return
+  if (!(await verifyPassword(String(password || ''), raw.password_hash))) fail(401, 'Senha atual incorreta.')
+}
+
+on('GET', 'account', async ({ req }) => {
+  const user = await requireUser(req)
+  return { user: (await accountInfo(user.id)).user }
+})
+
+on('POST', 'account/profile', async ({ req, body }) => {
+  const me = await requireUser(req)
+  const { raw } = await accountInfo(me.id)
+  const name = str(body.name, 80)
+  const email = str(body.email, 160).toLowerCase()
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail(400, 'Informe um e-mail válido.')
+  if (email !== raw.email) {
+    await checkPassword(raw, body.currentPassword)
+    const taken = await query('select 1 from users where email = $1 and id <> $2', [email, me.id])
+    if (taken.rows.length) fail(409, 'Já existe uma conta com este e-mail.')
+  }
+  await query('update users set name = $1, email = $2 where id = $3', [name, email, me.id])
+  await query(`insert into operations_log (user_id, type, detail) values ($1, 'account_profile', $2)`, [me.id, JSON.stringify({ email_changed: email !== raw.email })])
+  return { user: (await accountInfo(me.id)).user }
+})
+
+on('POST', 'account/password', async ({ req, body }) => {
+  const me = await requireUser(req)
+  const { raw } = await accountInfo(me.id)
+  const password = String(body.newPassword || '')
+  if (password.length < 8) fail(400, 'A nova senha precisa ter pelo menos 8 caracteres.')
+  await checkPassword(raw, body.currentPassword)
+  // troca a senha e encerra as outras sessões; esta continua com um cookie novo
+  const { rows: [u] } = await query(
+    'update users set password_hash = $1, session_version = session_version + 1 where id = $2 returning session_version',
+    [await hashPassword(password), me.id])
+  await query(`insert into operations_log (user_id, type, detail) values ($1, 'account_password', '{}')`, [me.id])
+  return { data: { user: (await accountInfo(me.id)).user }, headers: { 'Set-Cookie': sessionCookie(me.id, u.session_version) } }
+})
+
+on('POST', 'account/delete', async ({ req, body }) => {
+  const me = await requireUser(req)
+  const { raw } = await accountInfo(me.id)
+  if (String(body.confirm || '').trim().toUpperCase() !== 'EXCLUIR') fail(400, 'Digite EXCLUIR para confirmar.')
+  await checkPassword(raw, body.currentPassword)
+  if (me.is_admin) {
+    const { rows: [{ n }] } = await query('select count(*)::int as n from users where is_admin and id <> $1', [me.id])
+    if (!n) fail(400, 'Você é o único administrador. Defina outro administrador antes de excluir sua conta.')
+  }
+  // apaga a conta e, em cascata, mapeamentos, leads, buscas, créditos e assinaturas
+  await query('delete from users where id = $1', [me.id])
+  console.log(JSON.stringify({ evt: 'account_deleted', user: String(me.id) }))
+  return { data: { ok: true }, headers: { 'Set-Cookie': clearCookie() } }
 })
 
 on('POST', 'auth/logout', async () => ({ data: { ok: true }, headers: { 'Set-Cookie': clearCookie() } }))
@@ -489,6 +624,13 @@ export default async function handler(req, res) {
     }
     const body = ['POST', 'PUT'].includes(req.method) ? await readJson(req) : {}
     const out = await route({ req, res, url, body })
+    if (out && out.redirect) {
+      res.statusCode = 302
+      res.setHeader('Location', out.redirect)
+      res.setHeader('Cache-Control', 'no-store')
+      for (const [k, v] of Object.entries(out.headers || {})) res.setHeader(k, v)
+      return res.end()
+    }
     if (out && out.raw !== undefined) {
       res.statusCode = 200
       res.setHeader('Content-Type', out.contentType)

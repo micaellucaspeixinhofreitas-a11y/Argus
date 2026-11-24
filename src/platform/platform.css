@@ -313,3 +313,15 @@ details.card[open] summary { margin-bottom: 12px; }
 }
 
 /* vidro na plataforma: o conteúdo fica acima da camada de vidro */
+
+/* minha conta */
+.account-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 16px; align-items: start; }
+.account-card { display: grid; gap: 14px; padding: 24px; }
+.account-card h2 { display: flex; align-items: center; gap: 10px; margin: 0; font-family: var(--display); font-size: 19px; }
+.account-card h2 svg { color: var(--purple-2); }
+.account-card .btn { justify-self: start; }
+.account-card--danger { border-color: rgba(244,63,94,.3) !important; }
+.account-card--danger h2 svg { color: #fb7185; }
+.btn--danger { background: rgba(244,63,94,.16); border: 1px solid rgba(244,63,94,.5); color: #fecdd3; }
+.btn--danger:hover:not(:disabled) { background: rgba(244,63,94,.28); }
+.btn--danger:disabled { opacity: .45; cursor: not-allowed; }

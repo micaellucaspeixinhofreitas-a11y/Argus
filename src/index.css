@@ -552,3 +552,11 @@ main, .footer { position: relative; z-index: 1; }
 
 /* o brilho dos botões especulares passa 24px da borda: não deixa gerar rolagem lateral */
 html, body { overflow-x: clip; }
+
+/* login com Google */
+.btn--google { display: inline-flex; align-items: center; justify-content: center; gap: 10px; background: #fff; color: #1f1f1f; border: 1px solid #dadce0; font-weight: 500; }
+.btn--google:hover { background: #f4f4f6; }
+.auth__or { display: flex; align-items: center; gap: 12px; color: var(--muted); font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+.auth__or::before, .auth__or::after { content: ''; flex: 1; height: 1px; background: var(--line-2); }
+.auth__fine { margin: -6px 0 0; font-size: 12.5px; color: var(--muted); text-align: center; line-height: 1.5; }
+.auth__fine a { color: var(--purple-3); text-decoration: underline; text-underline-offset: 3px; }

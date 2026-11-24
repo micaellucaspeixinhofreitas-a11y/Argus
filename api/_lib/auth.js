@@ -21,6 +21,10 @@ export async function hashPassword(password) {
   return `scrypt$${salt.toString('base64')}$${key.toString('base64')}`
 }
 
+// contas criadas só pelo Google não têm senha (hash inutilizável)
+export const NO_PASSWORD = 'none$'
+export const hasPassword = stored => String(stored || '').startsWith('scrypt$')
+
 export async function verifyPassword(password, stored) {
   const [alg, saltB64, keyB64] = String(stored).split('$')
   if (alg !== 'scrypt') return false
@@ -89,3 +93,12 @@ export async function requireAdmin(req) {
 // ---- redefinição de senha ----
 export const newResetToken = () => crypto.randomBytes(32).toString('base64url')
 export const hashToken = token => crypto.createHash('sha256').update(String(token)).digest('hex')
+
+// ---- cookie temporário do login com Google (estado anti-CSRF + destino) ----
+const OAUTH_COOKIE = 'argus_oauth'
+export function oauthCookie(state, next) {
+  const token = sign({ st: state, next, exp: Math.floor(Date.now() / 1000) + 600 })
+  return `${OAUTH_COOKIE}=${token}; Path=/api; HttpOnly; SameSite=Lax; Max-Age=600${secureFlag()}`
+}
+export const clearOauthCookie = () => `${OAUTH_COOKIE}=; Path=/api; HttpOnly; SameSite=Lax; Max-Age=0${secureFlag()}`
+export const readOauthCookie = req => unsign(parseCookies(req)[OAUTH_COOKIE])

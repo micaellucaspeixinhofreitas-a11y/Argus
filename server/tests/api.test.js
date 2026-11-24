@@ -155,6 +155,49 @@ try {
     await api('POST', 'admin/credits', { userId: me.id, amount: 100 })
     r = await api('GET', 'auth/me'); assert.equal(r.data.credits.available, 7000 - 3 + 100)
   }
+  // minha conta: perfil, senha e exclusão
+  r = await api('GET', 'account'); assert.equal(r.data.user.has_password, true); assert.equal(r.data.user.google, false)
+  r = await api('POST', 'account/profile', { name: 'Novo Nome', email }); assert.equal(r.data.user.name, 'Novo Nome')
+  const email2 = `n${Date.now()}@ex.com`
+  assert.equal((await api('POST', 'account/profile', { name: 'Novo Nome', email: email2 })).status, 401, 'trocar e-mail exige a senha')
+  r = await api('POST', 'account/profile', { name: 'Novo Nome', email: email2, currentPassword: 'nova-senha-123' }); assert.equal(r.data.user.email, email2)
+  assert.equal((await api('POST', 'account/password', { currentPassword: 'errada', newPassword: 'senha-nova-999' })).status, 401)
+  const beforePw = cookie
+  r = await api('POST', 'account/password', { currentPassword: 'nova-senha-123', newPassword: 'senha-nova-999' }); assert.equal(r.status, 200)
+  assert.equal((await api('GET', 'auth/me')).data.user.email, email2, 'sessão atual continua')
+  assert.equal((await api('GET', 'auth/me', null, beforePw)).data.user, null, 'outras sessões encerradas')
+  if (firstIsAdmin) assert.equal((await api('POST', 'account/delete', { confirm: 'EXCLUIR', currentPassword: 'senha-nova-999' })).status, 400, 'único admin não se exclui')
+
+  // login com Google (respostas do Google simuladas)
+  process.env.GOOGLE_CLIENT_ID = 'cid'; process.env.GOOGLE_CLIENT_SECRET = 'csecret'; process.env.APP_URL = base.replace('/api/', '')
+  assert.equal((await api('GET', 'meta')).data.googleAuth, true)
+  const realFetch = globalThis.fetch
+  const gEmail = `g${Date.now()}@gmail.com`
+  globalThis.fetch = async (u, o) => {
+    const s = String(u)
+    if (s.startsWith('https://oauth2.googleapis.com/token')) return new Response(JSON.stringify({ access_token: 'at' }), { status: 200 })
+    if (s.startsWith('https://openidconnect.googleapis.com/')) return new Response(JSON.stringify({ sub: 'g-123', email: gEmail, email_verified: true, name: 'Gui' }), { status: 200 })
+    return realFetch(u, o)
+  }
+  let res = await realFetch(base + 'auth/google?next=/app/leads', { redirect: 'manual' })
+  assert.equal(res.status, 302); const loc = new URL(res.headers.get('location'))
+  assert.equal(loc.host, 'accounts.google.com'); const st = loc.searchParams.get('state')
+  const oc = res.headers.getSetCookie()[0].split(';')[0]
+  res = await realFetch(base + `auth/google/callback?code=x&state=errado`, { redirect: 'manual', headers: { Cookie: oc } })
+  assert.match(res.headers.get('location'), /erro=google_falhou/, 'estado inválido é recusado')
+  res = await realFetch(base + `auth/google/callback?code=x&state=${st}`, { redirect: 'manual', headers: { Cookie: oc } })
+  assert.equal(res.headers.get('location'), '/app/leads')
+  const gc = res.headers.getSetCookie().map(c => c.split(';')[0]).find(c => c.startsWith('argus_session=') && c.length > 16)
+  globalThis.fetch = realFetch
+  r = await api('GET', 'account', null, gc); assert.equal(r.data.user.email, gEmail); assert.equal(r.data.user.has_password, false); assert.equal(r.data.user.google, true)
+  assert.equal((await api('POST', 'auth/login', { email: gEmail, password: 'qualquer-coisa' })).status, 400, 'conta Google sem senha')
+  cookie = gc
+  assert.equal((await api('POST', 'account/delete', { confirm: 'nao' })).status, 400)
+  r = await api('POST', 'account/delete', { confirm: 'EXCLUIR' }); assert.equal(r.status, 200)
+  assert.equal((await api('GET', 'auth/me', null, gc)).data.user, null, 'conta excluída')
+  delete process.env.GOOGLE_CLIENT_ID
+  cookie = beforePw; await api('POST', 'auth/login', { email: email2, password: 'senha-nova-999' })
+
   // logout
   await api('POST', 'auth/logout'); assert.equal((await api('GET', 'auth/me')).data.user, null)
   console.log('OK — todos os testes da API passaram' + (firstIsAdmin ? ' (incluindo admin)' : ''))

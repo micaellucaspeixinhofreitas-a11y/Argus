@@ -170,6 +170,8 @@ create index if not exists password_resets_user_idx on password_resets(user_id, 
 
 alter table users add column if not exists session_version integer not null default 0;
 alter table users add column if not exists accepted_terms_at timestamptz;
+alter table users add column if not exists google_sub text;
+create unique index if not exists users_google_sub_idx on users(google_sub) where google_sub is not null;
 
 create table if not exists operations_log (
   id bigserial primary key,

@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { LuRadar, LuUsers, LuBookmark, LuCoins, LuCrown, LuShield, LuLogOut, LuHouse } from 'react-icons/lu'
+import { LuRadar, LuUsers, LuBookmark, LuCoins, LuCrown, LuShield, LuLogOut, LuHouse, LuUserCog } from 'react-icons/lu'
 import Dock from '../components/Dock'
 import { useAuth } from '../lib/auth'
 import { api, fmtInt } from '../lib/api'
@@ -10,6 +10,7 @@ import Saved from './Saved'
 import Credits from './Credits'
 import Subscription from './Subscription'
 import Admin from './Admin'
+import Account from './Account'
 import './platform.css'
 
 // Estado da prospecção compartilhado entre as telas (não se perde ao trocar de aba)
@@ -86,6 +87,7 @@ function PlatformDock() {
       active: at('/app/creditos'), onClick: go('/app/creditos'),
       badge: credits && credits.can_spend === 0 ? '!' : undefined,
     },
+    { icon: <LuUserCog />, label: 'Minha conta', active: at('/app/conta'), onClick: go('/app/conta') },
     ...(user.is_admin ? [{ icon: <LuShield />, label: 'Admin', active: at('/app/admin'), onClick: go('/app/admin') }] : []),
     { separator: true },
     { icon: <LuHouse />, label: 'Página inicial', onClick: go('/') },
@@ -151,6 +153,7 @@ export default function Platform() {
             <Route path="buscas" element={<Saved />} />
             <Route path="creditos" element={<Credits />} />
             <Route path="planos" element={<Subscription />} />
+            <Route path="conta" element={<Account />} />
             <Route path="pagamento" element={<Navigate to={`/app/planos${search}`} replace />} />
             {user.is_admin && <Route path="admin" element={<Admin />} />}
             <Route path="*" element={<Navigate to="/app" replace />} />
