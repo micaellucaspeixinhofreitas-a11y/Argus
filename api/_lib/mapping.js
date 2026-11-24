@@ -53,14 +53,21 @@ export async function geocode(q, country) {
 
 const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '')
 
-// Remove duplicatas do provedor (mesmo lugar mapeado como ponto e como área)
+// Remove duplicatas (mesmo lugar vindo duas vezes da mesma fonte ou de fontes diferentes).
+// O primeiro registro prevalece; campos ausentes são completados pelo duplicado
+// (ex.: Google traz telefone/site, OpenStreetMap completa e-mail e redes sociais).
+const FILL = ['phone', 'website', 'email', 'address', 'city', 'opening_hours']
 function dedupe(places) {
   const out = []
   const seen = new Map()
   for (const p of places) {
     const key = norm(p.name)
-    const near = (seen.get(key) || []).some(q => Math.abs(q.lat - p.lat) < 0.0005 && Math.abs(q.lng - p.lng) < 0.0005)
-    if (near) continue
+    const twin = (seen.get(key) || []).find(q => Math.abs(q.lat - p.lat) < 0.0006 && Math.abs(q.lng - p.lng) < 0.0006)
+    if (twin) {
+      for (const f of FILL) if (!twin[f] && p[f]) twin[f] = p[f]
+      if (!Object.keys(twin.social || {}).length && Object.keys(p.social || {}).length) twin.social = p.social
+      continue
+    }
     seen.set(key, [...(seen.get(key) || []), p])
     out.push(p)
   }
@@ -111,6 +118,7 @@ export async function runMapping(user, input) {
       areas: config.areas.map(a => ({ lat: a.lat, lng: a.lng, radius_m: a.radiusKm * 1000 })),
       segments: resolveSegments(config.segments),
       allBusiness: ALL_BUSINESS,
+      country: config.country,
     })
   } catch (err) {
     await query(`update mapping_runs set status = 'failed', error = $2, finished_at = now() where id = $1`, [run.id, String(err.message).slice(0, 300)])
@@ -188,7 +196,8 @@ export async function runResults(user, runId) {
   )
   if (!run) fail(404, 'Mapeamento não encontrado.')
   const { rows } = await query(
-    `select c.id, c.name, c.category, c.city,
+    `select c.id, c.name, c.category, c.city, c.source,
+            (c.tags->>'rating')::float as rating, (c.tags->>'user_ratings')::int as user_ratings,
             st_y(c.geom::geometry) as lat, st_x(c.geom::geometry) as lng,
             r.score, r.high_fit, r.distance_m,
             (c.phone is not null) as has_phone, (c.website is not null) as has_website,

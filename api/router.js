@@ -20,15 +20,16 @@ let lastSourceCheck = 0
 on('GET', 'health', async ({ url }) => {
   let db = 'ok'
   try { await query('select 1') } catch (e) { db = e.code === 'DB_NOT_CONFIGURED' ? 'not_configured' : 'error' }
-  const out = { ok: true, db, provider: process.env.PLACES_PROVIDER || 'osm', payments: paymentProvider() }
+  const out = { ok: true, db, provider: provider().name, payments: paymentProvider() }
   // ?source=1: verifica se a fonte de dados responde (no máximo 1x por minuto por instância)
   if (url.searchParams.get('source') && Date.now() - lastSourceCheck > 60_000) {
     lastSourceCheck = Date.now()
     try {
       const prov = provider()
       const [place] = await prov.geocode('Avenida Paulista, São Paulo', 'BR')
-      const found = await prov.searchPlaces({ areas: [{ lat: place.lat, lng: place.lng, radius_m: 400 }], segments: resolveSegments(['restaurantes']), allBusiness: ALL_BUSINESS, limit: 50 })
-      out.source = { ok: true, geocoded: place.display_name, sample: found.length, with_phone: found.filter(f => f.phone).length, without_website: found.filter(f => !f.website).length, example: found[0]?.name }
+      const found = await prov.searchPlaces({ areas: [{ lat: place.lat, lng: place.lng, radius_m: 400 }], segments: resolveSegments(['restaurantes']), allBusiness: ALL_BUSINESS, country: 'BR', limit: 50 })
+      const by = s => found.filter(f => f.source === s)
+      out.source = { ok: true, provider: prov.name, geocoded: place.display_name, sample: found.length, google: by('google').length, osm: by('osm').length, with_phone: found.filter(f => f.phone).length, with_website: found.filter(f => f.website).length, example: found[0]?.name }
     } catch (e) {
       out.source = { ok: false, error: e.message }
     }

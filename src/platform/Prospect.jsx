@@ -13,9 +13,19 @@ import { COUNTRIES, countryByCode } from '../lib/countries'
 const CATEGORY_PT = {
   shop: 'Loja', amenity: 'Serviço', office: 'Escritório', craft: 'Ofício', healthcare: 'Saúde', leisure: 'Lazer', tourism: 'Hospedagem',
 }
+const GOOGLE_PT = {
+  restaurant: 'Restaurante', cafe: 'Cafeteria', bar: 'Bar', bakery: 'Padaria', gym: 'Academia', fitness_center: 'Academia',
+  dentist: 'Dentista', dental_clinic: 'Clínica odontológica', doctor: 'Médico', medical_clinic: 'Clínica', hospital: 'Hospital',
+  pharmacy: 'Farmácia', drugstore: 'Farmácia', beauty_salon: 'Salão de beleza', hair_salon: 'Cabeleireiro', barber_shop: 'Barbearia',
+  spa: 'Spa', real_estate_agency: 'Imobiliária', lawyer: 'Advocacia', accounting: 'Contabilidade', car_repair: 'Oficina',
+  store: 'Loja', clothing_store: 'Loja de roupas', supermarket: 'Supermercado', grocery_store: 'Mercado', pet_store: 'Pet shop',
+  veterinary_care: 'Veterinário', hotel: 'Hotel', lodging: 'Hospedagem', school: 'Escola', insurance_agency: 'Seguros',
+  pizza_restaurant: 'Pizzaria', fast_food_restaurant: 'Lanchonete', physiotherapist: 'Fisioterapia', point_of_interest: 'Estabelecimento',
+}
 const catLabel = c => {
   if (!c) return 'Estabelecimento'
   const [k, v] = c.split(':')
+  if (k === 'google') return GOOGLE_PT[v] || String(v).replace(/_/g, ' ')
   return `${CATEGORY_PT[k] || k} · ${String(v).replace(/_/g, ' ')}`
 }
 
@@ -418,6 +428,7 @@ export default function Prospect() {
                         {!r.has_website && <span className="flag flag--noweb">Sem website</span>}
                         {r.has_phone && <span className="flag"><LuPhone /> telefone</span>}
                         {r.has_email && <span className="flag"><LuMail /> e-mail</span>}
+                        {r.rating != null && <span className="flag">★ {Number(r.rating).toLocaleString('pt-BR')}{r.user_ratings ? ` (${r.user_ratings})` : ''}</span>}
                       </div>
                       {r.captured && (
                         <div className="res__contact">
@@ -436,7 +447,10 @@ export default function Prospect() {
               </ul>
             )}
             {visible.length > 500 && <p className="hint">Mostrando 500 de {fmtInt(visible.length)}. Use os filtros para refinar.</p>}
-            <p className="hint">Fonte: © colaboradores do OpenStreetMap. Contatos aparecem após a captura e em <Link to="/app/leads">Leads</Link>.</p>
+            <p className="hint">
+              Fontes: {results.some(r => r.source === 'google') && 'Google Maps · '}© colaboradores do OpenStreetMap.
+              Contatos aparecem após a captura e em <Link to="/app/leads">Leads</Link>.
+            </p>
           </div>
         ) : (
           <div className="results card empty-state">

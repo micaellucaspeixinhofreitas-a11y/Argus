@@ -14,7 +14,10 @@ Encontre, mapeie, qualifique e capture empresas reais por segmento e território
 |---|---|---|
 | `DATABASE_URL` | sim | Postgres com PostGIS (Neon criado pela aba Storage da Vercel). |
 | `AUTH_SECRET` | sim | Chave aleatória (32+ caracteres) que assina as sessões. |
-| `PLACES_PROVIDER` | não | Provedor de empresas (padrão `osm`). |
+| `GOOGLE_PLACES_API_KEY` | não | Chave do Google Places (API New). Com ela, a busca usa Google + OpenStreetMap. |
+| `GOOGLE_MAX_REQUESTS` | não | Limite de chamadas ao Google por mapeamento (padrão 24). |
+| `PLACES_PROVIDER` | não | Força `osm`, `google` ou `hybrid`. |
+| `CARTO_API_TOKEN` | não | Chave de mapas base da CARTO. |
 | `PAYMENT_PROVIDER` | não | Padrão `manual` (admin ativa assinaturas). |
 
 A primeira conta criada vira administradora.
