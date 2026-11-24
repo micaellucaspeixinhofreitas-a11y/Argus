@@ -47,6 +47,14 @@ export default function Prospect() {
   const [capturing, setCapturing] = useState(false)
   const [savedSearchId, setSavedSearchId] = useState(null)
   const listRef = useRef(null)
+  const mapView = useRef(null)
+  const [locating, setLocating] = useState(false)
+
+  useEffect(() => {
+    if (!notice || error) return
+    const t = setTimeout(() => setNotice(''), 7000)
+    return () => clearTimeout(t)
+  }, [notice, error])
 
   const country = countryByCode(config.country)
   const view = useMemo(() => ({ lat: country.lat, lng: country.lng, zoom: country.zoom }), [country])
@@ -91,6 +99,21 @@ export default function Prospect() {
   const setAreaRadius = (i, radiusKm) => setConfig(c => ({ ...c, areas: c.areas.map((a, j) => (j === i ? { ...a, radiusKm } : a)) }))
   const removeArea = i => setConfig(c => ({ ...c, areas: c.areas.filter((_, j) => j !== i) }))
   const applyRadiusToAll = () => setConfig(c => ({ ...c, areas: c.areas.map(a => ({ ...a, radiusKm: c.radiusKm })) }))
+  const useMyLocation = () => {
+    if (!navigator.geolocation) return setError('Seu navegador não permite obter a localização.')
+    setLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        setLocating(false)
+        const p = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+        addArea(p, 'Minha localização')
+        setFlyTo({ ...p })
+      },
+      () => { setLocating(false); setError('Não foi possível obter sua localização. Verifique a permissão do navegador.') },
+      { enableHighAccuracy: true, timeout: 10000 }
+    )
+  }
+
   const sync = () => {
     setSyncedAreas(JSON.stringify(config.areas))
     setFitKey(k => k + 1)
@@ -113,15 +136,23 @@ export default function Prospect() {
   const run = async () => {
     setError('')
     setNotice('')
+    let body = payload()
     if (!config.areas.length && !config.locality.trim()) {
-      setError('Marque ao menos uma área no mapa (clique no mapa) ou informe uma localidade.')
-      return
+      // sem área nem localidade: usa o centro do mapa, se estiver aproximado o suficiente
+      const v = mapView.current
+      if (!v || v.zoom < 11) {
+        setError('Defina onde prospectar: informe uma localidade, toque no mapa para marcar uma área ou use sua localização.')
+        return
+      }
+      const area = { lat: +v.lat.toFixed(6), lng: +v.lng.toFixed(6), radiusKm: config.radiusKm, label: 'Centro do mapa' }
+      update({ areas: [area] })
+      body = { ...body, areas: [area] }
     }
     setRunning(true)
     sync()
     try {
-      const data = await api('mapping/run', { method: 'POST', body: payload() })
-      let areas = config.areas
+      const data = await api('mapping/run', { method: 'POST', body })
+      let areas = body.areas
       if (!areas.length && data.areas?.length) {
         areas = data.areas.map(a => ({ lat: a.lat, lng: a.lng, radiusKm: a.radius_m / 1000, label: a.label }))
         update({ areas })
@@ -132,6 +163,7 @@ export default function Prospect() {
       if (data.credits) setCredits(data.credits)
       setSelected(new Set())
       setFilter('all')
+      setNotice(data.run.total ? `${fmtInt(data.run.total)} empresa(s) mapeada(s).` : 'Nenhuma empresa encontrada nesta área. Tente aumentar o raio, mudar o segmento ou marcar outra região.')
       setTimeout(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
     } catch (err) {
       setError(err.message)
@@ -317,6 +349,7 @@ export default function Prospect() {
             </ul>
           )}
           <div className="btn-row">
+            <button className="btn-mini" onClick={useMyLocation} disabled={locating}><LuLocateFixed /> {locating ? 'Localizando…' : 'Usar minha localização'}</button>
             <button className="btn-mini" onClick={sync} disabled={!config.areas.length}><LuRefreshCw /> Sincronizar com o mapa</button>
             {config.areas.length > 1 && <button className="btn-mini" onClick={applyRadiusToAll}>Aplicar raio a todas</button>}
             {config.areas.length > 0 && <button className="btn-mini btn-mini--danger" onClick={() => update({ areas: [] })}><LuTrash2 /> Limpar áreas</button>}
@@ -329,9 +362,13 @@ export default function Prospect() {
           </button>
           <button className="btn-mini" onClick={saveSearch}><LuSave /> Salvar busca</button>
         </div>
-        {error && <p className="form-error" role="alert">{error}</p>}
-        {notice && <p className="form-notice" role="status">{notice}</p>}
       </aside>
+      {(error || notice) && (
+        <div className={`toast ${error ? 'toast--error' : ''}`} role={error ? 'alert' : 'status'}>
+          <span>{error || notice}</span>
+          <button onClick={() => { setError(''); setNotice('') }} aria-label="Fechar aviso"><LuX /></button>
+        </div>
+      )}
 
       {/* ===== mapa + resultados ===== */}
       <section className="pros__work">
@@ -363,6 +400,7 @@ export default function Prospect() {
             areas={config.areas}
             results={results}
             selectedId={focusId}
+            onViewChange={v => { mapView.current = v }}
             onAddArea={latlng => addArea(latlng)}
             onMoveArea={moveArea}
             onSelect={id => { setFocusId(id); document.getElementById(`r-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) }}

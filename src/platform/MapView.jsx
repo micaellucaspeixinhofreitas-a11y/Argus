@@ -6,20 +6,26 @@ import 'leaflet/dist/leaflet.css'
 // - clique no mapa: adiciona uma área com o raio atual
 // - arraste o centro de uma área para movê-la
 // - pontos: empresas encontradas (cor por aderência / presença digital)
-export default function MapView({ basemapKey = '', view, areas, results, selectedId, onAddArea, onMoveArea, onSelect, fitKey, flyTo, addMode }) {
+export default function MapView({ basemapKey = '', onViewChange, view, areas, results, selectedId, onAddArea, onMoveArea, onSelect, fitKey, flyTo, addMode }) {
   const el = useRef(null)
   const map = useRef(null)
   const areaLayer = useRef(null)
   const resultLayer = useRef(null)
   const markers = useRef(new Map())
   const handlers = useRef({})
-  handlers.current = { onAddArea, onMoveArea, onSelect, addMode }
+  handlers.current = { onAddArea, onMoveArea, onSelect, addMode, onViewChange }
 
   // cria o mapa uma única vez
   useEffect(() => {
     const m = L.map(el.current, { zoomControl: true, worldCopyJump: true, preferCanvas: true }).setView([view.lat, view.lng], view.zoom)
     areaLayer.current = L.layerGroup().addTo(m)
     resultLayer.current = L.layerGroup().addTo(m)
+    const report = () => {
+      const c = m.getCenter()
+      handlers.current.onViewChange?.({ lat: c.lat, lng: c.lng, zoom: m.getZoom() })
+    }
+    m.on('moveend', report)
+    setTimeout(report, 0)
     m.on('click', e => {
       if (handlers.current.addMode) handlers.current.onAddArea?.(e.latlng)
     })

@@ -25,8 +25,12 @@ const hybrid = {
     return []
   },
   async searchPlaces(opts) {
-    const sources = [...PAID.filter(p => p.available()), osm]
-    const settled = await Promise.allSettled(sources.map(p => p.searchPlaces(opts)))
+    const paid = PAID.filter(p => p.available())
+    // OpenStreetMap só complementa: prazo curto para não atrasar a resposta
+    const settled = await Promise.allSettled([
+      ...paid.map(p => p.searchPlaces(opts)),
+      osm.searchPlaces({ ...opts, deadlineMs: 18000 }),
+    ])
     if (settled.every(s => s.status === 'rejected')) throw settled[0].reason
     return settled.flatMap(s => (s.status === 'fulfilled' ? s.value : []))
   },

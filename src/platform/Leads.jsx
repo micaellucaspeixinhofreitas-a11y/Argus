@@ -39,18 +39,18 @@ export default function Leads() {
         <>
           <p className="hint">{fmtInt(leads.length)} lead(s){q && ' no filtro'}</p>
           <div className="table-wrap card">
-            <table className="table">
+            <table className="table table--cards">
               <thead>
                 <tr><th>Empresa</th><th>Contato</th><th>Endereço</th><th>Aderência</th><th>Capturado em</th></tr>
               </thead>
               <tbody>
                 {leads.map(l => (
                   <tr key={l.id}>
-                    <td>
+                    <td data-label="Empresa">
                       <strong>{l.name}</strong>
                       <small className="muted block">{l.category?.split(':')[1]?.replace(/_/g, ' ') || '—'}</small>
                     </td>
-                    <td className="contacts">
+                    <td className="contacts" data-label="Contato">
                       {l.phone && <a href={`tel:${l.phone}`}><LuPhone /> {l.phone}</a>}
                       {l.phone && waLink(l.phone) && <a href={waLink(l.phone)} target="_blank" rel="noreferrer">WhatsApp</a>}
                       {l.email && <a href={`mailto:${l.email}`}><LuMail /> {l.email}</a>}
@@ -60,12 +60,12 @@ export default function Leads() {
                       {Object.entries(l.social || {}).map(([k, v]) => <span key={k} className="flag">{k}: {v}</span>)}
                       {!l.phone && !l.email && !l.website && <span className="muted">Sem contatos cadastrados</span>}
                     </td>
-                    <td>
+                    <td data-label="Endereço">
                       {l.address || <span className="muted">—</span>}
                       <a className="block small" href={`https://www.openstreetmap.org/?mlat=${l.lat}&mlon=${l.lng}#map=18/${l.lat}/${l.lng}`} target="_blank" rel="noreferrer"><LuMapPin /> ver no mapa</a>
                     </td>
-                    <td>{l.score != null ? `${l.score}%` : '—'}{l.high_fit && <span className="flag flag--fit block">Alta</span>}</td>
-                    <td>{fmtDateTime(l.captured_at)}</td>
+                    <td data-label="Aderência">{l.score != null ? `${l.score}%` : '—'}{l.high_fit && <span className="flag flag--fit block">Alta</span>}</td>
+                    <td data-label="Capturado em">{fmtDateTime(l.captured_at)}</td>
                   </tr>
                 ))}
               </tbody>

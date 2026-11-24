@@ -210,7 +210,7 @@ details.card[open] summary { margin-bottom: 12px; }
 @media (max-width: 1100px) {
   .pros { grid-template-columns: 1fr; }
   .pros__panel { position: static; max-height: none; overflow: visible; padding: 0; }
-  .pros__actions { position: sticky; bottom: 88px; z-index: 700; }
+  .pros__actions { position: static; background: none; padding: 4px 0 0; }
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
   .admin-plan__grid { grid-template-columns: repeat(2, 1fr); }
 }
@@ -229,4 +229,27 @@ details.card[open] summary { margin-bottom: 12px; }
   .map-legend { display: none; }
   .history li { grid-template-columns: 80px 1fr 40px; }
   .history li small { display: none; }
+
+  /* tabelas viram cartões no celular */
+  .table--cards thead { display: none; }
+  .table--cards, .table--cards tbody, .table--cards tr, .table--cards td { display: block; width: 100%; }
+  .table--cards tr { padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .table--cards tr:last-child { border-bottom: 0; }
+  .table--cards td { padding: 4px 0; border: 0; min-width: 0 !important; }
+  .table--cards td[data-label]:not(:first-child)::before { content: attr(data-label); display: block; margin: 6px 0 2px; font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .table--cards td.contacts, .table--cards td.admin-actions { display: flex; }
+  .table--cards td.contacts::before, .table--cards td.admin-actions::before { flex-basis: 100%; }
+  .admin-actions { min-width: 0; }
 }
+
+/* aviso fixo acima da Dock */
+.toast { position: fixed; left: 50%; bottom: 104px; transform: translateX(-50%); z-index: 1200; width: min(560px, calc(100% - 24px));
+  display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border-radius: 14px; font-size: 14px; line-height: 1.45;
+  background: rgba(22,18,34,.96); color: #ede9fe; border: 1px solid rgba(167,139,250,.45); box-shadow: 0 18px 40px -12px rgba(0,0,0,.7);
+  animation: toast-in .35s var(--ease); }
+.toast span { flex: 1; }
+.toast button { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; color: inherit; opacity: .7; flex: none; }
+.toast button:hover { opacity: 1; background: rgba(255,255,255,.08); }
+.toast--error { background: rgba(40,14,22,.97); color: #fecdd3; border-color: rgba(244,63,94,.5); }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 12px); } }
+@media (max-width: 700px) { .toast { bottom: 84px; } }

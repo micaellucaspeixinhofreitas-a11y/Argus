@@ -50,7 +50,7 @@ function selector([key, regex], keyword) {
 }
 
 // areas: [{lat,lng,radius_m}], segments: resolveSegments(), allBusiness: filtros padrão
-export async function searchPlaces({ areas, segments, allBusiness, limit = 2500 }) {
+export async function searchPlaces({ areas, segments, allBusiness, limit = 2500, deadlineMs = 40000 }) {
   const parts = []
   for (const a of areas) {
     const around = `(around:${Math.round(a.radius_m)},${a.lat.toFixed(6)},${a.lng.toFixed(6)})`
@@ -60,21 +60,25 @@ export async function searchPlaces({ areas, segments, allBusiness, limit = 2500 
       for (const f of filters) parts.push(`nwr${selector(f, seg.keyword)}${around};`)
     }
   }
-  const ql = `[out:json][timeout:45];(${parts.join('')});out center tags ${limit};`
+  const started = Date.now()
+  const serverTimeout = Math.max(5, Math.floor(deadlineMs / 1000) - 3)
+  const ql = `[out:json][timeout:${serverTimeout}];(${parts.join('')});out center tags ${limit};`
   let lastErr
   for (const endpoint of OVERPASS) {
+    const left = deadlineMs - (Date.now() - started)
+    if (left < 4000) break
     try {
       const data = await fetchJson(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `data=${encodeURIComponent(ql)}`,
-      }, 50000)
+      }, left)
       return (data.elements || []).map(normalizePlace).filter(Boolean)
     } catch (err) {
       lastErr = err
     }
   }
-  throw lastErr
+  throw lastErr || new Error('OpenStreetMap: tempo esgotado')
 }
 
 const first = (...v) => v.find(x => x && String(x).trim()) || null

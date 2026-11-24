@@ -72,7 +72,7 @@ export default function Admin() {
 
       <h2>Usuários</h2>
       <div className="table-wrap card">
-        <table className="table">
+        <table className="table table--cards">
           <thead><tr><th>Usuário</th><th>Assinatura</th><th>Uso</th><th>Ações</th></tr></thead>
           <tbody>
             {data.users.map(u => {
@@ -80,10 +80,10 @@ export default function Admin() {
               const setC = patch => setChoice(x => ({ ...x, [u.id]: { ...c, ...patch } }))
               return (
                 <tr key={u.id}>
-                  <td><strong>{u.name || '—'}</strong>{u.is_admin && <span className="flag flag--fit">admin</span>}<small className="muted block">{u.email} · desde {fmtDate(u.created_at)}</small></td>
-                  <td>{u.subscription ? <>{u.subscription.plan_id} · {u.subscription.status}<small className="muted block">{u.subscription.current_period_end ? `até ${fmtDate(u.subscription.current_period_end)}` : ''}</small></> : <span className="muted">Plano padrão</span>}</td>
-                  <td>{fmtInt(u.leads)} leads<small className="muted block">{fmtInt(u.runs)} mapeamentos</small></td>
-                  <td className="admin-actions">
+                  <td data-label="Usuário"><strong>{u.name || '—'}</strong>{u.is_admin && <span className="flag flag--fit">admin</span>}<small className="muted block">{u.email} · desde {fmtDate(u.created_at)}</small></td>
+                  <td data-label="Assinatura">{u.subscription ? <>{u.subscription.plan_id} · {u.subscription.status}<small className="muted block">{u.subscription.current_period_end ? `até ${fmtDate(u.subscription.current_period_end)}` : ''}</small></> : <span className="muted">Plano padrão</span>}</td>
+                  <td data-label="Uso">{fmtInt(u.leads)} leads<small className="muted block">{fmtInt(u.runs)} mapeamentos</small></td>
+                  <td className="admin-actions" data-label="Ações">
                     <select value={c.planId} onChange={e => setC({ planId: e.target.value })}>{data.plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
                     <select value={c.period} onChange={e => setC({ period: e.target.value })}><option value="monthly">Mensal</option><option value="quarterly">Trimestral</option></select>
                     <button className="btn-mini" onClick={() => act(() => api('admin/subscription', { method: 'POST', body: { userId: u.id, action: 'activate', planId: c.planId, period: c.period } }), 'Assinatura ativada.')}>Ativar</button>
