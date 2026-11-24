@@ -1,15 +1,8 @@
 import Icon from '../components/Icons'
 import SpecularLink from '../components/SpecularLink'
+import Radar from '../components/Radar'
 import SectionHead from './SectionHead'
 import { useAuth } from '../lib/auth'
-
-// Pré-visualização ilustrativa do radar (não representa empresas reais)
-const DOTS = Array.from({ length: 46 }, (_, i) => {
-  const a = (i * 137.5 * Math.PI) / 180
-  const r = 8 + ((i * 53) % 34)
-  const ring = i % 3
-  return { x: 50 + Math.cos(a) * r * (ring === 0 ? 1 : 0.8), y: 50 + Math.sin(a) * r * 0.9, kind: i % 5 === 0 ? 'fit' : i % 3 === 0 ? 'noweb' : 'base' }
-})
 
 const INDICATORS = [
   { key: 'mapped', label: 'Mapeadas', hint: 'empresas identificadas no território' },
@@ -41,13 +34,32 @@ export default function RadarPreview() {
         </div>
 
         <figure className="radar-prev__screen" data-reveal aria-label="Ilustração da interface do radar">
-          <div className="radar-prev__map">
-            <div className="radar-prev__sweep" />
-            <span className="radar-prev__area" style={{ left: '50%', top: '50%', width: '62%' }} />
-            <span className="radar-prev__area" style={{ left: '78%', top: '28%', width: '30%' }} />
-            {DOTS.map((d, i) => (
-              <i key={i} className={`radar-prev__dot radar-prev__dot--${d.kind}`} style={{ left: `${d.x}%`, top: `${d.y}%`, animationDelay: `${(i % 12) * 0.25}s` }} />
-            ))}
+          <div className="radar-prev__radar" style={{ width: '100%', position: 'relative' }}>
+            <Radar
+              color="#5b059d"
+              mode="sweep"
+              speed={1}
+              trail={0.35}
+              scale={0.9}
+              ringCount={6}
+              spokeCount={12}
+              targets={6}
+              clutter={0.35}
+              mouseInteraction
+              ticks
+              glow={1}
+              tilt={0}
+              centerX={0.5}
+              centerY={0.5}
+              brightness={1}
+              gridOpacity={1}
+              lineWidth={1}
+              grain={0.03}
+              fade={0}
+              opacity={1}
+              intro
+              lightMode={false}
+            />
           </div>
           <div className="radar-prev__cards">
             {INDICATORS.map(i => (
