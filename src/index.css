@@ -568,3 +568,29 @@ html, body { overflow-x: clip; }
   background: radial-gradient(60% 120% at 12% 0%, rgba(255, 255, 255, .75), transparent 60%);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
 }
+
+/* ---------------- tela de manutenção ---------------- */
+.maint { position: relative; min-height: 100svh; display: grid; place-items: center; padding: 40px 20px; overflow: hidden; background: #07060b; font-family: var(--font); }
+.maint__glow { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(50% 45% at 30% 45%, rgba(139, 92, 246, .28), transparent 70%), radial-gradient(40% 40% at 85% 15%, rgba(236, 72, 153, .1), transparent 70%); }
+.maint__inner { position: relative; width: min(1080px, 100%); display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 40px; }
+.maint__bot { width: 100%; height: auto; filter: drop-shadow(0 30px 60px rgba(139, 92, 246, .35)); animation: maint-float 5s ease-in-out infinite; }
+.maint__copy { display: grid; gap: 16px; justify-items: start; }
+.maint__logo { height: 26px; width: auto; margin-bottom: 8px; }
+.maint__badge { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(251, 191, 36, .4); background: rgba(251, 191, 36, .08); color: #fcd34d; font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+.maint__badge i { width: 7px; height: 7px; border-radius: 50%; background: #fbbf24; box-shadow: 0 0 10px #fbbf24; animation: maint-blink 1.4s ease-in-out infinite; }
+.maint h1 { font-family: var(--display); font-size: clamp(30px, 4.4vw, 52px); letter-spacing: -.03em; line-height: 1.05; }
+.maint p { color: var(--muted); font-size: 17px; max-width: 480px; }
+.maint__eta { display: block; color: #e9e3ff !important; font-size: 15px !important; line-height: 1.6; }
+.maint__eta svg { color: var(--purple-2); vertical-align: -2px; margin-right: 6px; }
+.maint__actions { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; margin-top: 6px; }
+.maint__actions .btn { display: inline-flex; gap: 8px; align-items: center; }
+.maint__admin { color: var(--muted); font-size: 14px; text-decoration: underline; text-underline-offset: 3px; }
+.maint__admin:hover { color: #fff; }
+.maint__note { color: #6f6a82; font-size: 13px; }
+@keyframes maint-float { 50% { transform: translateY(-12px) rotate(-1deg); } }
+@keyframes maint-blink { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .maint__bot, .maint__badge i { animation: none; } }
+@media (max-width: 820px) {
+  .maint__inner { grid-template-columns: 1fr; gap: 10px; text-align: left; }
+  .maint__bot { width: min(360px, 90%); justify-self: center; }
+}

@@ -405,3 +405,40 @@ a.activity__num { color: var(--acc-2); }
 @media (max-width: 800px) { .sec-grid { grid-template-columns: minmax(0, 1fr); } }
 .activity li .activity__dot.is-alert { background: #fb7185; box-shadow: 0 0 8px rgba(251, 113, 133, .7); }
 .admin-plan__delete { margin-left: auto; }
+
+/* ---------------- aviso no topo ---------------- */
+.announce { display: flex; align-items: center; gap: 10px; padding: 9px 16px; font-size: 13.5px; border-bottom: 1px solid; }
+.announce > span { flex: 1; min-width: 0; }
+.announce svg { flex: none; font-size: 16px; }
+.announce button { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 6px; color: inherit; opacity: .7; }
+.announce button:hover { opacity: 1; background: rgba(255, 255, 255, .08); }
+.announce a { font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.announce--info { background: rgba(139, 92, 246, .12); border-color: rgba(139, 92, 246, .3); color: #ddd6fe; }
+.announce--success { background: rgba(52, 211, 153, .1); border-color: rgba(52, 211, 153, .3); color: #a7f3d0; }
+.announce--warning { background: rgba(251, 191, 36, .1); border-color: rgba(251, 191, 36, .3); color: #fde68a; }
+
+/* ---------------- controle do site (admin) ---------------- */
+.app .ctl { padding: 22px !important; display: grid; gap: 18px; }
+.ctl__head { display: flex; align-items: center; gap: 18px; }
+.ctl__head img { width: 96px; height: 96px; object-fit: contain; flex: none; filter: drop-shadow(0 10px 22px rgba(139, 92, 246, .45)); }
+.ctl__head > div { flex: 1; min-width: 0; }
+.app .ctl__head h2 { font-size: 18px; margin: 0 0 4px; }
+.ctl__status { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 500; color: #a7f3d0; background: rgba(52, 211, 153, .1); border: 1px solid rgba(52, 211, 153, .3); white-space: nowrap; }
+.ctl__status i { width: 7px; height: 7px; border-radius: 50%; background: #34d399; box-shadow: 0 0 8px #34d399; }
+.ctl__status.is-maint { color: #fde68a; background: rgba(251, 191, 36, .1); border-color: rgba(251, 191, 36, .35); }
+.ctl__status.is-maint i { background: #fbbf24; box-shadow: 0 0 8px #fbbf24; }
+.ctl__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.ctl__box { margin: 0; padding: 16px; border: 1px solid var(--b1); border-radius: 12px; background: #0b0b0e; display: grid; gap: 14px; align-content: start; min-width: 0; }
+.ctl__box.is-on { border-color: rgba(251, 191, 36, .4); background: linear-gradient(180deg, rgba(251, 191, 36, .05), transparent 60%), #0b0b0e; }
+.ctl__box legend, .ctl__sub { display: flex; align-items: center; gap: 8px; padding: 0 6px; font-size: 13px; font-weight: 600; color: var(--t1); }
+.ctl__sub { padding: 6px 0 0; border-top: 1px solid var(--b1); margin-top: 2px; }
+.ctl-toggle { display: flex; align-items: flex-start; gap: 12px; cursor: pointer; }
+.ctl-toggle .switch { margin-top: 2px; }
+.ctl-toggle > span:last-child { display: grid; gap: 2px; }
+.ctl-toggle strong { font-size: 14px; font-weight: 500; }
+.ctl-toggle small { font-size: 12.5px; color: var(--t3); }
+.ctl__radios { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13.5px; color: var(--t2); }
+.ctl__radios label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.ctl__radios input { accent-color: var(--acc); }
+.ctl__foot { display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
+@media (max-width: 900px) { .ctl__grid { grid-template-columns: minmax(0, 1fr); } .ctl__head { flex-wrap: wrap; } .ctl__head img { width: 72px; height: 72px; } }

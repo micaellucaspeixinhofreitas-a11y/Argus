@@ -3,6 +3,9 @@ import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'reac
 import { LuRadar, LuUsers, LuBookmark, LuCoins, LuCrown, LuShield, LuLogOut, LuHouse, LuUserCog, LuLayoutDashboard } from 'react-icons/lu'
 import Dock from '../components/Dock'
 import { useAuth } from '../lib/auth'
+import { useSite } from '../lib/site'
+import Maintenance from '../pages/Maintenance'
+import AnnouncementBar from '../components/AnnouncementBar'
 import { api, fmtInt } from '../lib/api'
 import Prospect from './Prospect'
 import Dashboard from './Dashboard'
@@ -164,13 +167,22 @@ function TopBar() {
 
 export default function Platform() {
   const { user, loading } = useAuth()
+  const { status: site } = useSite()
   const { search } = useLocation()
   if (loading) return <div className="page-loading"><span className="spinner" /> Carregando…</div>
   if (!user) return <Navigate to="/entrar" replace />
+  if (site?.maintenance?.enabled && !user.is_admin) return <Maintenance />
 
   return (
     <ProspectProvider>
       <div className="pf app">
+        {site?.maintenance?.enabled && (
+          <div className="announce announce--warning announce--admin" role="status">
+            <span>Modo manutenção ligado{site.maintenance.scope === 'all' ? ' (site inteiro)' : ''}: só administradores estão vendo a plataforma.</span>
+            <NavLink to="/app/admin">Gerenciar</NavLink>
+          </div>
+        )}
+        <AnnouncementBar />
         <TopBar />
         <main className="pf-main app__content">
           <Routes>

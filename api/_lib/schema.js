@@ -178,6 +178,14 @@ create table if not exists saved_searches (
 );
 create index if not exists saved_searches_user_idx on saved_searches(user_id, created_at desc);
 
+-- Configurações do site (manutenção, aviso, cadastros, pagamentos)
+create table if not exists site_settings (
+  key text primary key,
+  value jsonb not null,
+  updated_by bigint references users(id) on delete set null,
+  updated_at timestamptz not null default now()
+);
+
 -- Redefinição de senha: guarda só o hash do token enviado por e-mail
 create table if not exists password_resets (
   id bigserial primary key,

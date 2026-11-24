@@ -253,6 +253,27 @@ try {
     assert.ok(!r.data.plans.find(p => p.id === 'velho'))
   }
 
+  // controle do site: manutenção, cadastros, pagamentos e mapeamentos
+  if (firstIsAdmin) {
+    assert.equal((await api('GET', 'site/status', null, '')).data.maintenance.enabled, false)
+    assert.equal((await api('POST', 'admin/settings', { maintenance: { enabled: true } }, otherCookie)).status, 403, 'só admin altera')
+    r = await api('POST', 'admin/settings', { maintenance: { enabled: true, scope: 'platform', message: 'Voltamos já', eta: '2099-01-01T12:00:00Z' }, announcement: { enabled: true, text: 'Novidade!', tone: 'success' } })
+    assert.equal(r.data.settings.maintenance.enabled, true)
+    const st = (await api('GET', 'site/status', null, '')).data
+    assert.equal(st.maintenance.message, 'Voltamos já'); assert.equal(st.announcement.text, 'Novidade!')
+    const blocked = await api('GET', 'leads', null, otherCookie)
+    assert.equal(blocked.status, 503); assert.equal(blocked.data.code, 'MAINTENANCE')
+    assert.equal((await api('GET', 'auth/me', null, otherCookie)).status, 200, 'login/status continuam liberados')
+    assert.equal((await api('GET', 'leads')).status, 200, 'admin continua usando')
+    await api('POST', 'admin/settings', { maintenance: { enabled: false }, announcement: { enabled: false, text: '' }, registrationsOpen: false, paymentsEnabled: false, mappingEnabled: false })
+    assert.equal((await api('GET', 'leads', null, otherCookie)).status, 200, 'manutenção desligada')
+    assert.equal((await api('POST', 'auth/register', { name: 'Z', email: `z${Date.now()}@ex.com`, password: 'senha-forte-9', acceptTerms: true }, '')).data.code, 'REGISTRATIONS_CLOSED')
+    assert.equal((await api('POST', 'payment/pix', { planId: 'pro', period: 'monthly' }, otherCookie)).data.code, 'PAYMENTS_PAUSED')
+    assert.equal((await api('POST', 'mapping/run', config, otherCookie)).data.code, 'MAPPING_PAUSED')
+    await api('POST', 'admin/settings', { registrationsOpen: true, paymentsEnabled: true, mappingEnabled: true })
+    assert.equal((await api('GET', 'site/status', null, '')).data.registrationsOpen, true)
+  }
+
   // ===== proteções (revisão de segurança) =====
   const raw = (path, init) => fetch(base + path, init).then(async r => ({ status: r.status, text: await r.text() }))
   // diagnóstico das APIs pagas só para admin

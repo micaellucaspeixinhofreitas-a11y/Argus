@@ -20,6 +20,8 @@ export async function api(path, { method = 'GET', body } = {}) {
   } catch {
     /* resposta sem JSON */
   }
+  // a plataforma entrou em manutenção: avisa o app para trocar de tela
+  if (res.status === 503 && data?.code === 'MAINTENANCE' && typeof window !== 'undefined') window.dispatchEvent(new Event('argus:maintenance'))
   if (!res.ok) throw new ApiError(res.status, data?.error || `Erro ${res.status}`, data?.code)
   return data
 }

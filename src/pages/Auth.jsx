@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { api } from '../lib/api'
+import { useSite } from '../lib/site'
 import AuthBackground from '../components/AuthBackground'
 import GoogleButton from '../components/GoogleButton'
 
@@ -10,6 +11,7 @@ const GOOGLE_ERRORS = {
   google_falhou: 'Não foi possível entrar com o Google. Tente novamente.',
   google_email: 'Sua conta Google não tem um e-mail confirmado.',
   google_indisponivel: 'O login com Google ainda não está disponível.',
+  cadastro_fechado: 'Novos cadastros estão temporariamente fechados.',
 }
 
 export default function Auth() {
@@ -17,6 +19,8 @@ export default function Auth() {
   const modo = params.get('modo')
   const mode = modo === 'cadastro' ? 'register' : modo === 'recuperar' ? 'forgot' : 'login'
   const { user, loading, login, register } = useAuth()
+  const { status: site } = useSite()
+  const closed = mode === 'register' && site && site.registrationsOpen === false
   const navigate = useNavigate()
   const [form, setForm] = useState({ name: '', email: '', password: '', accept: false })
   const [error, setError] = useState(() => GOOGLE_ERRORS[params.get('erro')] || '')
@@ -109,9 +113,10 @@ export default function Auth() {
             </span>
           </label>
         )}
+        {closed && <p className="form-notice">Novos cadastros estão temporariamente fechados. Se você já tem conta, é só entrar.</p>}
         {error && <p className="form-error" role="alert">{error}</p>}
         {notice && <p className="form-notice" role="status">{notice}</p>}
-        <button className="btn btn--primary btn--block" disabled={busy}>
+        <button className="btn btn--primary btn--block" disabled={busy || closed}>
           {busy ? 'Aguarde…' : mode === 'register' ? 'Criar conta grátis' : mode === 'forgot' ? 'Enviar link' : 'Entrar'}
         </button>
         <p className="auth__switch">

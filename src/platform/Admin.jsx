@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, money, fmtDate, fmtDateTime, fmtInt } from '../lib/api'
+import SiteControl from './SiteControl'
 
 const blankPlan = { id: '', name: '', description: '', monthly_credits: 0, daily_limit: 0, price_monthly_cents: 0, price_quarterly_cents: 0, features: [], is_default: false, active: true, sort: 10 }
 
@@ -121,6 +122,8 @@ export default function Admin() {
         <div className="card stat-card"><small>Leads capturados</small><strong>{fmtInt(data.totals.leads)}</strong></div>
         <div className="card stat-card"><small>Mapeamentos</small><strong>{fmtInt(data.totals.runs)}</strong></div>
       </div>
+
+      <SiteControl />
 
       <h2 className="h2-icon"><img src="/icons/escudo.webp" alt="" width="26" height="26" /> Atividade suspeita · 24 h</h2>
       {security && (

@@ -5,6 +5,7 @@ import { send, readJson, fail, HttpError, str, num } from './_lib/http.js'
 import { hashPassword, verifyPassword, sessionCookie, clearCookie, currentUser, requireUser, requireAdmin, newResetToken, hashToken, NO_PASSWORD, hasPassword, oauthCookie, clearOauthCookie, readOauthCookie } from './_lib/auth.js'
 import crypto from 'node:crypto'
 import { sendMail } from './_lib/mail.js'
+import { getSettings, saveSetting, publicStatus } from './_lib/settings.js'
 import { creditStatus, creditHistory, activePlan, hasPro, TZ } from './_lib/credits.js'
 import { pixConfigured, pixPayload } from './_lib/pix.js'
 import { runMapping, runResults, captureLeads, geocode, parseConfig, LIMITS } from './_lib/mapping.js'
@@ -82,8 +83,12 @@ const googleConfigured = () => Boolean(process.env.GOOGLE_CLIENT_ID && process.e
 
 on('GET', 'meta', async () => ({ segments: catalogList(), criteria: criteriaList(), limits: LIMITS, basemapKey: basemapKey(), googleAuth: googleConfigured() }))
 
+// ---------- status do site (manutenção, aviso) ----------
+on('GET', 'site/status', async () => publicStatus(await getSettings()))
+
 // ---------- autenticação ----------
 on('POST', 'auth/register', async ({ req, body }) => {
+  if (!(await getSettings()).registrationsOpen) fail(403, 'Novos cadastros estão temporariamente fechados.', 'REGISTRATIONS_CLOSED')
   await rateLimit('register', clientIp(req), 5, 60, 'Muitas contas criadas a partir desta conexão. Tente de novo mais tarde.')
   const email = str(body.email, 160).toLowerCase()
   const name = str(body.name, 80)
@@ -276,6 +281,7 @@ on('GET', 'auth/google/callback', async ({ req, url }) => {
       ;({ rows: [u] } = await db.query('update users set google_sub = $1 where email = $2 returning id, session_version', [info.sub, email]))
     }
     if (!u) {
+      if (!(await getSettings()).registrationsOpen) return null
       const { rows: [{ n }] } = await db.query('select count(*)::int as n from users')
       ;({ rows: [u] } = await db.query(
         `insert into users (email, name, password_hash, is_admin, google_sub, accepted_terms_at) values ($1, $2, $3, $4, $5, now())
@@ -284,6 +290,7 @@ on('GET', 'auth/google/callback', async ({ req, url }) => {
     }
     return u
   })
+  if (!user) return back('cadastro_fechado')
   return { redirect: safeNext(saved.next), headers: { 'Set-Cookie': [clearOauthCookie(), sessionCookie(user.id, user.session_version)] } }
 })
 
@@ -369,6 +376,7 @@ on('GET', 'geo/search', async ({ req, url }) => {
 // ---------- mapeamento de oportunidades ----------
 on('POST', 'mapping/run', async ({ req, body }) => {
   const user = await requireUser(req)
+  if (!(await getSettings()).mappingEnabled && !user.is_admin) fail(503, 'Os mapeamentos estão pausados no momento. Tente de novo em instantes.', 'MAPPING_PAUSED')
   const result = await runMapping(user, body)
   return { ...(await runResults(user, result.run_id)), credits: await creditStatus(user.id), sourceErrors: result.sourceErrors, hint: result.hint }
 })
@@ -617,6 +625,7 @@ on('POST', 'coupons/check', async ({ req, body }) => {
 // ---------- pagamento por Pix (QR Code) ----------
 on('POST', 'payment/pix', async ({ req, body }) => {
   const user = await requireUser(req)
+  if (!(await getSettings()).paymentsEnabled) fail(503, 'Os pagamentos estão pausados no momento. Tente de novo mais tarde.', 'PAYMENTS_PAUSED')
   await rateLimit('payment_pix', String(user.id), 20, 10)
   const { plan, period, price } = await planAndPrice(body.planId, body.period)
   const code = normalizeCode(body.couponCode)
@@ -751,6 +760,49 @@ on('POST', 'admin/subscription', async ({ req, body }) => {
   return { ok: true }
 })
 
+// ---------- administração: controle do site ----------
+on('GET', 'admin/settings', async ({ req }) => {
+  await requireAdmin(req)
+  const { rows } = await query(
+    `select s.key, s.updated_at, u.email as updated_by from site_settings s left join users u on u.id = s.updated_by`)
+  return { settings: await getSettings(true), history: rows }
+})
+
+on('POST', 'admin/settings', async ({ req, body }) => {
+  const admin = await requireAdmin(req)
+  const current = await getSettings(true)
+  const changed = []
+  if (body.maintenance) {
+    const m = body.maintenance
+    let eta = null
+    if (m.eta) {
+      const d = new Date(m.eta)
+      if (Number.isNaN(d.getTime())) fail(400, 'Previsão de retorno inválida.')
+      eta = d.toISOString()
+    }
+    await saveSetting('maintenance', {
+      enabled: m.enabled === true,
+      scope: m.scope === 'all' ? 'all' : 'platform',
+      message: str(m.message, 400),
+      eta,
+    }, admin.id)
+    changed.push('maintenance')
+  }
+  if (body.announcement) {
+    const a = body.announcement
+    await saveSetting('announcement', { enabled: a.enabled === true, text: str(a.text, 240), tone: ['info', 'warning', 'success'].includes(a.tone) ? a.tone : 'info' }, admin.id)
+    changed.push('announcement')
+  }
+  for (const key of ['registrationsOpen', 'paymentsEnabled', 'mappingEnabled']) {
+    if (typeof body[key] === 'boolean' && body[key] !== current[key]) {
+      await saveSetting(key, body[key], admin.id)
+      changed.push(key)
+    }
+  }
+  await query(`insert into operations_log (user_id, type, detail) values ($1, 'admin_settings', $2)`, [admin.id, JSON.stringify({ key: changed.join(',') })])
+  return { settings: await getSettings(true) }
+})
+
 // ---------- administração: excluir plano ----------
 on('POST', 'admin/plans/delete', async ({ req, body }) => {
   const admin = await requireAdmin(req)
@@ -791,7 +843,7 @@ on('GET', 'admin/security', async ({ req }) => {
              from operations_log where type = 'rate_limited' and created_at > now() - interval '24 hours'
             group by 1 order by n desc`),
     query(`select o.type, o.created_at, u.email, o.detail from operations_log o left join users u on u.id = o.user_id
-            where o.type in ('admin_plan_delete','password_reset','account_recovery','account_password','account_profile','admin_subscription','admin_coupon','coupon_free_activation')
+            where o.type in ('admin_settings','admin_plan_delete','password_reset','account_recovery','account_password','account_profile','admin_subscription','admin_coupon','coupon_free_activation')
             order by o.created_at desc limit 30`),
   ])
   return { failedLogins: failed.rows, bursts: bursts.rows, rateLimited: limited.rows, events: events.rows }
@@ -848,6 +900,7 @@ on('POST', 'admin/credits', async ({ req, body }) => {
 })
 
 // ---------- despacho ----------
+const MAINTENANCE_OPEN = new Set(['health', 'site/status', 'meta', 'auth/me', 'auth/login', 'auth/logout', 'auth/forgot', 'auth/reset', 'auth/google', 'auth/google/callback'])
 export default async function handler(req, res) {
   const url = new URL(req.url, 'http://localhost')
   const path = (url.searchParams.get('r') || url.pathname.replace(/^\/api\/?/, '')).replace(/\/+$/, '')
@@ -862,6 +915,13 @@ export default async function handler(req, res) {
       const host = req.headers['x-forwarded-host'] || req.headers.host
       if (origin && host && new URL(origin).host !== host) fail(403, 'Origem não permitida.')
       if (req.headers['sec-fetch-site'] === 'cross-site') fail(403, 'Origem não permitida.')
+    }
+    // manutenção: só administradores usam a API (login, status e saúde continuam liberados)
+    if (!MAINTENANCE_OPEN.has(path) && !path.startsWith('admin/')) {
+      const settings = await getSettings().catch(() => null)
+      if (settings?.maintenance.enabled && !(await currentUser(req))?.is_admin) {
+        fail(503, settings.maintenance.message || 'A Argus está em manutenção. Voltamos em instantes.', 'MAINTENANCE')
+      }
     }
     const body = ['POST', 'PUT'].includes(req.method) ? await readJson(req) : {}
     const out = await route({ req, res, url, body })
@@ -882,7 +942,7 @@ export default async function handler(req, res) {
     return send(res, 200, out)
   } catch (err) {
     const status = err instanceof HttpError || err.status ? err.status || 500 : 500
-    if (status >= 500) console.error(err)
+    if (status >= 500 && !(err instanceof HttpError)) console.error(err)
     const known = err instanceof HttpError || err.code === 'DB_NOT_CONFIGURED'
     send(res, status, { error: known ? err.message : 'Erro interno. Tente novamente.', code: err.code })
   }

@@ -1,7 +1,9 @@
 import { StrictMode, Suspense, lazy } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider } from './lib/auth'
+import { AuthProvider, useAuth } from './lib/auth'
+import { SiteProvider, useSite } from './lib/site'
+import Maintenance from './pages/Maintenance'
 import App from './App'
 import Auth from './pages/Auth'
 import ResetPassword from './pages/ResetPassword'
@@ -12,14 +14,23 @@ import './index.css'
 // A plataforma (mapa etc.) é carregada sob demanda para a página inicial ficar leve
 const Platform = lazy(() => import('./platform/Platform'))
 
+// Página inicial: na manutenção "site inteiro", visitantes veem a tela de manutenção (admins não)
+function LandingGate() {
+  const { status } = useSite()
+  const { user } = useAuth()
+  if (status?.maintenance?.enabled && status.maintenance.scope === 'all' && !user?.is_admin) return <Maintenance />
+  return <App />
+}
+
 const Loading = () => <div className="page-loading"><span className="spinner" /> Carregando…</div>
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <AuthProvider>
+      <SiteProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<App />} />
+          <Route path="/" element={<LandingGate />} />
           <Route path="/entrar" element={<Auth />} />
           <Route path="/redefinir-senha" element={<ResetPassword />} />
           <Route path="/privacidade" element={<Legal doc="privacy" />} />
@@ -29,6 +40,7 @@ createRoot(document.getElementById('root')).render(
         </Routes>
         <CookieNotice />
       </BrowserRouter>
+      </SiteProvider>
     </AuthProvider>
   </StrictMode>
 )
