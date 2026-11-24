@@ -83,7 +83,7 @@ export default function Payment({ planId = 'pro', period = 'monthly', couponCode
               <li>Após a confirmação, o plano Pro é liberado automaticamente nesta tela.</li>
             </ol>
             {reported
-              ? <p className="form-notice">Recebemos seu aviso de pagamento. A liberação acontece assim que o Pix for confirmado — esta página atualiza sozinha.</p>
+              ? <p className="form-notice notice-icon"><img src="/icons/sino.webp" alt="" width="26" height="26" /> <span>Recebemos seu aviso de pagamento. A liberação acontece assim que o Pix for confirmado — esta página atualiza sozinha.</span></p>
               : <button className="btn btn--primary btn--block" onClick={report}>Já paguei</button>}
           </div>
         </div>

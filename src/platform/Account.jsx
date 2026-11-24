@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LuUser, LuKeyRound, LuTrash2 } from 'react-icons/lu'
+import { LuTrash2 } from 'react-icons/lu'
 import { api, fmtDate } from '../lib/api'
 import { useAuth } from '../lib/auth'
 
@@ -78,7 +78,7 @@ export default function Account() {
 
       <div className="account-grid">
         <form className="card account-card" onSubmit={saveProfile}>
-          <h2><LuUser /> Dados pessoais</h2>
+          <h2 className="h2-icon"><img src="/icons/usuario.webp" alt="" width="28" height="28" /> Dados pessoais</h2>
           <label className="field"><span>Nome</span>
             <input value={profile.name} onChange={e => setProfile(p => ({ ...p, name: e.target.value }))} autoComplete="name" />
           </label>
@@ -95,7 +95,7 @@ export default function Account() {
         </form>
 
         <form className="card account-card" onSubmit={savePassword}>
-          <h2><LuKeyRound /> {account.has_password ? 'Trocar senha' : 'Criar senha'}</h2>
+          <h2 className="h2-icon"><img src="/icons/cadeado.webp" alt="" width="28" height="28" /> {account.has_password ? 'Trocar senha' : 'Criar senha'}</h2>
           {!account.has_password && <p className="muted small">Sua conta entra pelo Google. Crie uma senha se quiser entrar também com e-mail e senha.</p>}
           {account.has_password && (
             <label className="field"><span>Senha atual</span>

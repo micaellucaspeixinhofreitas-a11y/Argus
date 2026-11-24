@@ -265,3 +265,8 @@
 .coupon__label { display: inline-flex; align-items: center; gap: 8px; }
 .coupon__label img, .h2-icon img { object-fit: contain; filter: drop-shadow(0 3px 8px rgba(139, 92, 246, .5)); }
 .h2-icon { display: flex; align-items: center; gap: 10px; }
+.app .radar-card__ic--3d { background: none !important; border: 0 !important; box-shadow: none !important; width: 44px; height: 44px; }
+.app .radar-card__ic--3d img { width: 40px; height: 40px; object-fit: contain; filter: drop-shadow(0 6px 12px rgba(139, 92, 246, .45)); transition: transform .3s var(--ease); }
+.app .radar-card:hover .radar-card__ic--3d img, .app .radar-card.is-on .radar-card__ic--3d img { transform: scale(1.08) rotate(-4deg); }
+.notice-icon { display: flex; align-items: center; gap: 10px; }
+.notice-icon img { flex: none; object-fit: contain; filter: drop-shadow(0 3px 8px rgba(139, 92, 246, .5)); }
