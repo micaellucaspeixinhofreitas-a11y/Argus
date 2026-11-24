@@ -34,7 +34,7 @@ export default function Leads() {
       </div>
       {error && <p className="form-error">{error}</p>}
       {leads === null ? <p className="muted">Carregando…</p> : leads.length === 0 ? (
-        <div className="card empty-state"><p><strong>Nenhum lead ainda.</strong> Mapeie uma região e capture as empresas que interessam.</p></div>
+        <div className="card empty-state"><img className="empty-state__icon" src="/icons/robo.webp" alt="" width="88" height="88" /><p><strong>Nenhum lead ainda.</strong> Mapeie uma região e capture as empresas que interessam.</p></div>
       ) : (
         <>
           <p className="hint">{fmtInt(leads.length)} lead(s){q && ' no filtro'}</p>

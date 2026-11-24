@@ -371,7 +371,7 @@ export default function Prospect() {
         </section>
 
         <section className="step card">
-          <header className="step__head"><img className="step__icon" src="/icons/terminal.webp" alt="" width="40" height="40" /> <h2>Território</h2><span className="step__n">03</span></header>
+          <header className="step__head"><img className="step__icon" src="/icons/pino.webp" alt="" width="40" height="40" /> <h2>Território</h2><span className="step__n">03</span></header>
           <label className="field">
             <span>Raio das novas áreas: <strong>{config.radiusKm.toLocaleString('pt-BR')} km</strong></span>
             <input type="range" min={limits.minRadiusKm} max={limits.maxRadiusKm} step="0.1" value={config.radiusKm}
@@ -546,7 +546,7 @@ export default function Prospect() {
           </div>
         ) : (
           <div className="results card empty-state">
-            <img className="empty-state__icon" src="/icons/raio.webp" alt="" width="88" height="88" />
+            <img className="empty-state__icon" src="/icons/pino.webp" alt="" width="88" height="88" />
             <p><strong>Nenhum mapeamento ainda.</strong> Defina o alvo, marque áreas no mapa e clique em <em>Mapear oportunidades</em>.</p>
           </div>
         )}
