@@ -10,6 +10,8 @@
     "dev:api": "node --env-file-if-exists=.env.local server/dev-api.js"
   },
   "dependencies": {
+    "@hugeicons/core-free-icons": "^4.4.0",
+    "@hugeicons/react": "^1.1.10",
     "gsap": "^3.15.1",
     "leaflet": "^1.9.4",
     "ogl": "^1.0.11",
