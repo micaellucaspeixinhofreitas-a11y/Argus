@@ -5,7 +5,6 @@ import Magnetic from '../components/Magnetic'
 import SectionHead from './SectionHead'
 import { api, money, fmtInt } from '../lib/api'
 import { useAuth } from '../lib/auth'
-import Glass from '../components/Glass'
 
 // Planos vêm do banco (configuráveis no painel admin)
 export default function Plans() {
@@ -40,8 +39,7 @@ export default function Plans() {
             const cents = period === 'quarterly' ? p.price_quarterly_cents : p.price_monthly_cents
             const free = p.price_monthly_cents === 0 && p.price_quarterly_cents === 0
             return (
-              <article className={`card plan has-glass ${featured ? 'is-featured' : ''}`} key={p.id}>
-                <Glass radius={20} />
+              <article className={`card plan ${featured ? 'is-featured' : ''}`} key={p.id}>
                 {featured && <span className="plan__badge">Mais escolhido</span>}
                 <h3 className="plan__name">{p.name}</h3>
                 <p className="plan__desc">{p.description}</p>
