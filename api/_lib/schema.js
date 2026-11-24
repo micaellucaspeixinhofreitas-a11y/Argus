@@ -45,6 +45,7 @@ create table if not exists subscriptions (
 );
 create index if not exists subscriptions_user_idx on subscriptions(user_id, created_at desc);
 alter table subscriptions add column if not exists payment_reported_at timestamptz;
+alter table plans add column if not exists deleted_at timestamptz;
 
 -- Cupons de desconto (percentual ou valor fixo)
 create table if not exists coupons (

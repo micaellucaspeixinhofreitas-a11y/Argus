@@ -404,3 +404,4 @@ a.activity__num { color: var(--acc-2); }
 .activity__dot.is-alert { background: #fb7185; box-shadow: 0 0 8px rgba(251, 113, 133, .7); }
 @media (max-width: 800px) { .sec-grid { grid-template-columns: minmax(0, 1fr); } }
 .activity li .activity__dot.is-alert { background: #fb7185; box-shadow: 0 0 8px rgba(251, 113, 133, .7); }
+.admin-plan__delete { margin-left: auto; }

@@ -690,7 +690,7 @@ on('GET', 'admin/overview', async ({ req }) => {
             (select count(*) from leads l where l.user_id = u.id)::int as leads,
             (select count(*) from mapping_runs m where m.user_id = u.id)::int as runs
        from users u order by u.created_at desc limit 500`)
-  const { rows: plans } = await query('select * from plans order by sort, monthly_credits')
+  const { rows: plans } = await query('select * from plans where deleted_at is null order by sort, monthly_credits')
   const { rows: [totals] } = await query(
     `select (select count(*) from users)::int as users, (select count(*) from companies)::int as companies,
             (select count(*) from leads)::int as leads, (select count(*) from mapping_runs)::int as runs`)
@@ -708,13 +708,13 @@ on('POST', 'admin/plans', async ({ req, body }) => {
       `insert into plans (id, name, description, monthly_credits, daily_limit, price_monthly_cents, price_quarterly_cents, features, is_default, active, sort)
        values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
        on conflict (id) do update set name=$2, description=$3, monthly_credits=$4, daily_limit=$5, price_monthly_cents=$6,
-         price_quarterly_cents=$7, features=$8, is_default=$9, active=$10, sort=$11, updated_at=now()`,
+         price_quarterly_cents=$7, features=$8, is_default=$9, active=$10, sort=$11, deleted_at=null, updated_at=now()`,
       [id, str(body.name, 60) || id, str(body.description, 200), num(body.monthly_credits, 0, 10_000_000, 0),
         num(body.daily_limit, 0, 1_000_000, 0), num(body.price_monthly_cents, 0, 100_000_000, 0),
         num(body.price_quarterly_cents, 0, 100_000_000, 0), JSON.stringify(features), Boolean(body.is_default),
         body.active !== false, num(body.sort, 0, 1000, 0)])
   })
-  const { rows } = await query('select * from plans order by sort, monthly_credits')
+  const { rows } = await query('select * from plans where deleted_at is null order by sort, monthly_credits')
   return { plans: rows }
 })
 
@@ -751,6 +751,32 @@ on('POST', 'admin/subscription', async ({ req, body }) => {
   return { ok: true }
 })
 
+// ---------- administração: excluir plano ----------
+on('POST', 'admin/plans/delete', async ({ req, body }) => {
+  const admin = await requireAdmin(req)
+  const id = str(body.id, 40)
+  const result = await tx(async db => {
+    const { rows: [plan] } = await db.query('select * from plans where id = $1 and deleted_at is null for update', [id])
+    if (!plan) fail(404, 'Plano não encontrado.')
+    if (plan.is_default) fail(400, 'Este é o plano padrão de quem não assina. Marque outro plano como padrão antes de excluir.')
+    const { rows: [{ n }] } = await db.query(
+      `select count(*)::int as n from subscriptions where plan_id = $1 and (status = 'pending_payment' or (status = 'active' and current_period_end > now()))`, [id])
+    if (n) fail(409, `Não dá para excluir: ${n} assinatura(s) ativa(s) ou aguardando pagamento usam este plano. Desmarque "Ativo" para parar novas assinaturas e exclua quando elas terminarem.`)
+    const { rows: [{ h }] } = await db.query('select count(*)::int as h from subscriptions where plan_id = $1', [id])
+    if (h) {
+      // há histórico de assinaturas: o plano some do site e do painel, mas o histórico continua íntegro
+      await db.query('update plans set active = false, is_default = false, deleted_at = now(), updated_at = now() where id = $1', [id])
+      return 'arquivado'
+    }
+    await db.query('update coupons set plan_id = null where plan_id = $1', [id])
+    await db.query('delete from plans where id = $1', [id])
+    return 'excluido'
+  })
+  await query(`insert into operations_log (user_id, type, detail) values ($1, 'admin_plan_delete', $2)`, [admin.id, JSON.stringify({ plan: id, result })])
+  const { rows } = await query('select * from plans where deleted_at is null order by sort, monthly_credits')
+  return { result, plans: rows }
+})
+
 // ---------- administração: atividade suspeita ----------
 on('GET', 'admin/security', async ({ req }) => {
   await requireAdmin(req)
@@ -765,7 +791,7 @@ on('GET', 'admin/security', async ({ req }) => {
              from operations_log where type = 'rate_limited' and created_at > now() - interval '24 hours'
             group by 1 order by n desc`),
     query(`select o.type, o.created_at, u.email, o.detail from operations_log o left join users u on u.id = o.user_id
-            where o.type in ('password_reset','account_recovery','account_password','account_profile','admin_subscription','admin_coupon','coupon_free_activation')
+            where o.type in ('admin_plan_delete','password_reset','account_recovery','account_password','account_profile','admin_subscription','admin_coupon','coupon_free_activation')
             order by o.created_at desc limit 30`),
   ])
   return { failedLogins: failed.rows, bursts: bursts.rows, rateLimited: limited.rows, events: events.rows }

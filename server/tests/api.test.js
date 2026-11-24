@@ -239,6 +239,20 @@ try {
   delete process.env.GOOGLE_CLIENT_ID
   cookie = beforePw; await api('POST', 'auth/login', { email: email2, password: 'senha-nova-999' })
 
+  // excluir planos (admin)
+  if (firstIsAdmin) {
+    await api('POST', 'admin/plans', { id: 'temp', name: 'Temporário', monthly_credits: 10, daily_limit: 5, price_monthly_cents: 1000, price_quarterly_cents: 2500 })
+    assert.equal((await api('POST', 'admin/plans/delete', { id: 'gratuito' })).status, 400, 'plano padrão não pode ser excluído')
+    r = await api('POST', 'admin/plans/delete', { id: 'temp' }); assert.equal(r.data.result, 'excluido')
+    assert.ok(!(await api('GET', 'plans')).data.plans.find(p => p.id === 'temp'))
+    assert.equal((await api('POST', 'admin/plans/delete', { id: 'pro' })).status, 409, 'plano com assinatura ativa não é excluído')
+    await api('POST', 'admin/plans', { id: 'velho', name: 'Velho', monthly_credits: 10, daily_limit: 5, price_monthly_cents: 1000, price_quarterly_cents: 2500 })
+    const { query: q4 } = await import('../../api/_lib/db.js')
+    await q4(`insert into subscriptions (user_id, plan_id, period, status) select id, 'velho', 'monthly', 'canceled' from users limit 1`)
+    r = await api('POST', 'admin/plans/delete', { id: 'velho' }); assert.equal(r.data.result, 'arquivado', 'com histórico, arquiva')
+    assert.ok(!r.data.plans.find(p => p.id === 'velho'))
+  }
+
   // ===== proteções (revisão de segurança) =====
   const raw = (path, init) => fetch(base + path, init).then(async r => ({ status: r.status, text: await r.text() }))
   // diagnóstico das APIs pagas só para admin

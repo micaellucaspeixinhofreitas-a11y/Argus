@@ -3,7 +3,7 @@ import { api, money, fmtDate, fmtDateTime, fmtInt } from '../lib/api'
 
 const blankPlan = { id: '', name: '', description: '', monthly_credits: 0, daily_limit: 0, price_monthly_cents: 0, price_quarterly_cents: 0, features: [], is_default: false, active: true, sort: 10 }
 
-function PlanForm({ plan, onSave }) {
+function PlanForm({ plan, onSave, onDelete }) {
   const [p, setP] = useState({ ...plan, features: (plan.features || []).join('\n') })
   const set = k => e => setP(x => ({ ...x, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }))
   const save = e => {
@@ -33,6 +33,11 @@ function PlanForm({ plan, onSave }) {
         <label className="check"><input type="checkbox" checked={p.active} onChange={set('active')} /> Ativo</label>
         <label className="check"><input type="checkbox" checked={p.is_default} onChange={set('is_default')} /> Plano padrão (sem assinatura)</label>
         <button className="btn btn--primary btn--sm">Salvar plano</button>
+        {onDelete && (
+          <button type="button" className="btn-mini btn-mini--danger admin-plan__delete" onClick={() => {
+            if (window.confirm(`Excluir o plano "${plan.name}"? Ele some da página de planos. Assinaturas antigas ficam no histórico.`)) onDelete(plan.id)
+          }}>Excluir plano</button>
+        )}
       </div>
     </form>
   )
@@ -157,7 +162,18 @@ export default function Admin() {
       )}
 
       <h2 className="h2-icon"><img src="/icons/coroa.webp" alt="" width="26" height="26" /> Planos</h2>
-      {data.plans.map(p => <PlanForm key={p.id + p.updated_at} plan={p} onSave={body => act(() => api('admin/plans', { method: 'POST', body }), 'Plano salvo.')} />)}
+      {data.plans.map(p => (
+        <PlanForm key={p.id + p.updated_at} plan={p}
+          onSave={body => act(() => api('admin/plans', { method: 'POST', body }), 'Plano salvo.')}
+          onDelete={p.is_default ? null : async id => {
+            setError(''); setMsg('')
+            try {
+              const r = await api('admin/plans/delete', { method: 'POST', body: { id } })
+              setMsg(r.result === 'arquivado' ? `Plano "${p.name}" excluído. O histórico de assinaturas dele foi mantido.` : `Plano "${p.name}" excluído.`)
+              load()
+            } catch (e) { setError(e.message) }
+          }} />
+      ))}
       <details className="card"><summary>Novo plano</summary><PlanForm plan={blankPlan} onSave={body => act(() => api('admin/plans', { method: 'POST', body }), 'Plano criado.')} /></details>
 
       <h2 className="h2-icon"><img src="/icons/presente.webp" alt="" width="26" height="26" /> Cupons de desconto</h2>
