@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import Icon from '../components/Icons'
-import Magnetic from '../components/Magnetic'
+import SpecularLink from '../components/SpecularLink'
 import SectionHead from './SectionHead'
 import { api, money, fmtInt } from '../lib/api'
 import { useAuth } from '../lib/auth'
@@ -54,14 +53,12 @@ export default function Plans() {
                     <li key={f}><Icon name="check" size={18} /> {f}</li>
                   ))}
                 </ul>
-                <Magnetic strength={0.2}>
-                  <Link
-                    to={user ? '/app/planos' : `/entrar?modo=cadastro&plano=${p.id}`}
-                    className={`btn ${featured ? 'btn--primary' : 'btn--ghost'} btn--block`}
-                  >
-                    {free ? 'Criar conta grátis' : 'Assinar'}
-                  </Link>
-                </Magnetic>
+                <SpecularLink
+                  block
+                  to={!user ? `/entrar?modo=cadastro&plano=${p.id}` : free ? '/app' : `/app/pagamento?plano=${p.id}&periodo=${period === 'quarterly' ? 'trimestral' : 'mensal'}`}
+                >
+                  {free ? 'Criar conta grátis' : 'Assinar'}
+                </SpecularLink>
               </article>
             )
           })}

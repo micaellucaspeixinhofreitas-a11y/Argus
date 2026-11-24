@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { gsap } from 'gsap'
-import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import Magnetic from '../components/Magnetic'
 import Icon from '../components/Icons'
+import SpecularLink from '../components/SpecularLink'
 
 const line1 = ['Encontre', 'clientes', 'em']
 const line2 = ['qualquer', 'território.']
@@ -73,11 +73,9 @@ export default function Hero({ ready }) {
             virar seus leads.
           </p>
           <div className="hero__ctas">
-            <Magnetic>
-              <Link to={user ? '/app' : '/entrar?modo=cadastro'} className="btn btn--primary">
-                {user ? 'Abrir plataforma' : 'Começar grátis'} <Icon name="arrow" size={18} />
-              </Link>
-            </Magnetic>
+            <SpecularLink to={user ? '/app' : '/entrar?modo=cadastro'}>
+              {user ? 'Abrir plataforma' : 'Começar grátis'} <Icon name="arrow" size={18} />
+            </SpecularLink>
             <Magnetic>
               <a href="#como-funciona" className="btn btn--ghost">Como funciona</a>
             </Magnetic>

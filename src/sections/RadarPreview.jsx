@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom'
 import Icon from '../components/Icons'
+import SpecularLink from '../components/SpecularLink'
 import SectionHead from './SectionHead'
 import { useAuth } from '../lib/auth'
 
@@ -33,9 +33,11 @@ export default function RadarPreview() {
               <li key={i.key}><span className={`dot dot--${i.key}`} /> <strong>{i.label}</strong> — {i.hint}</li>
             ))}
           </ul>
-          <Link to={user ? '/app' : '/entrar?modo=cadastro'} className="btn btn--primary" data-reveal>
-            Mapear minha região <Icon name="arrow" size={18} />
-          </Link>
+          <div data-reveal>
+            <SpecularLink to={user ? '/app' : '/entrar?modo=cadastro'}>
+              Mapear minha região <Icon name="arrow" size={18} />
+            </SpecularLink>
+          </div>
         </div>
 
         <figure className="radar-prev__screen" data-reveal aria-label="Ilustração da interface do radar">
