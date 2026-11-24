@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
-import { LuRadar, LuUsers, LuBookmark, LuCoins, LuCreditCard, LuShield, LuLogOut } from 'react-icons/lu'
+import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { LuRadar, LuUsers, LuBookmark, LuCoins, LuCreditCard, LuShield, LuLogOut, LuHouse } from 'react-icons/lu'
+import Dock from '../components/Dock'
 import { useAuth } from '../lib/auth'
 import { api, fmtInt } from '../lib/api'
 import Prospect from './Prospect'
@@ -53,17 +54,71 @@ function ProspectProvider({ children }) {
   )
 }
 
-const TABS = [
-  { to: '/app', label: 'Prospectar', icon: LuRadar, end: true },
-  { to: '/app/leads', label: 'Leads', icon: LuUsers },
-  { to: '/app/buscas', label: 'Buscas salvas', icon: LuBookmark },
-  { to: '/app/creditos', label: 'Créditos', icon: LuCoins },
-  { to: '/app/planos', label: 'Plano', icon: LuCreditCard },
-]
+// Dock de navegação da plataforma (fixa na parte de baixo)
+function PlatformDock() {
+  const { user, credits, logout } = useAuth()
+  const { setConfig, setResult } = useProspect()
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const at = path => (path === '/app' ? pathname === '/app' || pathname === '/app/' : pathname.startsWith(path))
+  const go = path => () => navigate(path)
+
+  const items = [
+    {
+      icon: <LuRadar />, label: 'Prospectar', active: at('/app'), onClick: go('/app'),
+      menu: [
+        { label: 'Nova prospecção', onClick: () => { setConfig(emptyConfig()); setResult(null); navigate('/app') } },
+        { label: 'Abrir buscas salvas', onClick: go('/app/buscas') },
+      ],
+    },
+    {
+      icon: <LuUsers />, label: 'Leads', active: at('/app/leads'), onClick: go('/app/leads'),
+      menu: [
+        { label: 'Ver leads capturados', onClick: go('/app/leads') },
+        { separator: true },
+        { label: 'Exportar CSV', onClick: () => { window.location.href = '/api/leads/export' } },
+      ],
+    },
+    { icon: <LuBookmark />, label: 'Buscas salvas', active: at('/app/buscas'), onClick: go('/app/buscas') },
+    {
+      icon: <LuCoins />, label: credits ? `Créditos · ${fmtInt(credits.available)} disponíveis` : 'Créditos',
+      active: at('/app/creditos'), onClick: go('/app/creditos'),
+      badge: credits && credits.can_spend === 0 ? '!' : undefined,
+    },
+    { icon: <LuCreditCard />, label: 'Plano', active: at('/app/planos'), onClick: go('/app/planos') },
+    ...(user.is_admin ? [{ icon: <LuShield />, label: 'Admin', active: at('/app/admin'), onClick: go('/app/admin') }] : []),
+    { separator: true },
+    { icon: <LuHouse />, label: 'Página inicial', onClick: go('/') },
+    { icon: <LuLogOut />, label: 'Sair', onClick: async () => { await logout(); navigate('/') } },
+  ]
+
+  return (
+    <div className="pf-dock">
+      <Dock
+        items={items}
+        baseItemSize={50}
+        magnification={70}
+        panelHeight={68}
+        accentColor="#8b5cf6"
+        badgeColor="#f472b6"
+        position="bottom"
+        distance={200}
+        gap={10}
+        roundness={0.5}
+        bounce
+        autoHide={false}
+        tiles
+        showLabels
+        showIndicators
+        showBadges
+        spring={{ mass: 0.1, stiffness: 220, damping: 4 }}
+      />
+    </div>
+  )
+}
 
 export default function Platform() {
-  const { user, loading, credits, logout } = useAuth()
-  const navigate = useNavigate()
+  const { user, loading, credits } = useAuth()
   if (loading) return <div className="page-loading"><span className="spinner" /> Carregando…</div>
   if (!user) return <Navigate to="/entrar" replace />
 
@@ -74,18 +129,6 @@ export default function Platform() {
           <NavLink to="/" className="pf-brand" aria-label="Argus — início">
             <img src="/argus-white.webp" alt="Argus" width="1400" height="423" />
           </NavLink>
-          <nav className="pf-tabs" aria-label="Plataforma">
-            {TABS.map(t => (
-              <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => `pf-tab ${isActive ? 'is-active' : ''}`}>
-                <t.icon aria-hidden="true" /> <span>{t.label}</span>
-              </NavLink>
-            ))}
-            {user.is_admin && (
-              <NavLink to="/app/admin" className={({ isActive }) => `pf-tab ${isActive ? 'is-active' : ''}`}>
-                <LuShield aria-hidden="true" /> <span>Admin</span>
-              </NavLink>
-            )}
-          </nav>
           <div className="pf-user">
             {credits && (
               <NavLink to="/app/creditos" className="pf-credits" title="Créditos disponíveis · usados hoje / limite diário">
@@ -94,9 +137,6 @@ export default function Platform() {
                 <small>{fmtInt(credits.today_used)}/{fmtInt(credits.daily_limit)} hoje</small>
               </NavLink>
             )}
-            <button className="pf-icon-btn" onClick={async () => { await logout(); navigate('/') }} title="Sair" aria-label="Sair">
-              <LuLogOut />
-            </button>
           </div>
         </header>
         <main className="pf-main">
@@ -110,6 +150,7 @@ export default function Platform() {
             <Route path="*" element={<Navigate to="/app" replace />} />
           </Routes>
         </main>
+        <PlatformDock />
       </div>
     </ProspectProvider>
   )
