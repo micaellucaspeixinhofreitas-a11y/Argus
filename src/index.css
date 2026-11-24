@@ -530,3 +530,6 @@ main, .footer { position: relative; z-index: 1; }
   .header__login { display: none; }
   .nav__mobile-link { display: block !important; font-family: var(--display); font-size: 34px; color: #fff; padding: 8px 0; }
 }
+.radar-prev > *, .contact__inner > *, .process-wrap > *, .faq-wrap > * { min-width: 0; }
+@media (max-width: 1080px) { .radar-prev { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 380px) { .radar-prev__cards { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; } .radar-prev__card { padding: 10px 8px; } .radar-prev__card small { font-size: 9px; } }

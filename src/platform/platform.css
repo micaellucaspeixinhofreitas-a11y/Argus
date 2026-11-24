@@ -284,3 +284,20 @@ details.card[open] summary { margin-bottom: 12px; }
 .pay-done > svg { font-size: 42px; color: #ddd6fe; }
 @media (max-width: 800px) { .pay { grid-template-columns: 1fr; } .pro-lock { padding-top: 30px; } }
 .page > .period-toggle { justify-self: start; }
+
+/* nada pode empurrar a página para além da tela em celulares estreitos */
+.pros { grid-template-columns: 380px minmax(0, 1fr); }
+.pros__panel, .pros__work, .step, .step > *, .field, .row2 > *, .results, .map-wrap, .radar { min-width: 0; }
+.pf input, .pf select, .pf textarea { min-width: 0; max-width: 100%; }
+.pf .field input:not([type=checkbox]):not([type=range]), .pf .field select { width: 100%; }
+.chips-input input { min-width: 90px; }
+.btn-mini { white-space: normal; text-align: left; }
+.pf-main, .pf { overflow-x: clip; }
+@media (max-width: 1100px) { .pros { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 380px) {
+  .radar__cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .radar-card { padding: 10px; }
+  .radar-card small { font-size: 9.5px; letter-spacing: .04em; }
+  .pf-credits small { display: none; }
+  .map-search input { font-size: 13px; }
+}
