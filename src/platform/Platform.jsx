@@ -12,6 +12,7 @@ import Subscription from './Subscription'
 import Admin from './Admin'
 import Account from './Account'
 import './platform.css'
+import './theme.css'
 
 // Estado da prospecção compartilhado entre as telas (não se perde ao trocar de aba)
 const ProspectContext = createContext(null)
@@ -119,31 +120,46 @@ function PlatformDock() {
   )
 }
 
+const SECTIONS = [
+  ['/app/leads', 'Leads'], ['/app/buscas', 'Buscas salvas'], ['/app/creditos', 'Créditos'],
+  ['/app/planos', 'Planos'], ['/app/conta', 'Minha conta'], ['/app/admin', 'Administração'],
+]
+
 export default function Platform() {
   const { user, loading, credits, pro } = useAuth()
-  const { search } = useLocation()
+  const { search, pathname } = useLocation()
+  const section = SECTIONS.find(([p]) => pathname.startsWith(p))?.[1] || 'Prospecção'
   if (loading) return <div className="page-loading"><span className="spinner" /> Carregando…</div>
   if (!user) return <Navigate to="/entrar" replace />
 
   return (
     <ProspectProvider>
       <div className="pf">
+        <div className="pf-bg" aria-hidden="true">
+          <div className="pf-bg__grid" />
+          <div className="pf-bg__glow pf-bg__glow--a" />
+          <div className="pf-bg__glow pf-bg__glow--b" />
+        </div>
+        <div className="noise" aria-hidden="true" />
         <header className="pf-top">
-          <NavLink to="/" className="pf-brand" aria-label="Argus — início">
-            <img src="/argus-white.webp" alt="Argus" width="1400" height="423" />
-          </NavLink>
-          <div className="pf-user">
-            <NavLink to="/app/planos" className={`pf-plans ${pro ? '' : 'is-upgrade'}`} title="Planos e pagamento">
-              <LuCrown aria-hidden="true" />
-              <span>{pro ? 'Planos' : 'Assinar Pro'}</span>
+          <div className="pf-top__bar">
+            <NavLink to="/" className="pf-brand" aria-label="Argus — início">
+              <img src="/argus-white.webp" alt="Argus" width="1400" height="423" />
             </NavLink>
-            {credits && (
-              <NavLink to="/app/creditos" className="pf-credits" title="Créditos disponíveis · usados hoje / limite diário">
-                <LuCoins aria-hidden="true" />
-                <strong>{fmtInt(credits.available)}</strong>
-                <small>{fmtInt(credits.today_used)}/{fmtInt(credits.daily_limit)} hoje</small>
+            <span className="pf-section"><i aria-hidden="true" />{section}</span>
+            <div className="pf-user">
+              <NavLink to="/app/planos" className={`pf-plans ${pro ? '' : 'is-upgrade'}`} title="Planos e pagamento">
+                <LuCrown aria-hidden="true" />
+                <span>{pro ? 'Planos' : 'Assinar Pro'}</span>
               </NavLink>
-            )}
+              {credits && (
+                <NavLink to="/app/creditos" className="pf-credits" title="Créditos disponíveis · usados hoje / limite diário">
+                  <LuCoins aria-hidden="true" />
+                  <strong>{fmtInt(credits.available)}</strong>
+                  <small>{fmtInt(credits.today_used)}/{fmtInt(credits.daily_limit)} hoje</small>
+                </NavLink>
+              )}
+            </div>
           </div>
         </header>
         <main className="pf-main">

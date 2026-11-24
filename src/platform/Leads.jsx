@@ -23,7 +23,7 @@ export default function Leads() {
     <div className="page">
       <header className="page__head">
         <div>
-          <h1>Leads capturados</h1>
+          <p className="eyebrow">// Leads</p><h1>Leads <span className="grad">capturados</span></h1>
           <p className="muted">Empresas que você capturou nos mapeamentos, com os contatos encontrados.</p>
         </div>
         <a className="btn btn--ghost btn--sm" href="/api/leads/export" download><LuDownload /> Exportar CSV</a>

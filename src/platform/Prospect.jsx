@@ -266,7 +266,7 @@ export default function Prospect() {
       {/* ===== painel de configuração ===== */}
       <aside className="pros__panel">
         <section className="step card">
-          <header className="step__head"><LuTarget /> <h2>1. Defina o alvo</h2></header>
+          <header className="step__head"><LuTarget /> <h2>Defina o alvo</h2><span className="step__n">01</span></header>
           <div className="field">
             <span>Segmentos <em>(opcional)</em></span>
             <div className="chips-input">
@@ -338,7 +338,7 @@ export default function Prospect() {
 
         <section className="step card">
           <header className="step__head">
-            <LuFilter /> <h2>2. Qualificação</h2>
+            <LuFilter /> <h2>Qualificação</h2><span className="step__n">02</span>
             <label className="switch">
               <input type="checkbox" checked={config.qualification.enabled} onChange={e => updateQ({ enabled: e.target.checked })} />
               <span aria-hidden="true" /> <small>{config.qualification.enabled ? 'Ativa' : 'Sem filtros'}</small>
@@ -370,7 +370,7 @@ export default function Prospect() {
         </section>
 
         <section className="step card">
-          <header className="step__head"><LuLayers /> <h2>3. Território</h2></header>
+          <header className="step__head"><LuLayers /> <h2>Território</h2><span className="step__n">03</span></header>
           <label className="field">
             <span>Raio das novas áreas: <strong>{config.radiusKm.toLocaleString('pt-BR')} km</strong></span>
             <input type="range" min={limits.minRadiusKm} max={limits.maxRadiusKm} step="0.1" value={config.radiusKm}
@@ -468,7 +468,8 @@ export default function Prospect() {
         </div>
 
         <div ref={listRef} className="radar">
-          <h2 className="radar__title">Radar de oportunidades capturadas</h2>
+          <p className="eyebrow">// Radar</p>
+          <h2 className="radar__title">Oportunidades <span className="grad">capturadas</span></h2>
           {stale && <p className="form-notice">Você alterou os critérios. Clique em <strong>Mapear oportunidades</strong> para atualizar os resultados.</p>}
           <div className="radar__cards">
             <button className={`radar-card ${filter === 'all' ? 'is-on' : ''}`} onClick={() => setFilter('all')}>

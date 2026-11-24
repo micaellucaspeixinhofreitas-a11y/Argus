@@ -71,7 +71,7 @@ export default function Account() {
     <div className="page">
       <header className="page__head">
         <div>
-          <h1>Minha conta</h1>
+          <p className="eyebrow">// Conta</p><h1>Minha <span className="grad">conta</span></h1>
           <p className="muted">Conta criada em {fmtDate(account.created_at)}{account.google ? ' · vinculada ao Google' : ''}.</p>
         </div>
       </header>

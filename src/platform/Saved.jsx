@@ -46,7 +46,7 @@ export default function Saved() {
     <div className="page">
       <header className="page__head">
         <div>
-          <h1>Buscas salvas</h1>
+          <p className="eyebrow">// Buscas salvas</p><h1>Buscas <span className="grad">salvas</span></h1>
           <p className="muted">Configurações de prospecção guardadas para reutilizar: segmento, país, localidade, qualificação, raio e áreas.</p>
         </div>
       </header>

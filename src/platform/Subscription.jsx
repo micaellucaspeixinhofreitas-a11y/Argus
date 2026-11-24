@@ -65,7 +65,7 @@ export default function Subscription() {
     <div className="page">
       <header className="page__head">
         <div>
-          <h1>Plano e assinatura</h1>
+          <p className="eyebrow">// Planos</p><h1>Plano e <span className="grad">assinatura</span></h1>
           <p className="muted">Compare limites, escolha a periodicidade, pague com Pix e acompanhe sua assinatura.</p>
         </div>
       </header>
@@ -113,7 +113,7 @@ export default function Subscription() {
           const cents = period === 'quarterly' ? p.price_quarterly_cents : p.price_monthly_cents
           const isCurrent = current.id === p.id
           return (
-            <article key={p.id} className={`card plan-card ${isCurrent ? 'is-current' : ''}`}>
+            <article key={p.id} className={`card plan-card ${isCurrent ? "is-current" : ""} ${free ? "" : "is-featured"}`}>
               <h3>{p.name}</h3>
               <p className="muted">{p.description}</p>
               <div className="plan-card__price">{free ? 'Grátis' : money(cents)}<small>{free ? '' : period === 'quarterly' ? '/trimestre' : '/mês'}</small></div>

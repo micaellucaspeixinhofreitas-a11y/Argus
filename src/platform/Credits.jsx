@@ -23,7 +23,7 @@ export default function Credits() {
     <div className="page">
       <header className="page__head">
         <div>
-          <h1>Créditos</h1>
+          <p className="eyebrow">// Créditos</p><h1>Seus <span className="grad">créditos</span></h1>
           <p className="muted">Plano atual: <strong>{c.plan.name}</strong>. <Link to="/app/planos">Ver planos</Link></p>
         </div>
       </header>
