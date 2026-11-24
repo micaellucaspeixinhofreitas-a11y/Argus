@@ -6,7 +6,7 @@ import 'leaflet/dist/leaflet.css'
 // - clique no mapa: adiciona uma área com o raio atual
 // - arraste o centro de uma área para movê-la
 // - pontos: empresas encontradas (cor por aderência / presença digital)
-export default function MapView({ view, areas, results, selectedId, onAddArea, onMoveArea, onSelect, fitKey, flyTo, addMode }) {
+export default function MapView({ basemapKey = '', view, areas, results, selectedId, onAddArea, onMoveArea, onSelect, fitKey, flyTo, addMode }) {
   const el = useRef(null)
   const map = useRef(null)
   const areaLayer = useRef(null)
@@ -18,11 +18,6 @@ export default function MapView({ view, areas, results, selectedId, onAddArea, o
   // cria o mapa uma única vez
   useEffect(() => {
     const m = L.map(el.current, { zoomControl: true, worldCopyJump: true, preferCanvas: true }).setView([view.lat, view.lng], view.zoom)
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      maxZoom: 19,
-      subdomains: 'abcd',
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    }).addTo(m)
     areaLayer.current = L.layerGroup().addTo(m)
     resultLayer.current = L.layerGroup().addTo(m)
     m.on('click', e => {
@@ -38,6 +33,32 @@ export default function MapView({ view, areas, results, selectedId, onAddArea, o
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // mapas base CARTO (com a chave da conta, quando configurada) + seletor de estilo
+  useEffect(() => {
+    const m = map.current
+    if (!m) return
+    const ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+    const tiles = style =>
+      L.tileLayer(
+        basemapKey
+          ? `https://basemaps.cartocdn.com/rastertiles/${style}/{z}/{x}/{y}{r}.png?key=${encodeURIComponent(basemapKey)}`
+          : `https://{s}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}{r}.png`,
+        { maxZoom: 19, subdomains: 'abcd', attribution: ATTR }
+      )
+    const layers = { Escuro: tiles('dark_all'), Voyager: tiles('voyager') }
+    let saved = 'Escuro'
+    try { saved = localStorage.getItem('argus:basemap') || 'Escuro' } catch { /* sem armazenamento */ }
+    ;(layers[saved] || layers.Escuro).addTo(m)
+    const control = L.control.layers(layers, null, { position: 'topright' }).addTo(m)
+    const remember = e => { try { localStorage.setItem('argus:basemap', e.name) } catch { /* sem armazenamento */ } }
+    m.on('baselayerchange', remember)
+    return () => {
+      m.off('baselayerchange', remember)
+      control.remove()
+      Object.values(layers).forEach(l => l.remove())
+    }
+  }, [basemapKey])
 
   // centraliza ao trocar de país
   useEffect(() => {

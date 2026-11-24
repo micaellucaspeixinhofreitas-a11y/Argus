@@ -347,6 +347,7 @@ export default function Prospect() {
             {config.areas.length > 0 && <span className={synced ? 'ok' : 'warn'}>{synced ? 'sincronizadas' : 'não sincronizadas'}</span>}
           </div>
           <MapView
+            basemapKey={meta.basemapKey}
             view={view}
             areas={config.areas}
             results={results}

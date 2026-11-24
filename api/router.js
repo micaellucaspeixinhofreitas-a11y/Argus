@@ -33,10 +33,29 @@ on('GET', 'health', async ({ url }) => {
       out.source = { ok: false, error: e.message }
     }
   }
+  // ?basemap=1: confere se a chave libera as imagens do mapa (só códigos HTTP)
+  if (url.searchParams.get('basemap') && Date.now() - lastBasemapCheck > 30_000) {
+    lastBasemapCheck = Date.now()
+    out.basemap = {}
+    for (const style of ['dark_all', 'voyager']) {
+      try {
+        const k = basemapKey()
+        const r = await fetch(`https://basemaps.cartocdn.com/rastertiles/${style}/15/16046/12355.png${k ? `?key=${encodeURIComponent(k)}` : ''}`)
+        out.basemap[style] = { status: r.status, type: r.headers.get('content-type'), with_key: Boolean(k) }
+      } catch (e) {
+        out.basemap[style] = { error: e.name }
+      }
+    }
+  }
   return out
 })
 
-on('GET', 'meta', async () => ({ segments: catalogList(), criteria: criteriaList(), limits: LIMITS }))
+let lastBasemapCheck = 0
+
+// A chave de mapas base da CARTO é pública por natureza (vai na URL das imagens do mapa)
+const basemapKey = () => process.env.CARTO_BASEMAPS_KEY || process.env.CARTO_API_TOKEN || ''
+
+on('GET', 'meta', async () => ({ segments: catalogList(), criteria: criteriaList(), limits: LIMITS, basemapKey: basemapKey() }))
 
 // ---------- autenticação ----------
 on('POST', 'auth/register', async ({ body }) => {
