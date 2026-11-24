@@ -214,7 +214,7 @@ export async function runMapping(user, input) {
   if (Object.keys(sourceErrors).length) {
     await query(`update mapping_runs set error = $2 where id = $1`, [run.id, JSON.stringify(sourceErrors).slice(0, 300)])
   }
-  console.log(JSON.stringify({ evt: 'mapping', sourceErrors, run: run.id, user: user.id, provider: prov.name, segments: config.segments, areas: config.areas.map(a => `${a.lat.toFixed(4)},${a.lng.toFixed(4)} r${a.radiusKm}km`), max: config.maxResults, raw, bySource, kept: places.length, total: stats.total, ms: Date.now() - startedAt }))
+  console.log(JSON.stringify({ evt: 'mapping', sourceErrors, run: run.id, user: user.id, provider: prov.name, segments: config.segments, areas: config.areas.length, max: config.maxResults, raw, bySource, kept: places.length, total: stats.total, ms: Date.now() - startedAt }))
   return { run_id: run.id, config, stats, sourceErrors }
 }
 
