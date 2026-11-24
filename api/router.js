@@ -62,29 +62,6 @@ on('GET', 'health', async ({ url }) => {
       }
     }
   }
-  // ?tt=termo: diagnóstico TEMPORÁRIO dos tipos de busca da TomTom (contagem dentro do raio)
-  if (url.searchParams.get('tt') && process.env.TOMTOM_API_KEY) {
-    const term = url.searchParams.get('tt').slice(0, 40)
-    const en = url.searchParams.get('en') || 'restaurant'
-    const lat = -23.5614, lon = -46.6559, radius = 1000
-    const variants = {
-      poiSearch: `poiSearch/${encodeURIComponent(term)}.json`,
-      categorySearch_pt: `categorySearch/${encodeURIComponent(term)}.json`,
-      categorySearch_en: `categorySearch/${encodeURIComponent(en)}.json`,
-      search_pt: `search/${encodeURIComponent(term)}.json`,
-      nearbySearch: 'nearbySearch/.json',
-    }
-    out.tomtom = {}
-    for (const [k, path] of Object.entries(variants)) {
-      try {
-        const qs = new URLSearchParams({ key: process.env.TOMTOM_API_KEY, lat, lon, radius, limit: '100', countrySet: 'BR', language: 'pt-BR', ...(k === 'search_pt' ? { idxSet: 'POI' } : {}) })
-        const r = await fetch(`https://api.tomtom.com/search/2/${path}?${qs}`)
-        const d = await r.json()
-        const res = d.results || []
-        out.tomtom[k] = { status: r.status, n: res.length, within: res.filter(x => (x.dist ?? 1e9) <= radius).length, max_dist: Math.round(Math.max(0, ...res.map(x => x.dist || 0))), cats: [...new Set(res.slice(0, 8).flatMap(x => x.poi?.categories || []))].slice(0, 6), sample: res.slice(0, 4).map(x => x.poi?.name), total: d.summary?.totalResults }
-      } catch (e) { out.tomtom[k] = { error: e.message } }
-    }
-  }
   return out
 })
 
