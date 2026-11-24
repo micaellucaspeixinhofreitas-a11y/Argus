@@ -491,9 +491,11 @@ main, .footer { position: relative; z-index: 1; }
 
 /* ============ Login / cadastro ============ */
 .auth { position: relative; min-height: 100svh; display: grid; place-items: center; align-content: center; gap: 28px; padding: 40px 16px; overflow: hidden; }
+.auth__bg { inset: 0; z-index: 0; pointer-events: none; }
+.auth > :not(.auth__bg) { position: relative; z-index: 1; }
 .auth__glow { position: absolute; inset: 0; background: radial-gradient(ellipse 60% 50% at 50% 30%, rgba(139,92,246,.25), transparent 70%); pointer-events: none; }
 .auth__brand img { display: block; height: auto; width: min(300px, 70vw); filter: drop-shadow(0 0 14px rgba(167,139,250,.4)); }
-.auth__card { position: relative; width: min(420px, 100%); padding: 34px 30px; display: grid; gap: 16px; }
+.auth__card { position: relative; width: min(420px, 100%); padding: 34px 30px; display: grid; gap: 16px; background: rgba(10,8,16,.8); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: 0 30px 80px -30px rgba(0,0,0,.9); }
 .auth__card h1 { font-family: var(--display); font-size: 26px; }
 .auth__switch { text-align: center; color: var(--muted); font-size: 14px; }
 .link { color: var(--purple-3); text-decoration: underline; text-underline-offset: 3px; }

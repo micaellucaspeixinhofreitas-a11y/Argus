@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { api } from '../lib/api'
+import AuthBackground from '../components/AuthBackground'
 
 // Página aberta pelo link do e-mail de redefinição de senha
 export default function ResetPassword() {
@@ -32,7 +33,7 @@ export default function ResetPassword() {
 
   return (
     <main className="auth">
-      <div className="auth__glow" aria-hidden="true" />
+      <AuthBackground />
       <Link to="/" className="auth__brand" aria-label="Argus — início">
         <img src="/argus-chrome.webp" alt="Argus" width="1400" height="454" />
       </Link>
