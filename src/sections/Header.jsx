@@ -26,7 +26,7 @@ export default function Header() {
   return (
     <header className={`header ${scrolled ? 'is-scrolled' : ''} ${open ? 'is-open' : ''}`}>
       <div className="container header__inner header__bar has-glass">
-        <Glass radius={34} backgroundOpacity={0.7} refract />
+        <Glass radius={34} />
         <a href="#top" className="brand" aria-label="Argus — início">
           <img src={`${import.meta.env.BASE_URL}argus-white.webp`} alt="Argus" className="brand__word" width="1400" height="423" />
         </a>
@@ -46,7 +46,7 @@ export default function Header() {
         <div className="header__actions">
           {!user && <Link className="header__login" to="/entrar">Entrar</Link>}
           <Magnetic>
-            <Link className="btn btn--ghost btn--sm has-glass" to={ctaHref}><Glass radius={21} refract />{ctaLabel}</Link>
+            <Link className="btn btn--ghost btn--sm has-glass" to={ctaHref}><Glass radius={21} />{ctaLabel}</Link>
           </Magnetic>
           <button
             className="burger"

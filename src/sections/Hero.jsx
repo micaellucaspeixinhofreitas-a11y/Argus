@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import Magnetic from '../components/Magnetic'
 import Icon from '../components/Icons'
-import Glass from '../components/Glass'
 
 const line1 = ['Encontre', 'clientes', 'em']
 const line2 = ['qualquer', 'território.']
@@ -80,7 +79,7 @@ export default function Hero({ ready }) {
               </Link>
             </Magnetic>
             <Magnetic>
-              <a href="#como-funciona" className="btn btn--ghost has-glass"><Glass radius={27} refract />Como funciona</a>
+              <a href="#como-funciona" className="btn btn--ghost">Como funciona</a>
             </Magnetic>
           </div>
         </div>

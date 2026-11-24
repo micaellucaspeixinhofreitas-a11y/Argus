@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom'
-import Glass from '../components/Glass'
 import Icon from '../components/Icons'
 import SectionHead from './SectionHead'
 import { useAuth } from '../lib/auth'
@@ -39,8 +38,7 @@ export default function RadarPreview() {
           </Link>
         </div>
 
-        <figure className="radar-prev__screen has-glass" data-reveal aria-label="Ilustração da interface do radar">
-          <Glass radius={26} refract />
+        <figure className="radar-prev__screen" data-reveal aria-label="Ilustração da interface do radar">
           <div className="radar-prev__map">
             <div className="radar-prev__sweep" />
             <span className="radar-prev__area" style={{ left: '50%', top: '50%', width: '62%' }} />

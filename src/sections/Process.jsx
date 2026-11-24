@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react'
 import { gsap } from 'gsap'
 import { steps } from '../data'
 import SectionHead from './SectionHead'
-import Glass from '../components/Glass'
 
 export default function Process() {
   const root = useRef(null)
@@ -40,8 +39,7 @@ export default function Process() {
           {steps.map(s => (
             <li className="step" key={s.n}>
               <span className="step__dot" aria-hidden="true" />
-              <div className="step__body card has-glass">
-                <Glass radius={20} refract />
+              <div className="step__body card">
                 <div className="step__meta">
                   <span className="step__n">{s.n}</span>
                   <span className="step__time">{s.time}</span>

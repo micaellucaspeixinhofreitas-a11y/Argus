@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { LuDownload, LuSearch, LuPhone, LuGlobe, LuMail, LuMapPin } from 'react-icons/lu'
 import { api, fmtDateTime, fmtInt } from '../lib/api'
-import Glass from '../components/Glass'
 
 const waLink = phone => {
   const digits = String(phone).replace(/\D/g, '')
@@ -40,7 +39,6 @@ export default function Leads() {
         <>
           <p className="hint">{fmtInt(leads.length)} lead(s){q && ' no filtro'}</p>
           <div className="table-wrap card">
-            <Glass radius={18} />
             <table className="table table--cards">
               <thead>
                 <tr><th>Empresa</th><th>Contato</th><th>Endereço</th><th>Aderência</th><th>Capturado em</th></tr>

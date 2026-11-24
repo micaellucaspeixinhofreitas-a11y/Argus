@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { LuCheck } from 'react-icons/lu'
 import { api, money, fmtDate, fmtInt } from '../lib/api'
 import { useAuth } from '../lib/auth'
-import Glass from '../components/Glass'
 
 const STATUS = {
   pending_payment: 'Aguardando pagamento',
@@ -53,8 +52,7 @@ export default function Subscription() {
         </div>
       </header>
 
-      <div className="card has-glass sub-status">
-            <Glass radius={18} />
+      <div className="card sub-status">
         <div>
           <small>Plano em uso</small>
           <strong>{current.name}</strong>

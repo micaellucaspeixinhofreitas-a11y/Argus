@@ -93,11 +93,7 @@ main, .footer { position: relative; z-index: 1; }
 .has-glass { position: relative; isolation: isolate; background: transparent !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
 .has-glass > .glass-layer { position: absolute !important; inset: 0; z-index: -1; pointer-events: none; }
 .has-glass > .glass-layer .glass-surface__content { display: none; }
-.plan.is-featured.has-glass { background: linear-gradient(180deg, rgba(139,92,246,.22), rgba(139,92,246,.04)) !important; }
-.faq__item.is-open.has-glass { background: rgba(139,92,246,.08) !important; }
 
-/* vidro "leve": mesmo brilho/borda do GlassSurface, sem recalcular o fundo a cada quadro */
-.glass-lite.glass-surface--fallback { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: linear-gradient(160deg, rgba(255,255,255,.07), rgba(255,255,255,.02) 40%, rgba(10,8,18,.55)) !important; }
 
 /* ============ Buttons ============ */
 .magnetic { display: inline-block; }

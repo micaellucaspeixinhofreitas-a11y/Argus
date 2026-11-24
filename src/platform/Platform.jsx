@@ -130,7 +130,7 @@ export default function Platform() {
     <ProspectProvider>
       <div className="pf">
         <header className="pf-top has-glass">
-          <Glass radius={0} backgroundOpacity={0.55} refract />
+          <Glass radius={0} />
           <NavLink to="/" className="pf-brand" aria-label="Argus — início">
             <img src="/argus-white.webp" alt="Argus" width="1400" height="423" />
           </NavLink>

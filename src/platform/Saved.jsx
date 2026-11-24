@@ -4,7 +4,6 @@ import { LuPlay, LuUpload, LuTrash2 } from 'react-icons/lu'
 import { api, fmtDateTime } from '../lib/api'
 import { countryByCode } from '../lib/countries'
 import { useProspect, emptyConfig } from './Platform'
-import Glass from '../components/Glass'
 
 // Converte a configuração salva no servidor para o formato da tela de prospecção
 const toDraft = c => ({
@@ -57,8 +56,7 @@ export default function Saved() {
       ) : (
         <div className="saved-grid">
           {searches.map(s => (
-            <article key={s.id} className="card has-glass saved">
-            <Glass radius={18} />
+            <article key={s.id} className="card saved">
               <h3>{s.name}</h3>
               <dl>
                 <dt>Segmentos</dt><dd>{s.config.segments?.length ? s.config.segments.join(', ') : 'Todos'}</dd>

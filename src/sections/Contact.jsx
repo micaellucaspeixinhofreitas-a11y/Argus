@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom'
 import { contact } from '../data'
 import Icon from '../components/Icons'
 import Magnetic from '../components/Magnetic'
-import Glass from '../components/Glass'
 import { useAuth } from '../lib/auth'
 
 export default function Contact() {
@@ -11,8 +10,7 @@ export default function Contact() {
     <section className="section contact" id="contato">
       <div className="contact__glow" aria-hidden="true" />
       <div className="container">
-        <div className="cta card has-glass" data-reveal>
-          <Glass radius={20} refract />
+        <div className="cta card" data-reveal>
           <p className="eyebrow">// Comece agora</p>
           <h2 className="section-title contact__title">
             Seu próximo cliente está <span className="grad">no mapa.</span>
