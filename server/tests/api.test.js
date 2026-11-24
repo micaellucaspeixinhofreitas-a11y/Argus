@@ -104,8 +104,13 @@ try {
   await api('POST', 'auth/register', { name: 'Outro', email: `o${Date.now()}@ex.com`, password: 'senha-forte-2' }, '')
   assert.equal((await api('GET', `mapping/result?run=${runId}`)).status, 404, 'outro usuário não vê o mapeamento')
   assert.equal((await api('GET', 'leads')).data.leads.length, 0)
-  assert.equal((await api('POST', 'leads/capture', { companyIds: ids })).status, 402, 'sem Pro não captura')
-  assert.equal((await api('POST', 'mapping/run', config)).status, 402, 'sem Pro não mapeia')
+  r = await api('POST', 'leads/capture', { companyIds: ids })
+  assert.equal(r.status, 200); assert.equal(r.data.captured, 0, 'não captura empresas de mapeamentos de outro usuário')
+  r = await api('POST', 'mapping/run', config)
+  assert.equal(r.status, 200, 'plano grátis também mapeia'); assert.ok(r.data.run.total > 0)
+  const freeIds = r.data.results.slice(0, 3).map(x => x.id)
+  r = await api('POST', 'leads/capture', { companyIds: freeIds })
+  assert.equal(r.data.captured, freeIds.length, 'plano grátis captura dentro dos créditos')
   assert.equal((await api('GET', 'auth/me')).data.pro, false)
   // pagamento por Pix: gera BR Code e registra o aviso
   process.env.PIX_KEY = 'contato@argus.dev'; process.env.PIX_NAME = 'Argus Teste'; process.env.PIX_CITY = 'Sao Paulo'

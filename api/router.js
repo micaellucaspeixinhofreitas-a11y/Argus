@@ -118,13 +118,8 @@ on('GET', 'geo/search', async ({ req, url }) => {
 })
 
 // ---------- mapeamento de oportunidades ----------
-const requirePro = async user => {
-  if (!(await hasPro(user))) fail(402, 'Mapear e capturar empresas é exclusivo do plano Pro. Assine para continuar.', 'PRO_REQUIRED')
-}
-
 on('POST', 'mapping/run', async ({ req, body }) => {
   const user = await requireUser(req)
-  await requirePro(user)
   const result = await runMapping(user, body)
   return { ...(await runResults(user, result.run_id)), credits: await creditStatus(user.id), sourceErrors: result.sourceErrors, hint: result.hint }
 })
@@ -177,7 +172,6 @@ on('GET', 'radar', async ({ req, url }) => {
 // ---------- leads ----------
 on('POST', 'leads/capture', async ({ req, body }) => {
   const user = await requireUser(req)
-  await requirePro(user)
   const result = await captureLeads(user, { runId: body.runId, companyIds: body.companyIds }, creditStatus)
   return { ...result, credits: await creditStatus(user.id) }
 })

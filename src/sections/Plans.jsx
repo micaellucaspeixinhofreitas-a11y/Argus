@@ -55,7 +55,7 @@ export default function Plans() {
                 </ul>
                 <SpecularLink
                   block
-                  to={!user ? `/entrar?modo=cadastro&plano=${p.id}` : free ? '/app' : `/app/pagamento?plano=${p.id}&periodo=${period === 'quarterly' ? 'trimestral' : 'mensal'}`}
+                  to={!user ? `/entrar?modo=cadastro&plano=${p.id}` : free ? '/app' : `/app/planos?plano=${p.id}&periodo=${period === 'quarterly' ? 'trimestral' : 'mensal'}`}
                 >
                   {free ? 'Criar conta grátis' : 'Assinar'}
                 </SpecularLink>

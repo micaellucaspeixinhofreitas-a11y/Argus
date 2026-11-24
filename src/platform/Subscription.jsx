@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { LuCheck } from 'react-icons/lu'
+import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { LuCheck, LuQrCode } from 'react-icons/lu'
 import { api, money, fmtDate, fmtInt } from '../lib/api'
 import { useAuth } from '../lib/auth'
+import Payment from './Payment'
 
 const STATUS = {
   pending_payment: 'Aguardando pagamento',
@@ -12,27 +13,25 @@ const STATUS = {
 }
 
 export default function Subscription() {
-  const { refresh } = useAuth()
+  const { refresh, pro } = useAuth()
+  const [params] = useSearchParams()
   const [plans, setPlans] = useState([])
   const [state, setState] = useState(null)
-  const [period, setPeriod] = useState('monthly')
-  const [method, setMethod] = useState('pix')
+  const [period, setPeriod] = useState(params.get('periodo') === 'trimestral' ? 'quarterly' : 'monthly')
+  // plano escolhido para pagar (abre o Pix logo abaixo dos planos)
+  const [checkout, setCheckout] = useState(params.get('plano') && params.get('plano') !== 'gratuito' ? params.get('plano') : null)
+  const checkoutRef = useRef(null)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
+  useEffect(() => {
+    if (checkout && state) setTimeout(() => checkoutRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80)
+  }, [checkout, Boolean(state)])
+
   const load = () => Promise.all([api('plans'), api('subscription')]).then(([p, s]) => { setPlans(p.plans); setState(s) }).catch(e => setError(e.message))
   useEffect(() => { load() }, [])
 
-  const subscribe = async plan => {
-    setBusy(true); setError(''); setMessage('')
-    try {
-      const d = await api('subscription', { method: 'POST', body: { planId: plan.id, period, paymentMethod: method } })
-      setState(d)
-      if (d.checkout?.checkout_url) window.location.href = d.checkout.checkout_url
-      else setMessage(d.checkout?.message || 'Assinatura registrada.')
-    } catch (e) { setError(e.message) } finally { setBusy(false) }
-  }
   const cancel = async resume => {
     if (!resume && !window.confirm('Cancelar a renovação? Você mantém o plano até o fim do período atual.')) return
     setBusy(true)
@@ -48,7 +47,7 @@ export default function Subscription() {
       <header className="page__head">
         <div>
           <h1>Plano e assinatura</h1>
-          <p className="muted">Compare limites, escolha a periodicidade e acompanhe sua assinatura.</p>
+          <p className="muted">Compare limites, escolha a periodicidade, pague com Pix e acompanhe sua assinatura.</p>
         </div>
       </header>
 
@@ -106,11 +105,25 @@ export default function Subscription() {
               </ul>
               {isCurrent ? <span className="flag flag--fit">Plano atual</span>
                 : free ? <span className="muted small">Disponível sem assinatura</span>
-                : <Link className="btn btn--primary btn--sm btn--block" to={`/app/pagamento?plano=${p.id}&periodo=${period === 'quarterly' ? 'trimestral' : 'mensal'}`}>Assinar com Pix</Link>}
+                : pro ? <span className="muted small">Você já tem um plano pago ativo</span>
+                : <button className="btn btn--primary btn--sm btn--block" onClick={() => setCheckout(p.id)}><LuQrCode /> Assinar com Pix</button>}
             </article>
           )
         })}
       </div>
+
+      {checkout && !pro && (
+        <section className="checkout" ref={checkoutRef}>
+          <div className="checkout__head">
+            <div>
+              <h2>Pagamento · {plans.find(p => p.id === checkout)?.name || 'Pro'} {period === 'quarterly' ? 'trimestral' : 'mensal'}</h2>
+              <p className="muted">Pague com Pix pelo QR Code. Assim que o pagamento for confirmado, seu acesso é liberado.</p>
+            </div>
+            <button className="btn-mini" onClick={() => setCheckout(null)}>Fechar</button>
+          </div>
+          <Payment planId={checkout} period={period} />
+        </section>
+      )}
     </div>
   )
 }

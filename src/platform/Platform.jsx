@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { LuRadar, LuUsers, LuBookmark, LuCoins, LuCreditCard, LuShield, LuLogOut, LuHouse, LuQrCode } from 'react-icons/lu'
+import { LuRadar, LuUsers, LuBookmark, LuCoins, LuCrown, LuShield, LuLogOut, LuHouse } from 'react-icons/lu'
 import Dock from '../components/Dock'
 import { useAuth } from '../lib/auth'
 import { api, fmtInt } from '../lib/api'
@@ -10,7 +10,6 @@ import Saved from './Saved'
 import Credits from './Credits'
 import Subscription from './Subscription'
 import Admin from './Admin'
-import Payment from './Payment'
 import './platform.css'
 
 // Estado da prospecção compartilhado entre as telas (não se perde ao trocar de aba)
@@ -58,7 +57,7 @@ function ProspectProvider({ children }) {
 
 // Dock de navegação da plataforma (fixa na parte de baixo)
 function PlatformDock() {
-  const { user, credits, logout, pro } = useAuth()
+  const { user, credits, logout } = useAuth()
   const { setConfig, setResult } = useProspect()
   const navigate = useNavigate()
   const { pathname } = useLocation()
@@ -87,8 +86,6 @@ function PlatformDock() {
       active: at('/app/creditos'), onClick: go('/app/creditos'),
       badge: credits && credits.can_spend === 0 ? '!' : undefined,
     },
-    { icon: <LuCreditCard />, label: 'Plano', active: at('/app/planos'), onClick: go('/app/planos') },
-    ...(!pro ? [{ icon: <LuQrCode />, label: 'Assinar o Pro (Pix)', active: at('/app/pagamento'), onClick: go('/app/pagamento'), badge: 'PRO' }] : []),
     ...(user.is_admin ? [{ icon: <LuShield />, label: 'Admin', active: at('/app/admin'), onClick: go('/app/admin') }] : []),
     { separator: true },
     { icon: <LuHouse />, label: 'Página inicial', onClick: go('/') },
@@ -121,7 +118,8 @@ function PlatformDock() {
 }
 
 export default function Platform() {
-  const { user, loading, credits } = useAuth()
+  const { user, loading, credits, pro } = useAuth()
+  const { search } = useLocation()
   if (loading) return <div className="page-loading"><span className="spinner" /> Carregando…</div>
   if (!user) return <Navigate to="/entrar" replace />
 
@@ -133,6 +131,10 @@ export default function Platform() {
             <img src="/argus-white.webp" alt="Argus" width="1400" height="423" />
           </NavLink>
           <div className="pf-user">
+            <NavLink to="/app/planos" className={`pf-plans ${pro ? '' : 'is-upgrade'}`} title="Planos e pagamento">
+              <LuCrown aria-hidden="true" />
+              <span>{pro ? 'Planos' : 'Assinar Pro'}</span>
+            </NavLink>
             {credits && (
               <NavLink to="/app/creditos" className="pf-credits" title="Créditos disponíveis · usados hoje / limite diário">
                 <LuCoins aria-hidden="true" />
@@ -149,7 +151,7 @@ export default function Platform() {
             <Route path="buscas" element={<Saved />} />
             <Route path="creditos" element={<Credits />} />
             <Route path="planos" element={<Subscription />} />
-            <Route path="pagamento" element={<Payment />} />
+            <Route path="pagamento" element={<Navigate to={`/app/planos${search}`} replace />} />
             {user.is_admin && <Route path="admin" element={<Admin />} />}
             <Route path="*" element={<Navigate to="/app" replace />} />
           </Routes>

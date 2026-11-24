@@ -267,6 +267,16 @@ details.card[open] summary { margin-bottom: 12px; }
   background: rgba(14,11,24,.96) !important; border-color: rgba(167,139,250,.45) !important; box-shadow: 0 30px 80px -30px rgba(139,92,246,.6); }
 .pro-lock__icon { width: 54px; height: 54px; border-radius: 16px; display: grid; place-items: center; font-size: 24px; color: #ddd6fe; background: rgba(139,92,246,.18); border: 1px solid rgba(167,139,250,.4); }
 .pro-lock h2 { font-family: var(--display); font-size: 22px; }
+.pro-lock__close { position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; }
+.pro-lock__close:hover { color: #fff; border-color: var(--line-2); }
+.pro-lock button.link { background: none; border: 0; cursor: pointer; color: var(--muted); font: inherit; }
+.pf-plans { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line-2); font-size: 14px; color: #fff; }
+.pf-plans svg { color: var(--purple-2); }
+.pf-plans.is-upgrade { border-color: rgba(167,139,250,.55); background: rgba(139,92,246,.16); }
+.pf-plans.active { border-color: rgba(167,139,250,.7); }
+.checkout { margin-top: 28px; scroll-margin-top: 90px; }
+.checkout__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.checkout__head h2 { margin: 0; font-family: var(--display); font-size: 22px; }
 
 /* pagamento */
 .pay { display: grid; grid-template-columns: 360px 1fr; gap: 16px; align-items: start; }

@@ -6,7 +6,6 @@ import {
 } from 'react-icons/lu'
 import MapView from './MapView'
 import ProLock from './ProLock'
-import { useNavigate } from 'react-router-dom'
 import { useProspect } from './Platform'
 import { useAuth } from '../lib/auth'
 import { api, fmtInt } from '../lib/api'
@@ -35,7 +34,6 @@ const catLabel = c => {
 export default function Prospect() {
   const { config, setConfig, result, setResult, meta, pendingRun, setPendingRun } = useProspect()
   const { credits, setCredits, pro } = useAuth()
-  const navigate = useNavigate()
   const [segInput, setSegInput] = useState('')
   const [geo, setGeo] = useState({ q: '', results: [], busy: false, error: '' })
   const [flyTo, setFlyTo] = useState(null)
@@ -52,6 +50,9 @@ export default function Prospect() {
   const listRef = useRef(null)
   const mapView = useRef(null)
   const [locating, setLocating] = useState(false)
+  // aviso de créditos esgotados (só no plano grátis)
+  const [lockClosed, setLockClosed] = useState(false)
+  const outOfCredits = !pro && credits && credits.can_spend === 0
 
   useEffect(() => {
     if (!notice || error) return
@@ -187,7 +188,6 @@ export default function Prospect() {
       }
       setTimeout(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
     } catch (err) {
-      if (err.code === 'PRO_REQUIRED') return navigate('/app/pagamento')
       setError(err.message)
     } finally {
       setRunning(false)
@@ -242,6 +242,7 @@ export default function Prospect() {
     try {
       const data = await api('leads/capture', { method: 'POST', body: { runId: result.run.id, companyIds: fresh } })
       setCredits(data.credits)
+      if (!pro && data.blocked_by_limit) setLockClosed(false)
       const refreshed = await api(`mapping/result?run=${result.run.id}`)
       setResult(r => ({ ...r, ...refreshed }))
       setSelected(new Set())
@@ -251,7 +252,6 @@ export default function Prospect() {
           (data.blocked_by_limit ? ` · ${data.blocked_by_limit} não capturado(s) por limite de créditos` : '')
       )
     } catch (err) {
-      if (err.code === 'PRO_REQUIRED') return navigate('/app/pagamento')
       setError(err.message)
     } finally {
       setCapturing(false)
@@ -261,8 +261,8 @@ export default function Prospect() {
   const freshSelected = [...selected].filter(id => !results.find(r => r.id === id)?.captured)
 
   return (
-    <div className={`pros ${pro ? '' : 'is-locked'}`}>
-      {!pro && <ProLock />}
+    <div className={`pros ${outOfCredits && !lockClosed ? 'is-locked' : ''}`}>
+      {outOfCredits && !lockClosed && <ProLock daily={credits.available > 0} onClose={() => setLockClosed(true)} />}
       {/* ===== painel de configuração ===== */}
       <aside className="pros__panel">
         <section className="step card">

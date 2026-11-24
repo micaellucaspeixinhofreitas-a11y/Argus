@@ -7,14 +7,14 @@ export default function Preloader({ onDone }) {
 
   useEffect(() => {
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (reduce) { root.current.style.display = 'none'; onDone(); return }
+    if (reduce) { if (root.current) root.current.style.display = 'none'; onDone(); return }
     const counter = { v: 0 }
     const ctx = gsap.context(() => {
       gsap.timeline({ onComplete: onDone })
         .from('.preloader__logo', { opacity: 0, scale: 0.9, filter: 'blur(12px)', duration: 1, ease: 'power3.out' })
         .to(counter, {
           v: 100, duration: 1.4, ease: 'power2.inOut',
-          onUpdate: () => { num.current.textContent = String(Math.round(counter.v)).padStart(3, '0') },
+          onUpdate: () => { if (num.current) num.current.textContent = String(Math.round(counter.v)).padStart(3, '0') },
         }, 0)
         .to('.preloader__bar i', { scaleX: 1, duration: 1.4, ease: 'power2.inOut' }, 0)
         .to('.preloader__inner', { opacity: 0, y: -20, duration: 0.4 })

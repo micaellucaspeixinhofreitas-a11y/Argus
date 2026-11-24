@@ -1,16 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
 import QRCode from 'qrcode'
-import { LuCopy, LuCheck, LuCrown, LuQrCode } from 'react-icons/lu'
+import { LuCopy, LuCheck, LuQrCode } from 'react-icons/lu'
 import { api, money } from '../lib/api'
 import { useAuth } from '../lib/auth'
 
-// Pagamento do plano Pro por Pix (QR Code + Copia e Cola)
-export default function Payment() {
+// Pagamento por Pix (QR Code + Copia e Cola), exibido dentro da tela de planos
+export default function Payment({ planId = 'pro', period = 'monthly' }) {
   const { pro, refresh } = useAuth()
-  const [params] = useSearchParams()
-  const [period, setPeriod] = useState(params.get('periodo') === 'trimestral' ? 'quarterly' : 'monthly')
-  const planId = params.get('plano') || 'pro'
   const [data, setData] = useState(null)
   const [qr, setQr] = useState('')
   const [error, setError] = useState('')
@@ -53,31 +49,10 @@ export default function Payment() {
     } catch (e) { setError(e.message) }
   }
 
-  if (pro) {
-    return (
-      <div className="page">
-        <div className="card pay-done">
-          <LuCrown />
-          <h1>Você é Pro</h1>
-          <p className="muted">Seu plano está ativo. Mapeie e capture empresas à vontade, dentro dos seus créditos.</p>
-          <Link to="/app" className="btn btn--primary">Começar a prospectar</Link>
-        </div>
-      </div>
-    )
-  }
+  if (pro) return null
 
   return (
-    <div className="page">
-      <header className="page__head">
-        <div>
-          <h1>Assinar o Pro</h1>
-          <p className="muted">Pague com Pix pelo QR Code. Assim que o pagamento for confirmado, seu acesso é liberado.</p>
-        </div>
-      </header>
-      <div className="period-toggle">
-        <button className={period === 'monthly' ? 'is-on' : ''} onClick={() => setPeriod('monthly')}>Mensal</button>
-        <button className={period === 'quarterly' ? 'is-on' : ''} onClick={() => setPeriod('quarterly')}>Trimestral</button>
-      </div>
+    <>
       {error && <p className="form-error">{error}</p>}
       {!data && !error && <p className="muted">Gerando seu QR Code…</p>}
       {data && (
@@ -109,6 +84,6 @@ export default function Payment() {
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }

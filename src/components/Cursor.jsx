@@ -16,8 +16,8 @@ export default function Cursor() {
 
     const move = e => { document.documentElement.classList.add('cursor-live'); xDot(e.clientX); yDot(e.clientY); xRing(e.clientX); yRing(e.clientY) }
     const over = e => {
-      const hit = e.target.closest('a, button, [data-hover]')
-      ring.current.classList.toggle('is-hover', !!hit)
+      const hit = e.target instanceof Element && e.target.closest('a, button, [data-hover]')
+      ring.current?.classList.toggle('is-hover', !!hit)
     }
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerover', over)
