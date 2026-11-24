@@ -16,7 +16,9 @@ Encontre, mapeie, qualifique e capture empresas reais por segmento e território
 | `AUTH_SECRET` | sim | Chave aleatória (32+ caracteres) que assina as sessões. |
 | `GOOGLE_PLACES_API_KEY` | não | Chave do Google Places (API New). Com ela, a busca usa Google + OpenStreetMap. |
 | `GOOGLE_MAX_REQUESTS` | não | Limite de chamadas ao Google por mapeamento (padrão 24). |
-| `PLACES_PROVIDER` | não | Força `osm`, `google` ou `hybrid`. |
+| `TOMTOM_API_KEY` | não | Chave da TomTom (Search API). Com ela, a busca usa TomTom + OpenStreetMap. |
+| `TOMTOM_MAX_REQUESTS` | não | Limite de chamadas à TomTom por mapeamento (padrão 30). |
+| `PLACES_PROVIDER` | não | Força `osm`, `google`, `tomtom` ou `hybrid`. |
 | `CARTO_API_TOKEN` | não | Chave de mapas base da CARTO. |
 | `PAYMENT_PROVIDER` | não | Padrão `manual` (admin ativa assinaturas). |
 

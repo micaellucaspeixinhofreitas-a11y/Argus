@@ -29,7 +29,7 @@ on('GET', 'health', async ({ url }) => {
       const [place] = await prov.geocode('Avenida Paulista, São Paulo', 'BR')
       const found = await prov.searchPlaces({ areas: [{ lat: place.lat, lng: place.lng, radius_m: 400 }], segments: resolveSegments(['restaurantes']), allBusiness: ALL_BUSINESS, country: 'BR', limit: 50 })
       const by = s => found.filter(f => f.source === s)
-      out.source = { ok: true, provider: prov.name, geocoded: place.display_name, sample: found.length, google: by('google').length, osm: by('osm').length, with_phone: found.filter(f => f.phone).length, with_website: found.filter(f => f.website).length, example: found[0]?.name }
+      out.source = { ok: true, provider: prov.name, geocoded: place.display_name, sample: found.length, google: by('google').length, tomtom: by('tomtom').length, osm: by('osm').length, with_phone: found.filter(f => f.phone).length, with_website: found.filter(f => f.website).length, example: found[0]?.name }
     } catch (e) {
       out.source = { ok: false, error: e.message }
     }

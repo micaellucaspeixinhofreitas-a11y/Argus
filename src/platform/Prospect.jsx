@@ -26,6 +26,7 @@ const catLabel = c => {
   if (!c) return 'Estabelecimento'
   const [k, v] = c.split(':')
   if (k === 'google') return GOOGLE_PT[v] || String(v).replace(/_/g, ' ')
+  if (k === 'tomtom') return String(v).charAt(0).toUpperCase() + String(v).slice(1).replace(/_/g, ' ')
   return `${CATEGORY_PT[k] || k} · ${String(v).replace(/_/g, ' ')}`
 }
 
@@ -448,7 +449,7 @@ export default function Prospect() {
             )}
             {visible.length > 500 && <p className="hint">Mostrando 500 de {fmtInt(visible.length)}. Use os filtros para refinar.</p>}
             <p className="hint">
-              Fontes: {results.some(r => r.source === 'google') && 'Google Maps · '}© colaboradores do OpenStreetMap.
+              Fontes: {results.some(r => r.source === 'google') && 'Google Maps · '}{results.some(r => r.source === 'tomtom') && 'TomTom · '}© colaboradores do OpenStreetMap.
               Contatos aparecem após a captura e em <Link to="/app/leads">Leads</Link>.
             </p>
           </div>
