@@ -33,45 +33,33 @@ export default function RadarPreview() {
           </div>
         </div>
 
-        <figure className="radar-prev__screen" data-reveal aria-label="Ilustração da interface do radar">
-          <div className="radar-prev__radar" style={{ width: '100%', position: 'relative' }}>
-            <Radar
-              color="#5b059d"
-              mode="sweep"
-              speed={1}
-              trail={0.35}
-              scale={0.9}
-              ringCount={6}
-              spokeCount={12}
-              targets={6}
-              clutter={0.35}
-              mouseInteraction
-              ticks
-              glow={1}
-              tilt={0}
-              centerX={0.5}
-              centerY={0.5}
-              brightness={1}
-              gridOpacity={1}
-              lineWidth={1}
-              grain={0.03}
-              fade={0}
-              opacity={1}
-              intro
-              lightMode={false}
-            />
-          </div>
-          <div className="radar-prev__cards">
-            {INDICATORS.map(i => (
-              <div key={i.key} className="radar-prev__card">
-                <span className={`dot dot--${i.key}`} />
-                <small>{i.label}</small>
-                <span className="radar-prev__bar"><i className={`radar-prev__fill radar-prev__fill--${i.key}`} /></span>
-              </div>
-            ))}
-          </div>
-          <figcaption>Ilustração da interface</figcaption>
-        </figure>
+        <div className="radar-prev__radar" aria-hidden="true" style={{ width: '100%', position: 'relative' }}>
+          <Radar
+            color="#5b059d"
+            mode="sweep"
+            speed={1}
+            trail={0.35}
+            scale={0.9}
+            ringCount={6}
+            spokeCount={12}
+            targets={6}
+            clutter={0.35}
+            mouseInteraction
+            ticks
+            glow={1}
+            tilt={0}
+            centerX={0.5}
+            centerY={0.5}
+            brightness={1}
+            gridOpacity={1}
+            lineWidth={1}
+            grain={0.03}
+            fade={0}
+            opacity={1}
+            intro
+            lightMode={false}
+          />
+        </div>
       </div>
     </section>
   )
