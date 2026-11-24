@@ -303,4 +303,3 @@ details.card[open] summary { margin-bottom: 12px; }
 }
 
 /* vidro na plataforma: o conteúdo fica acima da camada de vidro */
-.pf .has-glass > .glass-layer { border-radius: inherit; }

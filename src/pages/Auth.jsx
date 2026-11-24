@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
-import Glass from '../components/Glass'
 
 export default function Auth() {
   const [params, setParams] = useSearchParams()
@@ -38,8 +37,7 @@ export default function Auth() {
       <Link to="/" className="auth__brand" aria-label="Argus — início">
         <img src="/argus-chrome.webp" alt="Argus" width="1400" height="454" />
       </Link>
-      <form className="auth__card card has-glass" onSubmit={submit}>
-        <Glass radius={20} />
+      <form className="auth__card card" onSubmit={submit}>
         <h1>{mode === 'register' ? 'Crie sua conta' : 'Entre na sua conta'}</h1>
         <p className="muted">
           {mode === 'register' ? 'Comece grátis e mapeie sua primeira região em minutos.' : 'Continue de onde parou na sua prospecção.'}

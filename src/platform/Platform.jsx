@@ -12,7 +12,6 @@ import Subscription from './Subscription'
 import Admin from './Admin'
 import Payment from './Payment'
 import './platform.css'
-import Glass from '../components/Glass'
 
 // Estado da prospecção compartilhado entre as telas (não se perde ao trocar de aba)
 const ProspectContext = createContext(null)
@@ -129,8 +128,7 @@ export default function Platform() {
   return (
     <ProspectProvider>
       <div className="pf">
-        <header className="pf-top has-glass">
-          <Glass radius={0} />
+        <header className="pf-top">
           <NavLink to="/" className="pf-brand" aria-label="Argus — início">
             <img src="/argus-white.webp" alt="Argus" width="1400" height="423" />
           </NavLink>
