@@ -63,6 +63,28 @@ on('GET', 'health', async ({ url }) => {
       }
     }
   }
+  // ?probe=lat,lng&term=...: diagnóstico TEMPORÁRIO da TomTom num ponto, em vários raios
+  if (url.searchParams.get('probe') && process.env.TOMTOM_API_KEY) {
+    const [lat, lon] = url.searchParams.get('probe').split(',').map(Number)
+    const term = (url.searchParams.get('term') || 'Dentistas').slice(0, 40)
+    out.probe = {}
+    for (const radius of [2000, 5000, 15000]) {
+      for (const kind of ['categorySearch', 'poiSearch']) {
+        try {
+          const qs = new URLSearchParams({ key: process.env.TOMTOM_API_KEY, lat, lon, radius, limit: '100', countrySet: 'BR', language: 'pt-BR' })
+          const r = await fetch(`https://api.tomtom.com/search/2/${kind}/${encodeURIComponent(term)}.json?${qs}`)
+          const d = await r.json()
+          out.probe[`${kind}_${radius / 1000}km`] = { status: r.status, n: (d.results || []).length, nearest: d.results?.[0] ? `${d.results[0].poi?.name} (${Math.round(d.results[0].dist)} m, ${d.results[0].address?.municipality})` : null }
+        } catch (e) { out.probe[`${kind}_${radius / 1000}km`] = { error: e.message } }
+      }
+    }
+    try {
+      const qs = new URLSearchParams({ key: process.env.TOMTOM_API_KEY, language: 'pt-BR' })
+      const r = await fetch(`https://api.tomtom.com/search/2/reverseGeocode/${lat},${lon}.json?${qs}`)
+      const d = await r.json()
+      out.probe.place = d.addresses?.[0]?.address?.freeformAddress || null
+    } catch { /* ignora */ }
+  }
   return out
 })
 
