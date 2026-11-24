@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { LuCheck } from 'react-icons/lu'
 import { api, money, fmtDate, fmtInt } from '../lib/api'
 import { useAuth } from '../lib/auth'
@@ -85,10 +86,7 @@ export default function Subscription() {
           <button className={period === 'monthly' ? 'is-on' : ''} onClick={() => setPeriod('monthly')}>Mensal</button>
           <button className={period === 'quarterly' ? 'is-on' : ''} onClick={() => setPeriod('quarterly')}>Trimestral</button>
         </div>
-        <div className="period-toggle">
-          <button className={method === 'pix' ? 'is-on' : ''} onClick={() => setMethod('pix')}>Pix</button>
-          <button className={method === 'card' ? 'is-on' : ''} onClick={() => setMethod('card')}>Cartão</button>
-        </div>
+
       </div>
 
       <div className="plan-grid">
@@ -108,7 +106,7 @@ export default function Subscription() {
               </ul>
               {isCurrent ? <span className="flag flag--fit">Plano atual</span>
                 : free ? <span className="muted small">Disponível sem assinatura</span>
-                : <button className="btn btn--primary btn--sm btn--block" disabled={busy} onClick={() => subscribe(p)}>Assinar com {method === 'pix' ? 'Pix' : 'cartão'}</button>}
+                : <Link className="btn btn--primary btn--sm btn--block" to={`/app/pagamento?plano=${p.id}&periodo=${period === 'quarterly' ? 'trimestral' : 'mensal'}`}>Assinar com Pix</Link>}
             </article>
           )
         })}

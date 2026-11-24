@@ -5,6 +5,8 @@ import {
   LuGlobe, LuPhone, LuMail, LuMapPin, LuCheck, LuLoader, LuLocateFixed,
 } from 'react-icons/lu'
 import MapView from './MapView'
+import ProLock from './ProLock'
+import { useNavigate } from 'react-router-dom'
 import { useProspect } from './Platform'
 import { useAuth } from '../lib/auth'
 import { api, fmtInt } from '../lib/api'
@@ -32,7 +34,8 @@ const catLabel = c => {
 
 export default function Prospect() {
   const { config, setConfig, result, setResult, meta, pendingRun, setPendingRun } = useProspect()
-  const { credits, setCredits } = useAuth()
+  const { credits, setCredits, pro } = useAuth()
+  const navigate = useNavigate()
   const [segInput, setSegInput] = useState('')
   const [geo, setGeo] = useState({ q: '', results: [], busy: false, error: '' })
   const [flyTo, setFlyTo] = useState(null)
@@ -126,6 +129,7 @@ export default function Prospect() {
     country: config.country,
     locality: config.locality,
     radiusKm: config.radiusKm,
+    maxResults: config.maxResults || 100,
     areas: config.areas,
     qualification: config.qualification.enabled ? config.qualification : { criteria: [] },
     savedSearchId,
@@ -166,6 +170,7 @@ export default function Prospect() {
       setNotice(data.run.total ? `${fmtInt(data.run.total)} empresa(s) mapeada(s).` : 'Nenhuma empresa encontrada nesta área. Tente aumentar o raio, mudar o segmento ou marcar outra região.')
       setTimeout(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
     } catch (err) {
+      if (err.code === 'PRO_REQUIRED') return navigate('/app/pagamento')
       setError(err.message)
     } finally {
       setRunning(false)
@@ -229,6 +234,7 @@ export default function Prospect() {
           (data.blocked_by_limit ? ` · ${data.blocked_by_limit} não capturado(s) por limite de créditos` : '')
       )
     } catch (err) {
+      if (err.code === 'PRO_REQUIRED') return navigate('/app/pagamento')
       setError(err.message)
     } finally {
       setCapturing(false)
@@ -238,7 +244,8 @@ export default function Prospect() {
   const freshSelected = [...selected].filter(id => !results.find(r => r.id === id)?.captured)
 
   return (
-    <div className="pros">
+    <div className={`pros ${pro ? '' : 'is-locked'}`}>
+      {!pro && <ProLock />}
       {/* ===== painel de configuração ===== */}
       <aside className="pros__panel">
         <section className="step card">
@@ -286,6 +293,17 @@ export default function Prospect() {
               />
             </label>
           </div>
+          <label className="field">
+            <span>Quantidade de empresas: <strong>{config.maxResults || 100}</strong></span>
+            <div className="qty">
+              {[20, 50, 100, 250, 500].map(n => (
+                <button key={n} type="button" className={`chip ${(config.maxResults || 100) === n ? 'is-on' : ''}`} onClick={() => update({ maxResults: n })}>{n}</button>
+              ))}
+              <input type="number" min="10" max="1000" step="10" value={config.maxResults || 100} aria-label="Quantidade personalizada"
+                onChange={e => update({ maxResults: Math.min(1000, Math.max(10, Number(e.target.value) || 10)) })} />
+            </div>
+            <small className="hint">Máximo de empresas trazidas por mapeamento, das mais próximas às mais distantes do centro das áreas.</small>
+          </label>
           {config.locality.trim().length > 1 && (
             <button className="btn-mini" onClick={() => searchPlace(config.locality)}><LuLocateFixed /> Localizar no mapa</button>
           )}

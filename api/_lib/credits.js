@@ -21,6 +21,13 @@ export async function activePlan(userId, db = { query }) {
   return def.rows[0] || { id: 'nenhum', name: 'Sem plano', monthly_credits: 0, daily_limit: 0 }
 }
 
+// Plano pago ativo (o administrador da plataforma sempre tem acesso)
+export async function hasPro(user, db = { query }) {
+  if (user.is_admin) return true
+  const plan = await activePlan(user.id, db)
+  return Boolean(plan.subscription_id) && (plan.price_monthly_cents > 0 || plan.price_quarterly_cents > 0)
+}
+
 export async function creditStatus(userId, db = { query }) {
   const plan = await activePlan(userId, db)
   const { rows } = await db.query(

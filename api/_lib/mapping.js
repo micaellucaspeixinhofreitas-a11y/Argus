@@ -26,7 +26,8 @@ export function parseConfig(input = {}) {
       label: str(a.label || `Área ${i + 1}`, 120),
     }
   })
-  return { segments, country, locality, radiusKm, areas, qualification: parseQualification(input.qualification) }
+  const maxResults = Math.round(num(input.maxResults, 1, 1000, 200))
+  return { segments, country, locality, radiusKm, areas, maxResults, qualification: parseQualification(input.qualification) }
 }
 
 // Geocodifica com cache no banco (política de uso do Nominatim)
@@ -49,6 +50,15 @@ export async function geocode(q, country) {
     )
   }
   return results
+}
+
+const haversine = (lat1, lng1, lat2, lng2) => {
+  const R = 6371000
+  const toRad = x => (x * Math.PI) / 180
+  const dLat = toRad(lat2 - lat1)
+  const dLng = toRad(lng2 - lng1)
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(h))
 }
 
 const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '')
@@ -75,6 +85,7 @@ function dedupe(places) {
 }
 
 export async function runMapping(user, input) {
+  const startedAt = Date.now()
   const config = parseConfig(input)
 
   // Sem áreas no mapa: usa a localidade informada como área central
@@ -122,9 +133,21 @@ export async function runMapping(user, input) {
     })
   } catch (err) {
     await query(`update mapping_runs set status = 'failed', error = $2, finished_at = now() where id = $1`, [run.id, String(err.message).slice(0, 300)])
+    console.log(JSON.stringify({ evt: 'mapping_failed', run: run.id, user: user.id, provider: prov.name, error: String(err.message).slice(0, 300) }))
     fail(502, 'A fonte de dados de estabelecimentos não respondeu. Tente novamente em instantes ou reduza o raio.')
   }
+  const raw = places.length
+  const bySource = places.reduce((acc, p) => ({ ...acc, [p.source]: (acc[p.source] || 0) + 1 }), {})
   places = dedupe(places)
+  // só o que está dentro de alguma área, do mais próximo ao mais distante, até a quantidade pedida
+  for (const p of places) {
+    p._dist = Math.min(...config.areas.map(a => {
+      const d = haversine(p.lat, p.lng, a.lat, a.lng)
+      return d <= a.radiusKm * 1000 ? d : Infinity
+    }))
+  }
+  places = places.filter(p => p._dist !== Infinity).sort((a, b) => a._dist - b._dist).slice(0, config.maxResults)
+  places.forEach(p => delete p._dist)
 
   // Grava empresas (sem duplicidade) e associa ao mapeamento respeitando os limites das áreas
   const idBySource = new Map()
@@ -184,6 +207,7 @@ export async function runMapping(user, input) {
   if (input.savedSearchId) {
     await query(`update saved_searches set last_run_at = now() where id = $1 and user_id = $2`, [Number(input.savedSearchId), user.id])
   }
+  console.log(JSON.stringify({ evt: 'mapping', run: run.id, user: user.id, provider: prov.name, segments: config.segments, areas: config.areas.length, max: config.maxResults, raw, bySource, kept: places.length, total: stats.total, ms: Date.now() - startedAt }))
   return { run_id: run.id, config, stats }
 }
 

@@ -3,7 +3,8 @@
 import { query, tx } from './_lib/db.js'
 import { send, readJson, fail, HttpError, str, num } from './_lib/http.js'
 import { hashPassword, verifyPassword, sessionCookie, clearCookie, currentUser, requireUser, requireAdmin } from './_lib/auth.js'
-import { creditStatus, creditHistory, activePlan, TZ } from './_lib/credits.js'
+import { creditStatus, creditHistory, activePlan, hasPro, TZ } from './_lib/credits.js'
+import { pixConfigured, pixPayload } from './_lib/pix.js'
 import { runMapping, runResults, captureLeads, geocode, parseConfig, LIMITS } from './_lib/mapping.js'
 import { catalogList, resolveSegments, ALL_BUSINESS } from './_lib/segments.js'
 import { provider } from './_lib/providers/index.js'
@@ -107,7 +108,7 @@ on('POST', 'auth/logout', async () => ({ data: { ok: true }, headers: { 'Set-Coo
 on('GET', 'auth/me', async ({ req }) => {
   const user = await currentUser(req)
   if (!user) return { user: null }
-  return { user, credits: await creditStatus(user.id) }
+  return { user, credits: await creditStatus(user.id), pro: await hasPro(user) }
 })
 
 // ---------- geolocalização ----------
@@ -117,8 +118,13 @@ on('GET', 'geo/search', async ({ req, url }) => {
 })
 
 // ---------- mapeamento de oportunidades ----------
+const requirePro = async user => {
+  if (!(await hasPro(user))) fail(402, 'Mapear e capturar empresas é exclusivo do plano Pro. Assine para continuar.', 'PRO_REQUIRED')
+}
+
 on('POST', 'mapping/run', async ({ req, body }) => {
   const user = await requireUser(req)
+  await requirePro(user)
   const result = await runMapping(user, body)
   return { ...(await runResults(user, result.run_id)), credits: await creditStatus(user.id) }
 })
@@ -171,6 +177,7 @@ on('GET', 'radar', async ({ req, url }) => {
 // ---------- leads ----------
 on('POST', 'leads/capture', async ({ req, body }) => {
   const user = await requireUser(req)
+  await requirePro(user)
   const result = await captureLeads(user, { runId: body.runId, companyIds: body.companyIds }, creditStatus)
   return { ...result, credits: await creditStatus(user.id) }
 })
@@ -284,12 +291,59 @@ on('POST', 'subscription/cancel', async ({ req, body }) => {
   return subscriptionState(user.id)
 })
 
+// ---------- pagamento por Pix (QR Code) ----------
+on('POST', 'payment/pix', async ({ req, body }) => {
+  const user = await requireUser(req)
+  const period = body.period === 'quarterly' ? 'quarterly' : 'monthly'
+  const { rows: [plan] } = await query('select * from plans where id = $1 and active', [str(body.planId || 'pro', 40)])
+  if (!plan) fail(404, 'Plano não encontrado.')
+  const amountCents = period === 'quarterly' ? plan.price_quarterly_cents : plan.price_monthly_cents
+  if (!amountCents) fail(400, 'Este plano é gratuito.')
+  if (!pixConfigured()) fail(503, 'O pagamento por Pix ainda não foi configurado. Fale com o suporte.', 'PIX_NOT_CONFIGURED')
+  // reaproveita o pedido pendente do mesmo plano/período; senão cria um novo
+  let { rows: [sub] } = await query(
+    `select * from subscriptions where user_id = $1 and status = 'pending_payment' and plan_id = $2 and period = $3 and payment_method = 'pix'
+      order by created_at desc limit 1`, [user.id, plan.id, period])
+  if (!sub) {
+    await query(`update subscriptions set status = 'canceled', updated_at = now() where user_id = $1 and status = 'pending_payment'`, [user.id])
+    const r = await query(
+      `insert into subscriptions (user_id, plan_id, period, status, payment_method, payment_provider)
+       values ($1, $2, $3, 'pending_payment', 'pix', 'pix_static') returning *`, [user.id, plan.id, period])
+    sub = r.rows[0]
+    const txid = `ARGUS${sub.id}`
+    await query('update subscriptions set payment_reference = $2 where id = $1', [sub.id, txid])
+    sub.payment_reference = txid
+  }
+  const payload = pixPayload({ amountCents, txid: sub.payment_reference, description: `Argus ${plan.name}` })
+  return { subscription: sub, plan: { id: plan.id, name: plan.name }, period, amount_cents: amountCents, payload, receiver: process.env.PIX_NAME }
+})
+
+on('POST', 'payment/reported', async ({ req, body }) => {
+  const user = await requireUser(req)
+  const { rows: [sub] } = await query(
+    `update subscriptions set payment_reported_at = now(), updated_at = now()
+      where id = $1 and user_id = $2 and status = 'pending_payment' returning *`, [Number(body.subscriptionId), user.id])
+  if (!sub) fail(404, 'Pedido de pagamento não encontrado.')
+  await query(`insert into operations_log (user_id, type, detail) values ($1, 'payment_reported', $2)`, [user.id, JSON.stringify({ subscription: sub.id, ref: sub.payment_reference })])
+  console.log(JSON.stringify({ evt: 'payment_reported', user: user.id, subscription: sub.id, ref: sub.payment_reference }))
+  return { subscription: sub }
+})
+
 // ---------- administração ----------
+on('GET', 'admin/runs', async ({ req }) => {
+  await requireAdmin(req)
+  const { rows } = await query(
+    `select m.id, m.status, m.provider, m.total, m.high_fit, m.no_website, m.error, m.created_at, m.config, u.email
+       from mapping_runs m join users u on u.id = m.user_id order by m.created_at desc limit 30`)
+  return { runs: rows }
+})
+
 on('GET', 'admin/overview', async ({ req }) => {
   await requireAdmin(req)
   const { rows: users } = await query(
     `select u.id, u.email, u.name, u.is_admin, u.created_at,
-            (select json_build_object('id', s.id, 'plan_id', s.plan_id, 'status', s.status, 'period', s.period, 'current_period_end', s.current_period_end)
+            (select json_build_object('id', s.id, 'plan_id', s.plan_id, 'status', s.status, 'period', s.period, 'current_period_end', s.current_period_end,
+                    'payment_reference', s.payment_reference, 'payment_reported_at', s.payment_reported_at)
                from subscriptions s where s.user_id = u.id order by s.created_at desc limit 1) as subscription,
             (select count(*) from leads l where l.user_id = u.id)::int as leads,
             (select count(*) from mapping_runs m where m.user_id = u.id)::int as runs

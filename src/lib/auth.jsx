@@ -4,15 +4,15 @@ import { api } from './api'
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [state, setState] = useState({ loading: true, user: null, credits: null })
+  const [state, setState] = useState({ loading: true, user: null, credits: null, pro: false })
 
   const refresh = useCallback(async () => {
     try {
       const data = await api('auth/me')
-      setState({ loading: false, user: data.user, credits: data.credits || null })
+      setState({ loading: false, user: data.user, credits: data.credits || null, pro: Boolean(data.pro) })
       return data
     } catch {
-      setState({ loading: false, user: null, credits: null })
+      setState({ loading: false, user: null, credits: null, pro: false })
       return null
     }
   }, [])

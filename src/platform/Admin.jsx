@@ -44,7 +44,11 @@ export default function Admin() {
   const [error, setError] = useState('')
   const [choice, setChoice] = useState({})
 
-  const load = () => api('admin/overview').then(setData).catch(e => setError(e.message))
+  const [runs, setRuns] = useState([])
+  const load = () => {
+    api('admin/overview').then(setData).catch(e => setError(e.message))
+    api('admin/runs').then(d => setRuns(d.runs)).catch(() => {})
+  }
   useEffect(() => { load() }, [])
 
   const act = async (fn, okMsg) => {
@@ -70,6 +74,24 @@ export default function Admin() {
       {data.plans.map(p => <PlanForm key={p.id + p.updated_at} plan={p} onSave={body => act(() => api('admin/plans', { method: 'POST', body }), 'Plano salvo.')} />)}
       <details className="card"><summary>Novo plano</summary><PlanForm plan={blankPlan} onSave={body => act(() => api('admin/plans', { method: 'POST', body }), 'Plano criado.')} /></details>
 
+      <h2>Últimos mapeamentos</h2>
+      <div className="table-wrap card">
+        <table className="table table--cards">
+          <thead><tr><th>Quando</th><th>Usuário</th><th>Busca</th><th>Resultado</th></tr></thead>
+          <tbody>
+            {runs.length === 0 && <tr><td colSpan="4" className="muted">Nenhum mapeamento ainda.</td></tr>}
+            {runs.map(r => (
+              <tr key={r.id}>
+                <td data-label="Quando">{new Date(r.created_at).toLocaleString('pt-BR')}</td>
+                <td data-label="Usuário">{r.email}</td>
+                <td data-label="Busca">{(r.config.segments || []).join(', ') || 'Todos'} · {r.config.areas?.length || 0} área(s) · {r.provider}</td>
+                <td data-label="Resultado">{r.status === 'done' ? `${r.total} empresas` : <span className="flag flag--noweb">{r.status}{r.error ? `: ${r.error}` : ''}</span>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
       <h2>Usuários</h2>
       <div className="table-wrap card">
         <table className="table table--cards">
@@ -81,7 +103,8 @@ export default function Admin() {
               return (
                 <tr key={u.id}>
                   <td data-label="Usuário"><strong>{u.name || '—'}</strong>{u.is_admin && <span className="flag flag--fit">admin</span>}<small className="muted block">{u.email} · desde {fmtDate(u.created_at)}</small></td>
-                  <td data-label="Assinatura">{u.subscription ? <>{u.subscription.plan_id} · {u.subscription.status}<small className="muted block">{u.subscription.current_period_end ? `até ${fmtDate(u.subscription.current_period_end)}` : ''}</small></> : <span className="muted">Plano padrão</span>}</td>
+                  <td data-label="Assinatura">{u.subscription ? <>{u.subscription.plan_id} · {u.subscription.status}
+                    {u.subscription.payment_reported_at && u.subscription.status === 'pending_payment' && <span className="flag flag--noweb block">Pix informado · {u.subscription.payment_reference}</span>}<small className="muted block">{u.subscription.current_period_end ? `até ${fmtDate(u.subscription.current_period_end)}` : ''}</small></> : <span className="muted">Plano padrão</span>}</td>
                   <td data-label="Uso">{fmtInt(u.leads)} leads<small className="muted block">{fmtInt(u.runs)} mapeamentos</small></td>
                   <td className="admin-actions" data-label="Ações">
                     <select value={c.planId} onChange={e => setC({ planId: e.target.value })}>{data.plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>

@@ -44,6 +44,7 @@ create table if not exists subscriptions (
   updated_at timestamptz not null default now()
 );
 create index if not exists subscriptions_user_idx on subscriptions(user_id, created_at desc);
+alter table subscriptions add column if not exists payment_reported_at timestamptz;
 
 -- Livro-razão de créditos: consumo negativo, bônus positivo
 create table if not exists credit_ledger (

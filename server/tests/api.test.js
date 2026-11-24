@@ -49,6 +49,7 @@ try {
   const config = { segments: ['dentistas'], country: 'BR', locality: 'Pinheiros', radiusKm: 1,
     areas: [{ lat: -23.55, lng: -46.63, radiusKm: 1, label: 'Centro' }],
     qualification: { criteria: ['has_phone', 'no_website'], minScore: 100 } }
+  assert.equal((await api('GET', 'auth/me')).data.pro, true, 'admin tem acesso Pro')
   r = await api('POST', 'mapping/run', config)
   assert.equal(r.status, 200, JSON.stringify(r.data))
   const names = r.data.results.map(x => x.name).sort()
@@ -89,7 +90,8 @@ try {
 
   // sem áreas: usa a localidade geocodificada
   await new Promise(res => setTimeout(res, 8200))
-  r = await api('POST', 'mapping/run', { ...config, areas: [] }); assert.equal(r.status, 200); assert.equal(r.data.areas.length, 1)
+  r = await api('POST', 'mapping/run', { ...config, areas: [], maxResults: 2 }); assert.equal(r.status, 200); assert.equal(r.data.areas.length, 1)
+  assert.equal(r.data.run.total, 2, 'respeita a quantidade pedida')
 
   // créditos e planos
   r = await api('GET', 'credits'); assert.equal(r.data.credits.month_used, 3); assert.equal(r.data.history[0].used, 3)
@@ -102,13 +104,27 @@ try {
   await api('POST', 'auth/register', { name: 'Outro', email: `o${Date.now()}@ex.com`, password: 'senha-forte-2' }, '')
   assert.equal((await api('GET', `mapping/result?run=${runId}`)).status, 404, 'outro usuário não vê o mapeamento')
   assert.equal((await api('GET', 'leads')).data.leads.length, 0)
-  assert.equal((await api('POST', 'leads/capture', { companyIds: ids })).data.captured, 0, 'não captura empresas de outro usuário')
+  assert.equal((await api('POST', 'leads/capture', { companyIds: ids })).status, 402, 'sem Pro não captura')
+  assert.equal((await api('POST', 'mapping/run', config)).status, 402, 'sem Pro não mapeia')
+  assert.equal((await api('GET', 'auth/me')).data.pro, false)
+  // pagamento por Pix: gera BR Code e registra o aviso
+  process.env.PIX_KEY = 'contato@argus.dev'; process.env.PIX_NAME = 'Argus Teste'; process.env.PIX_CITY = 'Sao Paulo'
+  let pay = await api('POST', 'payment/pix', { planId: 'pro', period: 'monthly' })
+  assert.equal(pay.status, 200, JSON.stringify(pay.data)); assert.ok(pay.data.payload.startsWith('000201')); assert.equal(pay.data.amount_cents, 19700)
+  assert.ok(pay.data.payload.includes('5406197.00') && pay.data.payload.includes(pay.data.subscription.payment_reference))
+  const again = await api('POST', 'payment/pix', { planId: 'pro', period: 'monthly' })
+  assert.equal(again.data.subscription.id, pay.data.subscription.id, 'reaproveita o pedido pendente')
+  assert.ok((await api('POST', 'payment/reported', { subscriptionId: pay.data.subscription.id })).data.subscription.payment_reported_at)
+  const otherEmail = (await api('GET', 'auth/me')).data.user.email
   assert.equal((await api('GET', 'admin/overview')).status, 403)
   cookie = myCookie
 
   // admin: ativar Pro e conceder créditos
   if (firstIsAdmin) {
     r = await api('GET', 'admin/overview'); const me = r.data.users.find(u => u.email === email)
+    const other = r.data.users.find(u => u.email === otherEmail)
+    assert.ok(other.subscription.payment_reported_at, 'admin vê o Pix informado')
+    assert.ok((await api('GET', 'admin/runs')).data.runs.length >= 3)
     await api('POST', 'admin/subscription', { userId: me.id, action: 'activate', planId: 'pro', period: 'monthly' })
     r = await api('GET', 'auth/me'); assert.equal(r.data.credits.monthly_credits, 7000); assert.equal(r.data.credits.daily_limit, 700)
     await api('POST', 'admin/credits', { userId: me.id, amount: 100 })
@@ -117,6 +133,9 @@ try {
   // logout
   await api('POST', 'auth/logout'); assert.equal((await api('GET', 'auth/me')).data.user, null)
   console.log('OK — todos os testes da API passaram' + (firstIsAdmin ? ' (incluindo admin)' : ''))
+} catch (err) {
+  console.error('FALHOU:', err.message)
+  process.exitCode = 1
 } finally {
   server.close()
   process.exit(process.exitCode || 0)
