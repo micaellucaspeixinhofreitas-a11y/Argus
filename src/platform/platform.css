@@ -301,3 +301,12 @@ details.card[open] summary { margin-bottom: 12px; }
   .pf-credits small { display: none; }
   .map-search input { font-size: 13px; }
 }
+
+/* vidro na plataforma: o conteúdo fica acima da camada de vidro */
+.pf .has-glass > .glass-layer { border-radius: inherit; }
+.pf-top.has-glass { background: transparent !important; }
+.map-search.has-glass, .map-badge.has-glass { background: rgba(10,8,18,.35) !important; }
+.radar-card.has-glass { background: rgba(255,255,255,.02) !important; }
+.radar-card.has-glass.is-on { background: rgba(139,92,246,.14) !important; }
+.table-wrap.has-glass { isolation: isolate; }
+.pf-top > .glass-lite.glass-surface--fallback { background: linear-gradient(180deg, rgba(14,11,24,.94), rgba(8,6,14,.9)) !important; }

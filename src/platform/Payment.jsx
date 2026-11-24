@@ -4,6 +4,7 @@ import QRCode from 'qrcode'
 import { LuCopy, LuCheck, LuCrown, LuQrCode } from 'react-icons/lu'
 import { api, money } from '../lib/api'
 import { useAuth } from '../lib/auth'
+import Glass from '../components/Glass'
 
 // Pagamento do plano Pro por Pix (QR Code + Copia e Cola)
 export default function Payment() {
@@ -82,11 +83,13 @@ export default function Payment() {
       {!data && !error && <p className="muted">Gerando seu QR Code…</p>}
       {data && (
         <div className="pay">
-          <div className="card pay__qr">
+          <div className="card has-glass pay__qr">
+            <Glass radius={18} />
             {qr ? <img src={qr} alt="QR Code Pix para pagamento" width="320" height="320" /> : <LuQrCode />}
             <small className="muted">Abra o app do seu banco, escolha <strong>Pix → Ler QR Code</strong> e aponte a câmera.</small>
           </div>
-          <div className="card pay__info">
+          <div className="card has-glass pay__info">
+            <Glass radius={18} />
             <div className="pay__amount">
               <small>Plano {data.plan.name} · {data.period === 'quarterly' ? 'trimestral' : 'mensal'}</small>
               <strong>{money(data.amount_cents)}</strong>

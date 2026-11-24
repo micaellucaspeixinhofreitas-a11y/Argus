@@ -5,6 +5,7 @@ import {
   LuGlobe, LuPhone, LuMail, LuMapPin, LuCheck, LuLoader, LuLocateFixed,
 } from 'react-icons/lu'
 import MapView from './MapView'
+import Glass from '../components/Glass'
 import ProLock from './ProLock'
 import { useNavigate } from 'react-router-dom'
 import { useProspect } from './Platform'
@@ -265,7 +266,8 @@ export default function Prospect() {
       {!pro && <ProLock />}
       {/* ===== painel de configuração ===== */}
       <aside className="pros__panel">
-        <section className="step card">
+        <section className="step card has-glass">
+          <Glass radius={18} />
           <header className="step__head"><LuTarget /> <h2>1. Defina o alvo</h2></header>
           <div className="field">
             <span>Segmentos <em>(opcional)</em></span>
@@ -336,7 +338,8 @@ export default function Prospect() {
           )}
         </section>
 
-        <section className="step card">
+        <section className="step card has-glass">
+          <Glass radius={18} />
           <header className="step__head">
             <LuFilter /> <h2>2. Qualificação</h2>
             <label className="switch">
@@ -369,7 +372,8 @@ export default function Prospect() {
           )}
         </section>
 
-        <section className="step card">
+        <section className="step card has-glass">
+          <Glass radius={18} />
           <header className="step__head"><LuLayers /> <h2>3. Território</h2></header>
           <label className="field">
             <span>Raio das novas áreas: <strong>{config.radiusKm.toLocaleString('pt-BR')} km</strong></span>
@@ -418,7 +422,8 @@ export default function Prospect() {
       {/* ===== mapa + resultados ===== */}
       <section className="pros__work">
         <div className="map-wrap card">
-          <form className="map-search" onSubmit={e => { e.preventDefault(); searchPlace() }}>
+          <form className="map-search has-glass" onSubmit={e => { e.preventDefault(); searchPlace() }}>
+            <Glass radius={12} backgroundOpacity={0.45} refract />
             <LuSearch aria-hidden="true" />
             <input value={geo.q} onChange={e => setGeo(g => ({ ...g, q: e.target.value }))} placeholder={`Pesquisar cidade, bairro ou endereço em ${country.name}`} aria-label="Pesquisar local" />
             {geo.busy && <LuLoader className="spin" />}
@@ -435,7 +440,8 @@ export default function Prospect() {
               <li><button className="link" onClick={() => setGeo(g => ({ ...g, results: [], error: '' }))}>Fechar</button></li>
             </ul>
           )}
-          <div className="map-badge">
+          <div className="map-badge has-glass">
+            <Glass radius={10} backgroundOpacity={0.5} />
             <strong>{config.areas.length}</strong> área(s) selecionada(s)
             {config.areas.length > 0 && <span className={synced ? 'ok' : 'warn'}>{synced ? 'sincronizadas' : 'não sincronizadas'}</span>}
           </div>
@@ -471,13 +477,16 @@ export default function Prospect() {
           <h2 className="radar__title">Radar de oportunidades capturadas</h2>
           {stale && <p className="form-notice">Você alterou os critérios. Clique em <strong>Mapear oportunidades</strong> para atualizar os resultados.</p>}
           <div className="radar__cards">
-            <button className={`radar-card ${filter === 'all' ? 'is-on' : ''}`} onClick={() => setFilter('all')}>
+            <button className={`radar-card has-glass ${filter === 'all' ? 'is-on' : ''}`} onClick={() => setFilter('all')}>
+              <Glass radius={16} refract />
               <small>Mapeadas</small><strong>{fmtInt(result?.run.total ?? 0)}</strong>
             </button>
-            <button className={`radar-card radar-card--fit ${filter === 'fit' ? 'is-on' : ''}`} onClick={() => setFilter('fit')}>
+            <button className={`radar-card has-glass radar-card--fit ${filter === 'fit' ? 'is-on' : ''}`} onClick={() => setFilter('fit')}>
+              <Glass radius={16} refract />
               <small>Alta aderência</small><strong>{result && !result.run.config.qualification.criteria.length ? '—' : fmtInt(result?.run.high_fit ?? 0)}</strong>
             </button>
-            <button className={`radar-card radar-card--noweb ${filter === 'noweb' ? 'is-on' : ''}`} onClick={() => setFilter('noweb')}>
+            <button className={`radar-card has-glass radar-card--noweb ${filter === 'noweb' ? 'is-on' : ''}`} onClick={() => setFilter('noweb')}>
+              <Glass radius={16} refract />
               <small>Sem website</small><strong>{fmtInt(result?.run.no_website ?? 0)}</strong>
             </button>
           </div>
@@ -487,7 +496,8 @@ export default function Prospect() {
         </div>
 
         {result ? (
-          <div className="results card">
+          <div className="results card has-glass">
+            <Glass radius={18} />
             <div className="results__bar">
               <div className="seg-tabs">
                 {[['all', 'Todas'], ['fit', 'Alta aderência'], ['noweb', 'Sem website'], ['open', 'Não capturadas'], ['captured', 'Capturadas']].map(([k, l]) => (
@@ -543,7 +553,8 @@ export default function Prospect() {
             </p>
           </div>
         ) : (
-          <div className="results card empty-state">
+          <div className="results card empty-state has-glass">
+            <Glass radius={18} />
             <LuLayers />
             <p><strong>Nenhum mapeamento ainda.</strong> Defina o alvo, marque áreas no mapa e clique em <em>Mapear oportunidades</em>.</p>
           </div>

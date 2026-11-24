@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, fmtDate, fmtDateTime, fmtInt } from '../lib/api'
 import { useAuth } from '../lib/auth'
+import Glass from '../components/Glass'
 
 export default function Credits() {
   const [data, setData] = useState(null)
@@ -28,10 +29,14 @@ export default function Credits() {
         </div>
       </header>
       <div className="stat-grid">
-        <div className="card stat-card"><small>Créditos disponíveis</small><strong>{fmtInt(c.available)}</strong><span className="muted">de {fmtInt(c.monthly_credits)} no mês</span></div>
-        <div className="card stat-card"><small>Usados hoje</small><strong>{fmtInt(c.today_used)}</strong><span className="muted">limite diário de {fmtInt(c.daily_limit)}</span></div>
-        <div className="card stat-card"><small>Usados no mês</small><strong>{fmtInt(c.month_used)}</strong><span className="muted">renova no dia 1º</span></div>
-        <div className="card stat-card"><small>Pode capturar agora</small><strong>{fmtInt(c.can_spend)}</strong><span className="muted">leads novos</span></div>
+        <div className="card has-glass stat-card">
+            <Glass radius={18} /><small>Créditos disponíveis</small><strong>{fmtInt(c.available)}</strong><span className="muted">de {fmtInt(c.monthly_credits)} no mês</span></div>
+        <div className="card has-glass stat-card">
+            <Glass radius={18} /><small>Usados hoje</small><strong>{fmtInt(c.today_used)}</strong><span className="muted">limite diário de {fmtInt(c.daily_limit)}</span></div>
+        <div className="card has-glass stat-card">
+            <Glass radius={18} /><small>Usados no mês</small><strong>{fmtInt(c.month_used)}</strong><span className="muted">renova no dia 1º</span></div>
+        <div className="card has-glass stat-card">
+            <Glass radius={18} /><small>Pode capturar agora</small><strong>{fmtInt(c.can_spend)}</strong><span className="muted">leads novos</span></div>
       </div>
       <div className="card meters">
         <label>Mês <span>{fmtInt(c.month_used)} / {fmtInt(c.monthly_credits)}</span></label>
