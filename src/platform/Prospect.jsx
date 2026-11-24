@@ -178,7 +178,12 @@ export default function Prospect() {
       if (!data.run.total && failed.length) {
         setError(`A fonte de empresas (${failed.join(', ')}) não respondeu: ${Object.values(data.sourceErrors).find(Boolean)}. Tente novamente em instantes.`)
       } else {
-        setNotice(data.run.total ? `${fmtInt(data.run.total)} empresa(s) mapeada(s).` : 'Nenhuma empresa encontrada nesta área. Tente aumentar o raio, mudar o segmento ou marcar outra região.')
+        if (data.run.total) setNotice(`${fmtInt(data.run.total)} empresa(s) mapeada(s).`)
+        else if (data.hint) {
+          const km = (data.hint.distance_m / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })
+          setError(`Nenhuma empresa de "${data.hint.segment}" num raio de ${data.hint.radius_km} km desta área. A mais próxima fica a ${km} km${data.hint.city ? `, em ${data.hint.city}` : ''}. Aumente o raio, mova a área ou pesquise outra cidade.`)
+          setFlyTo({ lat: data.hint.lat, lng: data.hint.lng })
+        } else setNotice('Nenhuma empresa encontrada nesta área. Tente aumentar o raio, mudar o segmento ou marcar outra região.')
       }
       setTimeout(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
     } catch (err) {
@@ -371,7 +376,7 @@ export default function Prospect() {
             <input type="range" min={limits.minRadiusKm} max={limits.maxRadiusKm} step="0.1" value={config.radiusKm}
               onChange={e => update({ radiusKm: Number(e.target.value) })} />
           </label>
-          <p className="hint"><LuCrosshair /> Clique no mapa para adicionar uma área. Arraste o número para mover.</p>
+          <p className="hint"><LuCrosshair /> Aproxime o mapa na cidade desejada e toque para adicionar uma área. Arraste o número para mover.</p>
           {config.areas.length > 0 && (
             <ul className="areas">
               {config.areas.map((a, i) => (
@@ -441,7 +446,13 @@ export default function Prospect() {
             results={results}
             selectedId={focusId}
             onViewChange={v => { mapView.current = v }}
-            onAddArea={latlng => addArea(latlng)}
+            onAddArea={latlng => {
+              if ((mapView.current?.zoom ?? 0) < 10) {
+                setError('Aproxime o mapa (ou pesquise a cidade/bairro) antes de marcar uma área — assim ela fica exatamente onde você quer.')
+                return
+              }
+              addArea(latlng)
+            }}
             onMoveArea={moveArea}
             onSelect={id => { setFocusId(id); document.getElementById(`r-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) }}
             fitKey={fitKey}

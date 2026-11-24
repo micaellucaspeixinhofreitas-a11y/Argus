@@ -1,6 +1,7 @@
 import { query, tx } from './db.js'
 import { fail, num, str } from './http.js'
 import { provider } from './providers/index.js'
+import * as tomtom from './providers/tomtom.js'
 import { resolveSegments, ALL_BUSINESS } from './segments.js'
 import { parseQualification, qualify } from './qualify.js'
 
@@ -214,8 +215,18 @@ export async function runMapping(user, input) {
   if (Object.keys(sourceErrors).length) {
     await query(`update mapping_runs set error = $2 where id = $1`, [run.id, JSON.stringify(sourceErrors).slice(0, 300)])
   }
-  console.log(JSON.stringify({ evt: 'mapping', sourceErrors, run: run.id, user: user.id, provider: prov.name, segments: config.segments, areas: config.areas.length, max: config.maxResults, raw, bySource, kept: places.length, total: stats.total, ms: Date.now() - startedAt }))
-  return { run_id: run.id, config, stats, sourceErrors }
+  console.log(JSON.stringify({ evt: 'mapping', sourceErrors, run: run.id, user: user.id, provider: prov.name, segments: config.segments, areas: config.areas.map(a => `${a.lat.toFixed(4)},${a.lng.toFixed(4)} r${a.radiusKm}km`), max: config.maxResults, raw, bySource, kept: places.length, total: stats.total, ms: Date.now() - startedAt }))
+  // área vazia: procura a empresa do tipo mais próxima para orientar o usuário
+  let hint = null
+  if (!stats.total && tomtom.available()) {
+    try {
+      const a = config.areas[0]
+      const seg = resolveSegments(config.segments)[0]
+      const near = await tomtom.nearest({ lat: a.lat, lng: a.lng, term: seg ? seg.label || seg.term : 'loja', country: config.country })
+      if (near) hint = { ...near, segment: seg ? seg.label || seg.term : 'comércio', radius_km: a.radiusKm }
+    } catch { /* sem dica */ }
+  }
+  return { run_id: run.id, config, stats, sourceErrors, hint }
 }
 
 // Resultados de um mapeamento do usuário. Contatos só aparecem para leads capturados.

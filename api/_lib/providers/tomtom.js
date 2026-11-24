@@ -6,12 +6,19 @@ const BASE = 'https://api.tomtom.com/search/2'
 export const name = 'tomtom'
 export const available = () => Boolean(process.env.TOMTOM_API_KEY)
 
-async function get(path, params) {
+const sleep = ms => new Promise(r => setTimeout(r, ms))
+
+async function get(path, params, attempt = 0) {
   const qs = new URLSearchParams({ key: process.env.TOMTOM_API_KEY, language: 'pt-BR', ...params })
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), 15000)
   try {
     const res = await fetch(`${BASE}/${path}?${qs}`, { signal: ctrl.signal })
+    if (res.status === 429 && attempt < 3) {
+      clearTimeout(timer)
+      await sleep(400 * (attempt + 1))
+      return get(path, params, attempt + 1)
+    }
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
       const err = new Error(`TomTom: ${data?.errorText || data?.detailedError?.message || res.status}`)
@@ -109,4 +116,13 @@ export async function geocode(q, country) {
       ? [r.viewport.btmRightPoint.lat, r.viewport.topLeftPoint.lat, r.viewport.topLeftPoint.lon, r.viewport.btmRightPoint.lon]
       : null,
   }))
+}
+
+// Empresa do tipo mais próxima de um ponto (usada para orientar quando a área vem vazia)
+export async function nearest({ lat, lng, term, country }) {
+  const data = await get(`categorySearch/${encodeURIComponent(term)}.json`, {
+    lat: lat.toFixed(6), lon: lng.toFixed(6), radius: '50000', limit: '1', ...(country ? { countrySet: country } : {}),
+  })
+  const r = data.results?.[0]
+  return r ? { name: r.poi?.name, distance_m: Math.round(r.dist), city: r.address?.municipality || null, lat: r.position.lat, lng: r.position.lon } : null
 }
