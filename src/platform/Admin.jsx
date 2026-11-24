@@ -102,7 +102,7 @@ export default function Admin() {
 
   return (
     <div className="page">
-      <header className="page__head"><div><p className="eyebrow">// Admin</p><h1><span className="grad">Administração</span></h1><p className="muted">Planos, limites, usuários e assinaturas.</p></div></header>
+      <header className="page__head"><div><img className="page__icon" src="/icons/escudo.webp" alt="" width="56" height="56" /><p className="eyebrow">// Admin</p><h1><span className="grad">Administração</span></h1><p className="muted">Planos, limites, usuários e assinaturas.</p></div></header>
       {msg && <p className="form-notice">{msg}</p>}
       {error && <p className="form-error">{error}</p>}
       <div className="stat-grid">

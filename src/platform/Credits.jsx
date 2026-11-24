@@ -23,7 +23,7 @@ export default function Credits() {
     <div className="page">
       <header className="page__head">
         <div>
-          <p className="eyebrow">// Créditos</p><h1>Seus <span className="grad">créditos</span></h1>
+          <img className="page__icon" src="/icons/raio.webp" alt="" width="56" height="56" /><p className="eyebrow">// Créditos</p><h1>Seus <span className="grad">créditos</span></h1>
           <p className="muted">Plano atual: <strong>{c.plan.name}</strong>. <Link to="/app/planos">Ver planos</Link></p>
         </div>
       </header>

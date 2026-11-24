@@ -249,4 +249,15 @@
   .app .table td.contacts { display: table-cell; }
   .app .table td.contacts > * { margin: 0 12px 6px 0; vertical-align: middle; }
 }
-.app .page__head a, .app .muted a { color: var(--acc-2); }
+.app .page__head p a, .app .muted a { color: var(--acc-2); }
+
+/* ---------------- ícones 3D ---------------- */
+.app .page__head > div:first-child { display: grid; grid-template-columns: auto 1fr; column-gap: 16px; align-items: center; }
+.app .page__head > div:first-child > :not(.page__icon) { grid-column: 2; }
+.page__icon { grid-row: 1 / span 3; width: 56px; height: 56px; object-fit: contain; filter: drop-shadow(0 8px 18px rgba(139, 92, 246, .45)); }
+.app .step__head > .step__icon { width: 36px; height: 36px; flex: none; object-fit: contain; filter: drop-shadow(0 4px 10px rgba(139, 92, 246, .45)); }
+.empty-state__icon { width: 88px; height: 88px; object-fit: contain; filter: drop-shadow(0 12px 26px rgba(139, 92, 246, .5)); animation: icon-float 4s ease-in-out infinite; }
+.pro-lock__img { width: 84px; height: 84px; object-fit: contain; filter: drop-shadow(0 12px 26px rgba(139, 92, 246, .55)); }
+@keyframes icon-float { 50% { transform: translateY(-6px); } }
+@media (prefers-reduced-motion: reduce) { .empty-state__icon { animation: none; } }
+@media (max-width: 700px) { .page__icon { width: 44px; height: 44px; } }

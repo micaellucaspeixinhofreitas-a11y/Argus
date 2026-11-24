@@ -46,7 +46,7 @@ export default function Saved() {
     <div className="page">
       <header className="page__head">
         <div>
-          <p className="eyebrow">// Buscas salvas</p><h1>Buscas <span className="grad">salvas</span></h1>
+          <img className="page__icon" src="/icons/terminal.webp" alt="" width="56" height="56" /><p className="eyebrow">// Buscas salvas</p><h1>Buscas <span className="grad">salvas</span></h1>
           <p className="muted">Configurações de prospecção guardadas para reutilizar: segmento, país, localidade, qualificação, raio e áreas.</p>
         </div>
       </header>

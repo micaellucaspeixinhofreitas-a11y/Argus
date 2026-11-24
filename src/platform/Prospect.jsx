@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  LuTarget, LuFilter, LuLayers, LuSearch, LuX, LuTrash2, LuRefreshCw, LuPlay, LuSave, LuCrosshair,
+  LuTarget, LuSearch, LuX, LuTrash2, LuRefreshCw, LuPlay, LuSave, LuCrosshair,
   LuGlobe, LuPhone, LuMail, LuMapPin, LuCheck, LuLoader, LuLocateFixed,
   LuScanSearch, LuGlobeLock,
 } from 'react-icons/lu'
@@ -267,7 +267,7 @@ export default function Prospect() {
       {/* ===== painel de configuração ===== */}
       <aside className="pros__panel">
         <section className="step card">
-          <header className="step__head"><LuTarget /> <h2>Defina o alvo</h2><span className="step__n">01</span></header>
+          <header className="step__head"><img className="step__icon" src="/icons/raio.webp" alt="" width="40" height="40" /> <h2>Defina o alvo</h2><span className="step__n">01</span></header>
           <div className="field">
             <span>Segmentos <em>(opcional)</em></span>
             <div className="chips-input">
@@ -339,7 +339,7 @@ export default function Prospect() {
 
         <section className="step card">
           <header className="step__head">
-            <LuFilter /> <h2>Qualificação</h2><span className="step__n">02</span>
+            <img className="step__icon" src="/icons/escudo.webp" alt="" width="40" height="40" /> <h2>Qualificação</h2><span className="step__n">02</span>
             <label className="switch">
               <input type="checkbox" checked={config.qualification.enabled} onChange={e => updateQ({ enabled: e.target.checked })} />
               <span aria-hidden="true" /> <small>{config.qualification.enabled ? 'Ativa' : 'Sem filtros'}</small>
@@ -371,7 +371,7 @@ export default function Prospect() {
         </section>
 
         <section className="step card">
-          <header className="step__head"><LuLayers /> <h2>Território</h2><span className="step__n">03</span></header>
+          <header className="step__head"><img className="step__icon" src="/icons/terminal.webp" alt="" width="40" height="40" /> <h2>Território</h2><span className="step__n">03</span></header>
           <label className="field">
             <span>Raio das novas áreas: <strong>{config.radiusKm.toLocaleString('pt-BR')} km</strong></span>
             <input type="range" min={limits.minRadiusKm} max={limits.maxRadiusKm} step="0.1" value={config.radiusKm}
@@ -546,7 +546,7 @@ export default function Prospect() {
           </div>
         ) : (
           <div className="results card empty-state">
-            <LuLayers />
+            <img className="empty-state__icon" src="/icons/raio.webp" alt="" width="88" height="88" />
             <p><strong>Nenhum mapeamento ainda.</strong> Defina o alvo, marque áreas no mapa e clique em <em>Mapear oportunidades</em>.</p>
           </div>
         )}

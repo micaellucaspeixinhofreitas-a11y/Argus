@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { LuCoins, LuX } from 'react-icons/lu'
+import { LuX } from 'react-icons/lu'
 
 // Aviso exibido quando os créditos do plano grátis acabam
 export default function ProLock({ daily = false, onClose }) {
@@ -7,7 +7,7 @@ export default function ProLock({ daily = false, onClose }) {
     <div className="pro-lock" role="dialog" aria-labelledby="pro-lock-title">
       <div className="pro-lock__card card">
         {onClose && <button className="pro-lock__close" onClick={onClose} aria-label="Fechar"><LuX /></button>}
-        <span className="pro-lock__icon"><LuCoins /></span>
+        <img className="pro-lock__img" src="/icons/raio.webp" alt="" width="84" height="84" />
         <h2 id="pro-lock-title">{daily ? 'Limite diário do plano grátis atingido' : 'Seus créditos grátis acabaram'}</h2>
         <p className="muted">
           {daily

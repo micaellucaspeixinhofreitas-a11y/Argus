@@ -65,7 +65,7 @@ export default function Subscription() {
     <div className="page">
       <header className="page__head">
         <div>
-          <p className="eyebrow">// Planos</p><h1>Plano e <span className="grad">assinatura</span></h1>
+          <img className="page__icon" src="/icons/escudo.webp" alt="" width="56" height="56" /><p className="eyebrow">// Planos</p><h1>Plano e <span className="grad">assinatura</span></h1>
           <p className="muted">Compare limites, escolha a periodicidade, pague com Pix e acompanhe sua assinatura.</p>
         </div>
       </header>
