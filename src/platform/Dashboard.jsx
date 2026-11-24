@@ -4,6 +4,7 @@ import { LuArrowUpRight, LuArrowDownRight, LuMinus, LuPlus, LuDownload, LuChevro
 import { api, fmtInt, fmtDate, fmtDateTime } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { useProspect, emptyConfig } from './Platform'
+import MagicBento from '../components/MagicBento'
 
 const PERIODS = [[7, '7 dias'], [30, '30 dias'], [90, '90 dias']]
 const pct = (part, total) => (total ? Math.round((part / total) * 100) : 0)
@@ -19,19 +20,6 @@ function Delta({ now, before }) {
     <span className={`delta ${d > 0 ? 'delta--up' : 'delta--down'}`}>
       {d > 0 ? <LuArrowUpRight /> : <LuArrowDownRight />} {d > 0 ? '+' : ''}{d}% vs. período anterior
     </span>
-  )
-}
-
-function Kpi({ icon, label, value, foot }) {
-  return (
-    <div className="card kpi">
-      <img className="kpi__icon" src={`/icons/${icon}.webp`} alt="" width="44" height="44" />
-      <div className="kpi__body">
-        <small>{label}</small>
-        <strong>{value}</strong>
-        {foot}
-      </div>
-    </div>
   )
 }
 
@@ -110,6 +98,89 @@ export default function Dashboard() {
   const { totals: t, previous: p, quality: q, credits: c } = data
   const periodSum = data.series.reduce((s, d) => s + d[metric], 0)
   const empty = !t.runs && !t.leads
+  const recent = data.series.slice(-14)
+  const peak = Math.max(1, ...recent.map(d => d.leads))
+  const creditPct = c.monthly_credits ? Math.min(100, (c.available / c.monthly_credits) * 100) : 0
+
+  // cartões do bento com os números reais da conta
+  const bentoItems = [
+    {
+      id: 'leads', colSpan: 2,
+      content: (
+        <div className="bk">
+          <div className="bk__head"><img src="/icons/chat.webp" alt="" width="34" height="34" /><span>Leads capturados · {days} dias</span></div>
+          <div className="bk__row">
+            <div>
+              <strong className="bk__num">{fmtInt(t.leads_period)}</strong>
+              <Delta now={t.leads_period} before={p.leads} />
+            </div>
+            <div className="magic-bento__bars-plot bk__spark" aria-label="Leads nos últimos 14 dias">
+              {recent.map((d, i) => (
+                <span key={d.day} className="magic-bento__bar" title={`${shortDay(d.day)}: ${d.leads}`}
+                  data-peak={d.leads && d.leads === peak ? '' : undefined} style={{ '--h': Math.max(0.04, d.leads / peak), '--i': i }} />
+              ))}
+            </div>
+          </div>
+          <small className="bk__foot">{fmtInt(t.leads)} leads no total · últimos 14 dias no gráfico</small>
+        </div>
+      ),
+    },
+    {
+      id: 'runs',
+      content: (
+        <div className="bk">
+          <div className="bk__head"><img src="/icons/pino.webp" alt="" width="34" height="34" /><span>Mapeamentos · {days} dias</span></div>
+          <strong className="bk__num">{fmtInt(t.runs_period)}</strong>
+          <Delta now={t.runs_period} before={p.runs} />
+          <small className="bk__foot">{fmtInt(t.runs)} no total</small>
+        </div>
+      ),
+    },
+    {
+      id: 'credits', onClick: () => navigate('/app/creditos'),
+      content: (
+        <div className="bk">
+          <div className="bk__head"><img src="/icons/raio.webp" alt="" width="34" height="34" /><span>Créditos disponíveis</span></div>
+          <strong className="bk__num">{fmtInt(c.available)}</strong>
+          <span className="bk__meter"><i style={{ width: `${creditPct}%` }} /></span>
+          <small className="bk__foot">de {fmtInt(c.monthly_credits)} · plano {c.plan?.name} · hoje {fmtInt(c.today_used)}/{fmtInt(c.daily_limit)}</small>
+        </div>
+      ),
+    },
+    {
+      id: 'mapped',
+      content: (
+        <div className="bk">
+          <div className="bk__head"><img src="/icons/dados.webp" alt="" width="34" height="34" /><span>Empresas mapeadas</span></div>
+          <strong className="bk__num">{fmtInt(t.mapped)}</strong>
+          <small className="bk__foot">{fmtInt(t.leads)} viraram leads · {pct(t.leads, t.mapped)}% de aproveitamento</small>
+        </div>
+      ),
+    },
+    {
+      id: 'fit',
+      content: (
+        <div className="bk">
+          <div className="bk__head"><img src="/icons/estrela.webp" alt="" width="34" height="34" /><span>Leads de alta aderência</span></div>
+          <strong className="bk__num">{pct(q.high_fit, q.total)}%</strong>
+          <small className="bk__foot">{fmtInt(q.high_fit)} de {fmtInt(q.total)} atendem aos seus critérios</small>
+        </div>
+      ),
+    },
+    {
+      id: 'new', colSpan: 2, onClick: newProspect,
+      content: (
+        <div className="bk bk--cta">
+          <img className="bk__hero" src="/icons/foguete.webp" alt="" width="104" height="104" />
+          <div>
+            <h3>Nova prospecção</h3>
+            <p>Escolha o segmento, marque o território no mapa e encontre empresas reais para capturar.</p>
+            <span className="bk__link">Abrir o mapa <LuChevronRight /></span>
+          </div>
+        </div>
+      ),
+    },
+  ]
 
   return (
     <div className="page dash">
@@ -142,12 +213,23 @@ export default function Dashboard() {
         </div>
       )}
 
-      <section className="dash__kpis">
-        <Kpi icon="chat" label={`Leads capturados · ${days} dias`} value={fmtInt(t.leads_period)} foot={<Delta now={t.leads_period} before={p.leads} />} />
-        <Kpi icon="pino" label={`Mapeamentos · ${days} dias`} value={fmtInt(t.runs_period)} foot={<Delta now={t.runs_period} before={p.runs} />} />
-        <Kpi icon="dados" label="Empresas mapeadas (total)" value={fmtInt(t.mapped)} foot={<span className="delta delta--flat">{fmtInt(t.leads)} capturadas · {pct(t.leads, t.mapped)}% de aproveitamento</span>} />
-        <Kpi icon="raio" label="Créditos disponíveis" value={fmtInt(c.available)} foot={<span className="delta delta--flat">{fmtInt(t.credits_period)} usados em {days} dias · {c.plan?.name}</span>} />
-      </section>
+      <MagicBento
+        items={bentoItems}
+        columns={4}
+        rowHeight={200}
+        gap={12}
+        radius={20}
+        enableBorderGlow
+        enableSpotlight
+        spotlightRadius={300}
+        clickEffect
+        enableStars={false}
+        particleCount={24}
+        enableTilt={false}
+        enableMagnetism={false}
+        textAutoHide
+        intro
+      />
 
       <section className="dash__row dash__row--main">
         <div className="card dash__chart">
