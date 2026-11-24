@@ -270,3 +270,5 @@
 .app .radar-card:hover .radar-card__ic--3d img, .app .radar-card.is-on .radar-card__ic--3d img { transform: scale(1.08) rotate(-4deg); }
 .notice-icon { display: flex; align-items: center; gap: 10px; }
 .notice-icon img { flex: none; object-fit: contain; filter: drop-shadow(0 3px 8px rgba(139, 92, 246, .5)); }
+.sub-status__icon { width: 48px; height: 48px; flex: none; object-fit: contain; filter: drop-shadow(0 6px 14px rgba(139, 92, 246, .45)); }
+.sub-status__icon { margin-right: -14px; }

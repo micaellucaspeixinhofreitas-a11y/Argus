@@ -4,6 +4,7 @@ import { LuCheck, LuQrCode } from 'react-icons/lu'
 import { api, money, fmtDate, fmtInt } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import Payment from './Payment'
+import { planIcon } from '../lib/planIcon'
 
 const STATUS = {
   pending_payment: 'Aguardando pagamento',
@@ -71,6 +72,7 @@ export default function Subscription() {
       </header>
 
       <div className="card sub-status">
+        <img className="sub-status__icon" src={planIcon(current)} alt="" width="48" height="48" />
         <div>
           <small>Plano em uso</small>
           <strong>{current.name}</strong>
@@ -114,7 +116,7 @@ export default function Subscription() {
           const isCurrent = current.id === p.id
           return (
             <article key={p.id} className={`card plan-card ${isCurrent ? "is-current" : ""} ${free ? "" : "is-featured"}`}>
-              <img className="plan-card__icon" src={`/icons/${free ? 'presente' : 'coroa'}.webp`} alt="" width="52" height="52" />
+              <img className="plan-card__icon" src={planIcon(p)} alt="" width="52" height="52" />
               <h3>{p.name}</h3>
               <p className="muted">{p.description}</p>
               <div className="plan-card__price">{free ? 'Grátis' : money(cents)}<small>{free ? '' : period === 'quarterly' ? '/trimestre' : '/mês'}</small></div>
