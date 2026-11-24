@@ -33,8 +33,35 @@ on('GET', 'health', async ({ url }) => {
       out.source = { ok: false, error: e.message }
     }
   }
+  // ?carto=1: diagnóstico TEMPORÁRIO do que a chave CARTO permite (nunca expõe a chave)
+  if (url.searchParams.get('carto') && process.env.CARTO_API_TOKEN && Date.now() - lastCartoCheck > 60_000) {
+    lastCartoCheck = Date.now()
+    out.carto = await probeCarto(process.env.CARTO_API_TOKEN)
+  }
   return out
 })
+
+let lastCartoCheck = 0
+async function probeCarto(token) {
+  const bases = ['https://gcp-us-east1.api.carto.com', 'https://gcp-europe-west1.api.carto.com', 'https://gcp-asia-northeast1.api.carto.com', 'https://gcp-australia-southeast1.api.carto.com', 'https://gcp-me-central2.api.carto.com', 'https://api.carto.com']
+  const paths = ['/v3/lds/quotas', '/v3/lds/geocoding/geocode?address=Avenida%20Paulista%2C%20S%C3%A3o%20Paulo&country=BR', '/v3/sql/carto_dw/query?q=select%201%20as%20ok', '/v3/connections']
+  const redact = t => String(t).split(token).join('[chave]').slice(0, 260)
+  const results = []
+  for (const base of bases) {
+    for (const path of paths) {
+      try {
+        const ctrl = new AbortController()
+        const timer = setTimeout(() => ctrl.abort(), 6000)
+        const res = await fetch(base + path, { headers: { Authorization: `Bearer ${token}` }, signal: ctrl.signal })
+        clearTimeout(timer)
+        results.push({ url: base + path.split('?')[0], status: res.status, body: redact(await res.text()) })
+      } catch (e) {
+        results.push({ url: base + path.split('?')[0], error: e.name })
+      }
+    }
+  }
+  return results
+}
 
 on('GET', 'meta', async () => ({ segments: catalogList(), criteria: criteriaList(), limits: LIMITS }))
 
