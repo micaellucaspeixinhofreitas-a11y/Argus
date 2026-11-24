@@ -141,6 +141,13 @@ export default function Prospect() {
     setError('')
     setNotice('')
     let body = payload()
+    const pending = segInput.split(',').map(t => t.trim()).filter(Boolean)
+    if (pending.length) {
+      const segments = [...new Set([...config.segments, ...pending])].slice(0, 8)
+      body = { ...body, segments }
+      update({ segments })
+      setSegInput('')
+    }
     if (!config.areas.length && !config.locality.trim()) {
       // sem área nem localidade: usa o centro do mapa, se estiver aproximado o suficiente
       const v = mapView.current
@@ -167,7 +174,12 @@ export default function Prospect() {
       if (data.credits) setCredits(data.credits)
       setSelected(new Set())
       setFilter('all')
-      setNotice(data.run.total ? `${fmtInt(data.run.total)} empresa(s) mapeada(s).` : 'Nenhuma empresa encontrada nesta área. Tente aumentar o raio, mudar o segmento ou marcar outra região.')
+      const failed = Object.keys(data.sourceErrors || {}).filter(k => k !== 'osm')
+      if (!data.run.total && failed.length) {
+        setError(`A fonte de empresas (${failed.join(', ')}) não respondeu: ${Object.values(data.sourceErrors).find(Boolean)}. Tente novamente em instantes.`)
+      } else {
+        setNotice(data.run.total ? `${fmtInt(data.run.total)} empresa(s) mapeada(s).` : 'Nenhuma empresa encontrada nesta área. Tente aumentar o raio, mudar o segmento ou marcar outra região.')
+      }
       setTimeout(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
     } catch (err) {
       if (err.code === 'PRO_REQUIRED') return navigate('/app/pagamento')
@@ -250,7 +262,7 @@ export default function Prospect() {
       <aside className="pros__panel">
         <section className="step card">
           <header className="step__head"><LuTarget /> <h2>1. Defina o alvo</h2></header>
-          <label className="field">
+          <div className="field">
             <span>Segmentos <em>(opcional)</em></span>
             <div className="chips-input">
               {config.segments.map(s => (
@@ -275,7 +287,7 @@ export default function Prospect() {
               </datalist>
             </div>
             <small className="hint">Vazio = todo tipo de comércio da região. Aceita categorias e palavras-chave.</small>
-          </label>
+          </div>
           <div className="row2">
             <label className="field">
               <span>País</span>
@@ -293,7 +305,7 @@ export default function Prospect() {
               />
             </label>
           </div>
-          <label className="field">
+          <div className="field">
             <span>Quantidade de empresas: <strong>{config.maxResults || 100}</strong></span>
             <div className="qty">
               {[20, 50, 100, 250, 500].map(n => (
@@ -303,9 +315,19 @@ export default function Prospect() {
                 onChange={e => update({ maxResults: Math.min(1000, Math.max(10, Number(e.target.value) || 10)) })} />
             </div>
             <small className="hint">Máximo de empresas trazidas por mapeamento, das mais próximas às mais distantes do centro das áreas.</small>
-          </label>
+          </div>
           {config.locality.trim().length > 1 && (
-            <button className="btn-mini" onClick={() => searchPlace(config.locality)}><LuLocateFixed /> Localizar no mapa</button>
+            <div className="btn-row">
+              <button className="btn-mini" onClick={() => searchPlace(config.locality)}><LuLocateFixed /> Localizar no mapa</button>
+              {config.areas.length > 0 && (
+                <button className="btn-mini" onClick={() => { update({ areas: [] }); setNotice('Áreas removidas. A busca vai usar a localidade informada.') }}>
+                  Usar só a localidade
+                </button>
+              )}
+            </div>
+          )}
+          {config.locality.trim().length > 1 && config.areas.length > 0 && (
+            <small className="hint">Você tem {config.areas.length} área(s) marcada(s) no mapa — elas têm prioridade sobre a localidade.</small>
           )}
         </section>
 

@@ -9,14 +9,14 @@ const PAID = [google, tomtom]
 
 // Fontes com chave como principais; OpenStreetMap completa (e-mail, redes sociais) e cobre lacunas.
 // Se uma fonte falhar, as outras ainda respondem.
+const settle = p => p.then(value => ({ status: 'fulfilled', value }), reason => ({ status: 'rejected', reason }))
+const wait = ms => new Promise(resolve => setTimeout(() => resolve({ status: 'rejected', reason: new Error('tempo esgotado') }), ms))
+
 const hybrid = {
   name: 'hybrid',
+  // endereços: fonte com chave primeiro (mais rápida), OpenStreetMap como reserva
   async geocode(q, country) {
-    try {
-      const r = await osm.geocode(q, country)
-      if (r.length) return r
-    } catch { /* tenta as outras fontes */ }
-    for (const p of PAID.filter(x => x.available())) {
+    for (const p of [...PAID.filter(x => x.available()), osm]) {
       try {
         const r = await p.geocode(q, country)
         if (r.length) return r
@@ -24,15 +24,26 @@ const hybrid = {
     }
     return []
   },
+  // empresas: fontes com chave + OpenStreetMap; depois que as principais respondem,
+  // o OpenStreetMap tem só mais alguns segundos para complementar
   async searchPlaces(opts) {
     const paid = PAID.filter(p => p.available())
-    // OpenStreetMap só complementa: prazo curto para não atrasar a resposta
-    const settled = await Promise.allSettled([
-      ...paid.map(p => p.searchPlaces(opts)),
-      osm.searchPlaces({ ...opts, deadlineMs: 18000 }),
-    ])
-    if (settled.every(s => s.status === 'rejected')) throw settled[0].reason
-    return settled.flatMap(s => (s.status === 'fulfilled' ? s.value : []))
+    const osmTask = settle(osm.searchPlaces({ ...opts, deadlineMs: 18000 }))
+    const paidSettled = await Promise.all(paid.map(p => settle(p.searchPlaces(opts))))
+    const paidOk = paidSettled.some(s => s.status === 'fulfilled' && s.value.length)
+    const osmSettled = await (paidOk ? Promise.race([osmTask, wait(4000)]) : osmTask)
+    const settled = [...paidSettled, osmSettled]
+    const names = [...paid.map(p => p.name), 'osm']
+    const errors = {}
+    settled.forEach((s, i) => { if (s.status === 'rejected') errors[names[i]] = String(s.reason?.message || s.reason).slice(0, 200) })
+    if (settled.every(s => s.status === 'rejected')) {
+      const err = new Error(Object.entries(errors).map(([k, v]) => `${k}: ${v}`).join(' | '))
+      err.sourceErrors = errors
+      throw err
+    }
+    const places = settled.flatMap(s => (s.status === 'fulfilled' ? s.value : []))
+    places.sourceErrors = errors
+    return places
   },
 }
 

@@ -134,9 +134,13 @@ export async function runMapping(user, input) {
   } catch (err) {
     await query(`update mapping_runs set status = 'failed', error = $2, finished_at = now() where id = $1`, [run.id, String(err.message).slice(0, 300)])
     console.log(JSON.stringify({ evt: 'mapping_failed', run: run.id, user: user.id, provider: prov.name, error: String(err.message).slice(0, 300) }))
+    if (/tomtom|google/i.test(err.message) && /40[13]|invalid|key|chave|forbidden|unauthori/i.test(err.message)) {
+      fail(502, 'A chave da fonte de empresas foi recusada. Confira a chave da TomTom/Google nas configurações.', 'SOURCE_KEY')
+    }
     fail(502, 'A fonte de dados de estabelecimentos não respondeu. Tente novamente em instantes ou reduza o raio.')
   }
   const raw = places.length
+  const sourceErrors = places.sourceErrors || {}
   const bySource = places.reduce((acc, p) => ({ ...acc, [p.source]: (acc[p.source] || 0) + 1 }), {})
   places = dedupe(places)
   // só o que está dentro de alguma área, do mais próximo ao mais distante, até a quantidade pedida
@@ -207,8 +211,11 @@ export async function runMapping(user, input) {
   if (input.savedSearchId) {
     await query(`update saved_searches set last_run_at = now() where id = $1 and user_id = $2`, [Number(input.savedSearchId), user.id])
   }
-  console.log(JSON.stringify({ evt: 'mapping', run: run.id, user: user.id, provider: prov.name, segments: config.segments, areas: config.areas.length, max: config.maxResults, raw, bySource, kept: places.length, total: stats.total, ms: Date.now() - startedAt }))
-  return { run_id: run.id, config, stats }
+  if (Object.keys(sourceErrors).length) {
+    await query(`update mapping_runs set error = $2 where id = $1`, [run.id, JSON.stringify(sourceErrors).slice(0, 300)])
+  }
+  console.log(JSON.stringify({ evt: 'mapping', sourceErrors, run: run.id, user: user.id, provider: prov.name, segments: config.segments, areas: config.areas.length, max: config.maxResults, raw, bySource, kept: places.length, total: stats.total, ms: Date.now() - startedAt }))
+  return { run_id: run.id, config, stats, sourceErrors }
 }
 
 // Resultados de um mapeamento do usuário. Contatos só aparecem para leads capturados.

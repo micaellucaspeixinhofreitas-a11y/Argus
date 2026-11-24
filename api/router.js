@@ -126,7 +126,7 @@ on('POST', 'mapping/run', async ({ req, body }) => {
   const user = await requireUser(req)
   await requirePro(user)
   const result = await runMapping(user, body)
-  return { ...(await runResults(user, result.run_id)), credits: await creditStatus(user.id) }
+  return { ...(await runResults(user, result.run_id)), credits: await creditStatus(user.id), sourceErrors: result.sourceErrors }
 })
 
 on('GET', 'mapping/result', async ({ req, url }) => {

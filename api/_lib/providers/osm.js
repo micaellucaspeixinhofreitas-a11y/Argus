@@ -73,6 +73,9 @@ export async function searchPlaces({ areas, segments, allBusiness, limit = 2500,
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `data=${encodeURIComponent(ql)}`,
       }, left)
+      if (data.remark && /error|timed out|timeout/i.test(data.remark) && !(data.elements || []).length) {
+        throw new Error(`OpenStreetMap: ${data.remark.slice(0, 120)}`)
+      }
       return (data.elements || []).map(normalizePlace).filter(Boolean)
     } catch (err) {
       lastErr = err
