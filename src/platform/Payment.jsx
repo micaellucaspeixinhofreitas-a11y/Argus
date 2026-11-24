@@ -5,7 +5,7 @@ import { api, money } from '../lib/api'
 import { useAuth } from '../lib/auth'
 
 // Pagamento por Pix (QR Code + Copia e Cola), exibido dentro da tela de planos
-export default function Payment({ planId = 'pro', period = 'monthly' }) {
+export default function Payment({ planId = 'pro', period = 'monthly', couponCode = '' }) {
   const { pro, refresh } = useAuth()
   const [data, setData] = useState(null)
   const [qr, setQr] = useState('')
@@ -17,14 +17,16 @@ export default function Payment({ planId = 'pro', period = 'monthly' }) {
   useEffect(() => {
     if (pro) return
     setData(null); setQr(''); setError('')
-    api('payment/pix', { method: 'POST', body: { planId, period } })
+    api('payment/pix', { method: 'POST', body: { planId, period, couponCode } })
       .then(async d => {
+        // cupom de 100%: o plano já foi liberado
+        if (d.activated) return refresh()
         setData(d)
         setReported(Boolean(d.subscription.payment_reported_at))
         setQr(await QRCode.toDataURL(d.payload, { width: 320, margin: 1, color: { dark: '#0b0914', light: '#ffffff' } }))
       })
       .catch(e => setError(e.message))
-  }, [planId, period, pro])
+  }, [planId, period, couponCode, pro, refresh])
 
   // confere a liberação do plano a cada 15 s
   useEffect(() => {
@@ -64,7 +66,9 @@ export default function Payment({ planId = 'pro', period = 'monthly' }) {
           <div className="card pay__info">
             <div className="pay__amount">
               <small>Plano {data.plan.name} · {data.period === 'quarterly' ? 'trimestral' : 'mensal'}</small>
+              {data.discount_cents > 0 && <s className="muted">{money(data.price_cents)}</s>}
               <strong>{money(data.amount_cents)}</strong>
+              {data.coupon && <span className="flag flag--fit">Cupom {data.coupon.code} · {data.coupon.label}</span>}
               <span className="muted">Recebedor: {data.receiver}</span>
               <span className="muted">Pedido: {data.subscription.payment_reference}</span>
             </div>

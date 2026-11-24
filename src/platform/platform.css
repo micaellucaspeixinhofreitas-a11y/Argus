@@ -325,3 +325,13 @@ details.card[open] summary { margin-bottom: 12px; }
 .btn--danger { background: rgba(244,63,94,.16); border: 1px solid rgba(244,63,94,.5); color: #fecdd3; }
 .btn--danger:hover:not(:disabled) { background: rgba(244,63,94,.28); }
 .btn--danger:disabled { opacity: .45; cursor: not-allowed; }
+
+/* cupom */
+.coupon { display: grid; gap: 10px; margin-bottom: 16px; max-width: 520px; }
+.coupon__row { display: flex; gap: 8px; }
+.coupon__row input { flex: 1; min-width: 0; text-transform: uppercase; font-family: var(--mono); letter-spacing: .06em; }
+.pay__amount s { font-size: 14px; }
+.coupon-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 12px; align-items: end; padding: 20px; }
+.coupon-form .btn { justify-self: start; }
+.mono { font-family: var(--mono); letter-spacing: .04em; }
+.pay__amount .flag { justify-self: start; width: fit-content; }

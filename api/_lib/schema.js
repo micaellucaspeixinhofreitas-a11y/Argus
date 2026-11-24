@@ -46,6 +46,26 @@ create table if not exists subscriptions (
 create index if not exists subscriptions_user_idx on subscriptions(user_id, created_at desc);
 alter table subscriptions add column if not exists payment_reported_at timestamptz;
 
+-- Cupons de desconto (percentual ou valor fixo)
+create table if not exists coupons (
+  id bigserial primary key,
+  code text not null unique,
+  description text not null default '',
+  percent_off integer check (percent_off between 1 and 100),
+  amount_off_cents integer check (amount_off_cents > 0),
+  plan_id text references plans(id) on delete set null,
+  period text check (period in ('monthly','quarterly')),
+  max_redemptions integer check (max_redemptions > 0),
+  max_per_user integer not null default 1,
+  expires_at timestamptz,
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  check ((percent_off is null) <> (amount_off_cents is null))
+);
+alter table subscriptions add column if not exists coupon_id bigint references coupons(id) on delete set null;
+alter table subscriptions add column if not exists amount_cents integer;
+alter table subscriptions add column if not exists discount_cents integer not null default 0;
+
 -- Livro-razão de créditos: consumo negativo, bônus positivo
 create table if not exists credit_ledger (
   id bigserial primary key,

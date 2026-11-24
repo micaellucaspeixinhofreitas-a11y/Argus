@@ -142,6 +142,8 @@ try {
   assert.ok((await api('POST', 'payment/reported', { subscriptionId: pay.data.subscription.id })).data.subscription.payment_reported_at)
   const otherEmail = (await api('GET', 'auth/me')).data.user.email
   assert.equal((await api('GET', 'admin/overview')).status, 403)
+  assert.equal((await api('POST', 'admin/coupons', { code: 'HACK', percent_off: 100 })).status, 403, 'só admin cria cupom')
+  const otherCookie = cookie
   cookie = myCookie
 
   // admin: ativar Pro e conceder créditos
@@ -155,6 +157,40 @@ try {
     await api('POST', 'admin/credits', { userId: me.id, amount: 100 })
     r = await api('GET', 'auth/me'); assert.equal(r.data.credits.available, 7000 - 3 + 100)
   }
+  // cupons de desconto
+  if (firstIsAdmin) {
+    r = await api('POST', 'admin/coupons', { code: 'promo50', kind: 'percent', percent_off: 50, max_redemptions: 10, description: 'Lançamento' })
+    assert.ok(r.data.coupons.find(c => c.code === 'PROMO50'))
+    await api('POST', 'admin/coupons', { code: 'TRI20', kind: 'amount', amount_off_cents: 2000, period: 'quarterly' })
+    await api('POST', 'admin/coupons', { code: 'VELHO', kind: 'percent', percent_off: 10, expires_at: '2020-01-01' })
+    await api('POST', 'admin/coupons', { code: 'CORTESIA', kind: 'percent', percent_off: 100 })
+    cookie = otherCookie
+    r = await api('POST', 'coupons/check', { code: 'promo50', planId: 'pro', period: 'monthly' })
+    assert.equal(r.data.amount_cents, 9850); assert.equal(r.data.discount_cents, 9850)
+    assert.equal((await api('POST', 'coupons/check', { code: 'NAOEXISTE', planId: 'pro', period: 'monthly' })).status, 404)
+    assert.equal((await api('POST', 'coupons/check', { code: 'VELHO', planId: 'pro', period: 'monthly' })).status, 400, 'cupom expirado')
+    assert.equal((await api('POST', 'coupons/check', { code: 'TRI20', planId: 'pro', period: 'monthly' })).status, 400, 'cupom só trimestral')
+    assert.equal((await api('POST', 'coupons/check', { code: 'TRI20', planId: 'pro', period: 'quarterly' })).data.amount_cents, 53100 - 2000)
+    r = await api('POST', 'payment/pix', { planId: 'pro', period: 'monthly', couponCode: 'PROMO50' })
+    assert.equal(r.data.amount_cents, 9850); assert.ok(r.data.payload.includes('540598.50'), 'valor com desconto no Pix')
+    const couponSub = r.data.subscription.id
+    assert.equal((await api('POST', 'payment/pix', { planId: 'pro', period: 'monthly', couponCode: 'PROMO50' })).data.subscription.id, couponSub, 'reaproveita o pedido com cupom')
+    cookie = myCookie
+    r = await api('GET', 'admin/overview'); const otherUser = r.data.users.find(u => u.email === otherEmail)
+    await api('POST', 'admin/subscription', { userId: otherUser.id, action: 'activate', planId: 'pro', period: 'monthly' })
+    r = await api('GET', 'admin/coupons'); assert.equal(r.data.coupons.find(c => c.code === 'PROMO50').paid, 1, 'ativação mantém o pedido com cupom')
+    cookie = otherCookie
+    assert.equal((await api('POST', 'coupons/check', { code: 'PROMO50', planId: 'pro', period: 'monthly' })).status, 400, 'um uso por pessoa')
+    r = await api('POST', 'payment/pix', { planId: 'pro', period: 'quarterly', couponCode: 'CORTESIA' })
+    assert.equal(r.data.activated, true, 'cupom de 100% libera na hora')
+    assert.equal((await api('GET', 'subscription')).data.subscriptions[0].payment_provider, 'coupon')
+    cookie = myCookie
+    await api('POST', 'admin/coupons/toggle', { code: 'TRI20' })
+    cookie = otherCookie
+    assert.equal((await api('POST', 'coupons/check', { code: 'TRI20', planId: 'pro', period: 'quarterly' })).status, 404, 'cupom desativado')
+    cookie = myCookie
+  }
+
   // minha conta: perfil, senha e exclusão
   r = await api('GET', 'account'); assert.equal(r.data.user.has_password, true); assert.equal(r.data.user.google, false)
   r = await api('POST', 'account/profile', { name: 'Novo Nome', email }); assert.equal(r.data.user.name, 'Novo Nome')

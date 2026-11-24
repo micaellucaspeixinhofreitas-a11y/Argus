@@ -14,6 +14,7 @@ import * as googleSource from './_lib/providers/google.js'
 import * as tomtomSource from './_lib/providers/tomtom.js'
 const PAID_SOURCES = { google: googleSource, tomtom: tomtomSource }
 import { criteriaList } from './_lib/qualify.js'
+import { findCoupon, applyCoupon, couponLabel, couponUsage, normalizeCode } from './_lib/coupons.js'
 import { createCheckout, periodMonths, paymentProvider } from './_lib/payments.js'
 
 export const config = { maxDuration: 60 }
@@ -491,31 +492,66 @@ on('POST', 'subscription/cancel', async ({ req, body }) => {
   return subscriptionState(user.id)
 })
 
+// ---------- cupons ----------
+const planAndPrice = async (planId, periodIn) => {
+  const period = periodIn === 'quarterly' ? 'quarterly' : 'monthly'
+  const { rows: [plan] } = await query('select * from plans where id = $1 and active', [str(planId || 'pro', 40)])
+  if (!plan) fail(404, 'Plano não encontrado.')
+  const price = period === 'quarterly' ? plan.price_quarterly_cents : plan.price_monthly_cents
+  if (!price) fail(400, 'Este plano é gratuito.')
+  return { plan, period, price }
+}
+
+on('POST', 'coupons/check', async ({ req, body }) => {
+  const user = await requireUser(req)
+  const { plan, period, price } = await planAndPrice(body.planId, body.period)
+  const coupon = await findCoupon({ query }, body.code, { userId: user.id, plan, period })
+  return { code: coupon.code, label: couponLabel(coupon), description: coupon.description, price_cents: price, ...applyCoupon(coupon, price) }
+})
+
 // ---------- pagamento por Pix (QR Code) ----------
 on('POST', 'payment/pix', async ({ req, body }) => {
   const user = await requireUser(req)
-  const period = body.period === 'quarterly' ? 'quarterly' : 'monthly'
-  const { rows: [plan] } = await query('select * from plans where id = $1 and active', [str(body.planId || 'pro', 40)])
-  if (!plan) fail(404, 'Plano não encontrado.')
-  const amountCents = period === 'quarterly' ? plan.price_quarterly_cents : plan.price_monthly_cents
-  if (!amountCents) fail(400, 'Este plano é gratuito.')
-  if (!pixConfigured()) fail(503, 'O pagamento por Pix ainda não foi configurado. Fale com o suporte.', 'PIX_NOT_CONFIGURED')
-  // reaproveita o pedido pendente do mesmo plano/período; senão cria um novo
-  let { rows: [sub] } = await query(
-    `select * from subscriptions where user_id = $1 and status = 'pending_payment' and plan_id = $2 and period = $3 and payment_method = 'pix'
-      order by created_at desc limit 1`, [user.id, plan.id, period])
-  if (!sub) {
-    await query(`update subscriptions set status = 'canceled', updated_at = now() where user_id = $1 and status = 'pending_payment'`, [user.id])
-    const r = await query(
-      `insert into subscriptions (user_id, plan_id, period, status, payment_method, payment_provider)
-       values ($1, $2, $3, 'pending_payment', 'pix', 'pix_static') returning *`, [user.id, plan.id, period])
-    sub = r.rows[0]
-    const txid = `ARGUS${sub.id}`
-    await query('update subscriptions set payment_reference = $2 where id = $1', [sub.id, txid])
-    sub.payment_reference = txid
-  }
-  const payload = pixPayload({ amountCents, txid: sub.payment_reference, description: `Argus ${plan.name}` })
-  return { subscription: sub, plan: { id: plan.id, name: plan.name }, period, amount_cents: amountCents, payload, receiver: process.env.PIX_NAME }
+  const { plan, period, price } = await planAndPrice(body.planId, body.period)
+  const code = normalizeCode(body.couponCode)
+  return tx(async db => {
+    await db.query('select id from users where id = $1 for update', [user.id])
+    // reaproveita o pedido pendente do mesmo plano/período/cupom; senão cria um novo
+    let { rows: [sub] } = await db.query(
+      `select s.*, c.code as coupon_code from subscriptions s left join coupons c on c.id = s.coupon_id
+        where s.user_id = $1 and s.status = 'pending_payment' and s.plan_id = $2 and s.period = $3 and s.payment_method = 'pix'
+        order by s.created_at desc limit 1`, [user.id, plan.id, period])
+    if (sub && (sub.coupon_code || '') !== code) sub = null
+    const coupon = code ? await findCoupon(db, code, { userId: user.id, plan, period, ignoreSubscriptionId: sub?.id || 0 }) : null
+    const { amount_cents, discount_cents } = applyCoupon(coupon, price)
+    if (!sub) {
+      await db.query(`update subscriptions set status = 'canceled', updated_at = now() where user_id = $1 and status = 'pending_payment'`, [user.id])
+      ;({ rows: [sub] } = await db.query(
+        `insert into subscriptions (user_id, plan_id, period, status, payment_method, payment_provider, coupon_id, amount_cents, discount_cents)
+         values ($1, $2, $3, 'pending_payment', 'pix', 'pix_static', $4, $5, $6) returning *`,
+        [user.id, plan.id, period, coupon?.id || null, amount_cents, discount_cents]))
+      const txid = `ARGUS${sub.id}`
+      await db.query('update subscriptions set payment_reference = $2 where id = $1', [sub.id, txid])
+      sub.payment_reference = txid
+    } else {
+      await db.query('update subscriptions set amount_cents = $2, discount_cents = $3 where id = $1', [sub.id, amount_cents, discount_cents])
+    }
+    const base = { subscription: sub, plan: { id: plan.id, name: plan.name }, period, price_cents: price, discount_cents, amount_cents,
+      coupon: coupon ? { code: coupon.code, label: couponLabel(coupon) } : null }
+    // cupom de 100%: libera o plano na hora, sem Pix
+    if (amount_cents === 0) {
+      await db.query(`update subscriptions set status = 'canceled', updated_at = now() where user_id = $1 and status = 'active'`, [user.id])
+      await db.query(
+        `update subscriptions set status = 'active', payment_provider = 'coupon', current_period_start = now(),
+                current_period_end = now() + ($2 || ' months')::interval, updated_at = now() where id = $1`,
+        [sub.id, String(periodMonths(period))])
+      await db.query(`insert into operations_log (user_id, type, detail) values ($1, 'coupon_free_activation', $2)`, [user.id, JSON.stringify({ subscription: sub.id, coupon: coupon.code })])
+      return { ...base, activated: true }
+    }
+    if (!pixConfigured()) fail(503, 'O pagamento por Pix ainda não foi configurado. Fale com o suporte.', 'PIX_NOT_CONFIGURED')
+    const payload = pixPayload({ amountCents: amount_cents, txid: sub.payment_reference, description: `Argus ${plan.name}` })
+    return { ...base, amount_cents, payload, receiver: process.env.PIX_NAME }
+  })
 })
 
 on('POST', 'payment/reported', async ({ req, body }) => {
@@ -585,17 +621,69 @@ on('POST', 'admin/subscription', async ({ req, body }) => {
     if (!plan) fail(404, 'Plano não encontrado.')
     const period = body.period === 'quarterly' ? 'quarterly' : 'monthly'
     await tx(async db => {
-      await db.query(`update subscriptions set status = 'canceled', updated_at = now() where user_id = $1 and status in ('active','pending_payment')`, [userId])
-      await db.query(
-        `insert into subscriptions (user_id, plan_id, period, status, payment_provider, current_period_start, current_period_end)
-         values ($1, $2, $3, 'active', 'manual', now(), now() + ($4 || ' months')::interval)`,
-        [userId, plan.id, period, String(periodMonths(period))])
+      // se há um pedido Pix pendente do mesmo plano/período, ele é o que foi pago (mantém cupom e valor)
+      const { rows: [pending] } = await db.query(
+        `select id from subscriptions where user_id = $1 and status = 'pending_payment' and plan_id = $2 and period = $3
+          order by created_at desc limit 1`, [userId, plan.id, period])
+      await db.query(`update subscriptions set status = 'canceled', updated_at = now() where user_id = $1 and status in ('active','pending_payment') and id <> $2`, [userId, pending?.id || 0])
+      if (pending) {
+        await db.query(
+          `update subscriptions set status = 'active', current_period_start = now(), current_period_end = now() + ($2 || ' months')::interval,
+                  updated_at = now() where id = $1`, [pending.id, String(periodMonths(period))])
+      } else {
+        const price = period === 'quarterly' ? plan.price_quarterly_cents : plan.price_monthly_cents
+        await db.query(
+          `insert into subscriptions (user_id, plan_id, period, status, payment_provider, current_period_start, current_period_end, amount_cents)
+           values ($1, $2, $3, 'active', 'manual', now(), now() + ($4 || ' months')::interval, $5)`,
+          [userId, plan.id, period, String(periodMonths(period)), price])
+      }
     })
   } else if (action === 'cancel') {
     await query(`update subscriptions set status = 'canceled', updated_at = now() where user_id = $1 and status in ('active','pending_payment')`, [userId])
   } else fail(400, 'Ação inválida.')
   await query(`insert into operations_log (user_id, type, detail) values ($1, 'admin_subscription', $2)`, [admin.id, JSON.stringify({ userId, action, plan: body.planId })])
   return { ok: true }
+})
+
+// ---------- administração: cupons ----------
+on('GET', 'admin/coupons', async ({ req }) => {
+  await requireAdmin(req)
+  return { coupons: await couponUsage({ query }) }
+})
+
+on('POST', 'admin/coupons', async ({ req, body }) => {
+  const admin = await requireAdmin(req)
+  const code = normalizeCode(body.code)
+  if (code.length < 3) fail(400, 'O código precisa ter pelo menos 3 letras ou números.')
+  const kind = body.kind === 'amount' ? 'amount' : 'percent'
+  const percent = kind === 'percent' ? Math.trunc(num(body.percent_off, 0, 100, 0)) : null
+  const amount = kind === 'amount' ? Math.round(num(body.amount_off_cents, 0, 100_000_000, 0)) : null
+  if (kind === 'percent' && !percent) fail(400, 'Informe a porcentagem de desconto (1 a 100).')
+  if (kind === 'amount' && !amount) fail(400, 'Informe o valor do desconto.')
+  const planId = str(body.plan_id, 40) || null
+  if (planId) {
+    const { rows } = await query('select 1 from plans where id = $1', [planId])
+    if (!rows.length) fail(404, 'Plano não encontrado.')
+  }
+  const period = ['monthly', 'quarterly'].includes(body.period) ? body.period : null
+  const maxRedemptions = Math.trunc(num(body.max_redemptions, 0, 1_000_000, 0)) || null
+  const maxPerUser = Math.trunc(num(body.max_per_user, 0, 1000, 1))
+  const expires = body.expires_at ? new Date(body.expires_at) : null
+  if (expires && Number.isNaN(expires.getTime())) fail(400, 'Data de validade inválida.')
+  await query(
+    `insert into coupons (code, description, percent_off, amount_off_cents, plan_id, period, max_redemptions, max_per_user, expires_at, active)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+     on conflict (code) do update set description=$2, percent_off=$3, amount_off_cents=$4, plan_id=$5, period=$6,
+       max_redemptions=$7, max_per_user=$8, expires_at=$9, active=$10`,
+    [code, str(body.description, 160), percent, amount, planId, period, maxRedemptions, maxPerUser, expires, body.active !== false])
+  await query(`insert into operations_log (user_id, type, detail) values ($1, 'admin_coupon', $2)`, [admin.id, JSON.stringify({ code })])
+  return { coupons: await couponUsage({ query }) }
+})
+
+on('POST', 'admin/coupons/toggle', async ({ req, body }) => {
+  await requireAdmin(req)
+  await query('update coupons set active = not active where code = $1', [normalizeCode(body.code)])
+  return { coupons: await couponUsage({ query }) }
 })
 
 on('POST', 'admin/credits', async ({ req, body }) => {

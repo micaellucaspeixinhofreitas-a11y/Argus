@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api, fmtDate, fmtInt } from '../lib/api'
+import { api, money, fmtDate, fmtInt } from '../lib/api'
 
 const blankPlan = { id: '', name: '', description: '', monthly_credits: 0, daily_limit: 0, price_monthly_cents: 0, price_quarterly_cents: 0, features: [], is_default: false, active: true, sort: 10 }
 
@@ -38,6 +38,46 @@ function PlanForm({ plan, onSave }) {
   )
 }
 
+const blankCoupon = { code: '', description: '', kind: 'percent', percent_off: 20, amount: '', plan_id: '', period: '', max_redemptions: '', max_per_user: 1, expires_at: '' }
+
+function CouponForm({ plans, onSave }) {
+  const [c, setC] = useState(blankCoupon)
+  const set = k => e => setC(x => ({ ...x, [k]: e.target.value }))
+  const submit = e => {
+    e.preventDefault()
+    onSave({
+      ...c,
+      percent_off: Number(c.percent_off),
+      amount_off_cents: Math.round(Number(String(c.amount).replace(',', '.')) * 100),
+      max_redemptions: Number(c.max_redemptions) || null,
+      max_per_user: Number(c.max_per_user) || 0,
+      expires_at: c.expires_at ? `${c.expires_at}T23:59:59-03:00` : null,
+    }).then(ok => ok && setC(blankCoupon))
+  }
+  return (
+    <form className="card coupon-form" onSubmit={submit}>
+      <label className="field"><span>Código</span><input required value={c.code} onChange={e => setC(x => ({ ...x, code: e.target.value.toUpperCase() }))} placeholder="LANCAMENTO20" /></label>
+      <label className="field"><span>Tipo</span>
+        <select value={c.kind} onChange={set('kind')}><option value="percent">Porcentagem</option><option value="amount">Valor fixo (R$)</option></select>
+      </label>
+      {c.kind === 'percent'
+        ? <label className="field"><span>Desconto (%)</span><input type="number" min="1" max="100" required value={c.percent_off} onChange={set('percent_off')} /></label>
+        : <label className="field"><span>Desconto (R$)</span><input inputMode="decimal" required value={c.amount} onChange={set('amount')} placeholder="20,00" /></label>}
+      <label className="field"><span>Plano</span>
+        <select value={c.plan_id} onChange={set('plan_id')}><option value="">Todos os pagos</option>{plans.filter(p => p.price_monthly_cents || p.price_quarterly_cents).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+      </label>
+      <label className="field"><span>Período</span>
+        <select value={c.period} onChange={set('period')}><option value="">Mensal e trimestral</option><option value="monthly">Só mensal</option><option value="quarterly">Só trimestral</option></select>
+      </label>
+      <label className="field"><span>Limite de usos</span><input type="number" min="1" value={c.max_redemptions} onChange={set('max_redemptions')} placeholder="Sem limite" /></label>
+      <label className="field"><span>Usos por pessoa</span><input type="number" min="1" value={c.max_per_user} onChange={set('max_per_user')} /></label>
+      <label className="field"><span>Válido até</span><input type="date" value={c.expires_at} onChange={set('expires_at')} /></label>
+      <label className="field"><span>Descrição (interna)</span><input value={c.description} onChange={set('description')} placeholder="Campanha de lançamento" /></label>
+      <button className="btn btn--primary btn--sm">Criar cupom</button>
+    </form>
+  )
+}
+
 export default function Admin() {
   const [data, setData] = useState(null)
   const [msg, setMsg] = useState('')
@@ -45,8 +85,10 @@ export default function Admin() {
   const [choice, setChoice] = useState({})
 
   const [runs, setRuns] = useState([])
+  const [coupons, setCoupons] = useState([])
   const load = () => {
     api('admin/overview').then(setData).catch(e => setError(e.message))
+    api('admin/coupons').then(d => setCoupons(d.coupons)).catch(() => {})
     api('admin/runs').then(d => setRuns(d.runs)).catch(() => {})
   }
   useEffect(() => { load() }, [])
@@ -73,6 +115,39 @@ export default function Admin() {
       <h2>Planos</h2>
       {data.plans.map(p => <PlanForm key={p.id + p.updated_at} plan={p} onSave={body => act(() => api('admin/plans', { method: 'POST', body }), 'Plano salvo.')} />)}
       <details className="card"><summary>Novo plano</summary><PlanForm plan={blankPlan} onSave={body => act(() => api('admin/plans', { method: 'POST', body }), 'Plano criado.')} /></details>
+
+      <h2>Cupons de desconto</h2>
+      <details className="card"><summary>Novo cupom</summary>
+        <CouponForm plans={data.plans} onSave={async body => {
+          setError(''); setMsg('')
+          try { setCoupons((await api('admin/coupons', { method: 'POST', body })).coupons); setMsg(`Cupom ${body.code} salvo.`); return true }
+          catch (e) { setError(e.message); return false }
+        }} />
+      </details>
+      <div className="table-wrap card">
+        <table className="table table--cards">
+          <thead><tr><th>Cupom</th><th>Desconto</th><th>Regras</th><th>Usos</th><th></th></tr></thead>
+          <tbody>
+            {coupons.length === 0 && <tr><td colSpan="5" className="muted">Nenhum cupom criado.</td></tr>}
+            {coupons.map(c => {
+              const expired = c.expires_at && new Date(c.expires_at) < new Date()
+              return (
+                <tr key={c.id}>
+                  <td data-label="Cupom"><strong className="mono">{c.code}</strong>
+                    {!c.active ? <span className="flag">desativado</span> : expired ? <span className="flag flag--noweb">expirado</span> : <span className="flag flag--fit">ativo</span>}
+                    {c.description && <small className="muted block">{c.description}</small>}</td>
+                  <td data-label="Desconto">{c.percent_off ? `${c.percent_off}%` : money(c.amount_off_cents)}</td>
+                  <td data-label="Regras"><small className="muted">
+                    {c.plan_id ? `Plano ${c.plan_id}` : 'Todos os planos'} · {c.period === 'monthly' ? 'mensal' : c.period === 'quarterly' ? 'trimestral' : 'qualquer período'}
+                    <span className="block">{c.max_per_user ? `${c.max_per_user} uso(s) por pessoa` : 'usos ilimitados por pessoa'}{c.expires_at ? ` · até ${fmtDate(c.expires_at)}` : ''}</span></small></td>
+                  <td data-label="Usos">{fmtInt(c.paid)} pago(s){c.max_redemptions ? ` de ${fmtInt(c.max_redemptions)}` : ''}<small className="muted block">{fmtInt(c.pending)} aguardando pagamento</small></td>
+                  <td data-label="Ações"><button className="btn-mini" onClick={() => act(async () => setCoupons((await api('admin/coupons/toggle', { method: 'POST', body: { code: c.code } })).coupons), c.active ? 'Cupom desativado.' : 'Cupom ativado.')}>{c.active ? 'Desativar' : 'Ativar'}</button></td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
 
       <h2>Últimos mapeamentos</h2>
       <div className="table-wrap card">

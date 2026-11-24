@@ -21,6 +21,25 @@ export default function Subscription() {
   // plano escolhido para pagar (abre o Pix logo abaixo dos planos)
   const [checkout, setCheckout] = useState(params.get('plano') && params.get('plano') !== 'gratuito' ? params.get('plano') : null)
   const checkoutRef = useRef(null)
+  // cupom de desconto
+  const [couponInput, setCouponInput] = useState(params.get('cupom') || '')
+  const [coupon, setCoupon] = useState(null)
+  const [couponError, setCouponError] = useState('')
+  const [checking, setChecking] = useState(false)
+  const applyCoupon = async (code = couponInput) => {
+    if (!code.trim() || !checkout) return
+    setChecking(true); setCouponError('')
+    try {
+      setCoupon(await api('coupons/check', { method: 'POST', body: { code, planId: checkout, period } }))
+    } catch (e) {
+      setCoupon(null); setCouponError(e.message)
+    } finally { setChecking(false) }
+  }
+  // o cupom vale para um plano/período específico: revalida quando eles mudam
+  useEffect(() => {
+    if (coupon) applyCoupon(coupon.code)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkout, period])
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -121,7 +140,25 @@ export default function Subscription() {
             </div>
             <button className="btn-mini" onClick={() => setCheckout(null)}>Fechar</button>
           </div>
-          <Payment planId={checkout} period={period} />
+          <form className="coupon" onSubmit={e => { e.preventDefault(); applyCoupon() }}>
+            <label className="field">
+              <span>Cupom de desconto</span>
+              <div className="coupon__row">
+                <input value={couponInput} onChange={e => setCouponInput(e.target.value.toUpperCase())} placeholder="Ex.: LANCAMENTO20" autoComplete="off" />
+                {coupon
+                  ? <button type="button" className="btn-mini" onClick={() => { setCoupon(null); setCouponInput('') }}>Remover</button>
+                  : <button className="btn-mini" disabled={checking || !couponInput.trim()}>{checking ? 'Verificando…' : 'Aplicar'}</button>}
+              </div>
+            </label>
+            {coupon && (
+              <p className="form-notice">
+                Cupom <strong>{coupon.code}</strong> aplicado: {coupon.label}. De <s>{money(coupon.price_cents)}</s> por <strong>{money(coupon.amount_cents)}</strong>
+                {coupon.amount_cents === 0 ? ' — o plano é liberado sem pagamento.' : '.'}
+              </p>
+            )}
+            {couponError && <p className="form-error">{couponError}</p>}
+          </form>
+          <Payment planId={checkout} period={period} couponCode={coupon?.code || ''} />
         </section>
       )}
     </div>
