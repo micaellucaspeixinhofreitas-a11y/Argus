@@ -24,6 +24,11 @@ async function get(path, params) {
   }
 }
 
+// Categorias amplas usadas quando não há segmento ("todo tipo de comércio")
+const BROAD = ['restaurante', 'loja', 'clínica', 'escritório', 'salão de beleza', 'academia', 'oficina', 'hotel', 'farmácia', 'imobiliária']
+
+// A busca por CATEGORIA (categorySearch) traz todos os estabelecimentos do tipo dentro do raio;
+// a busca por texto (poiSearch) só casa com o nome — usada apenas para palavras-chave livres.
 export async function searchPlaces({ areas, segments, country, limit = 2500 }) {
   let budget = Math.max(1, Number(process.env.TOMTOM_MAX_REQUESTS) || 30)
   const out = []
@@ -35,14 +40,24 @@ export async function searchPlaces({ areas, segments, country, limit = 2500 }) {
       limit: '100',
       ...(country ? { countrySet: country } : {}),
     }
-    const queries = segments.length
-      ? segments.map(seg => ({ path: `poiSearch/${encodeURIComponent(seg.label || seg.term)}.json` }))
-      : [{ path: 'nearbySearch/.json' }]
-    for (const q of queries) {
-      // até 3 páginas de 100 resultados por consulta
-      for (let page = 0; page < 3 && budget > 0; page++) {
+    const jobs = segments.length
+      ? segments.flatMap(seg => {
+          const term = encodeURIComponent(seg.label || seg.term)
+          const list = [{ path: `categorySearch/${term}.json`, pages: 3 }]
+          if (!seg.key) list.push({ path: `poiSearch/${term}.json`, pages: 1 })
+          return list
+        })
+      : BROAD.map(t => ({ path: `categorySearch/${encodeURIComponent(t)}.json`, pages: 1 }))
+    for (const job of jobs) {
+      for (let page = 0; page < job.pages && budget > 0; page++) {
         budget--
-        const data = await get(q.path, { ...base, ofs: String(page * 100) })
+        let data
+        try {
+          data = await get(job.path, { ...base, ofs: String(page * 100) })
+        } catch (err) {
+          if (out.length) break // uma categoria falhou: segue com as demais
+          throw err
+        }
         const results = data.results || []
         out.push(...results)
         if (results.length < 100) break
@@ -50,7 +65,9 @@ export async function searchPlaces({ areas, segments, country, limit = 2500 }) {
     }
     if (out.length >= limit) break
   }
-  return out.map(normalize).filter(Boolean)
+  // remove repetidos (o mesmo POI pode vir em mais de uma categoria/consulta)
+  const seen = new Set()
+  return out.filter(r => (seen.has(r.id) ? false : seen.add(r.id))).map(normalize).filter(Boolean)
 }
 
 const withProtocol = url => (!url ? null : /^https?:\/\//i.test(url) ? url : `https://${url}`)
