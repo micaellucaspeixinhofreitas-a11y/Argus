@@ -168,7 +168,7 @@ function TopBar() {
 export default function Platform() {
   const { user, loading } = useAuth()
   const { status: site } = useSite()
-  const { search } = useLocation()
+  const { search, pathname } = useLocation()
   if (loading) return <div className="page-loading"><span className="spinner" /> Carregando…</div>
   if (!user) return <Navigate to="/entrar" replace />
   if (site?.maintenance?.enabled && !user.is_admin) return <Maintenance />
@@ -185,6 +185,7 @@ export default function Platform() {
         <AnnouncementBar />
         <TopBar />
         <main className="pf-main app__content">
+          <div key={pathname} className="route-anim">
           <Routes>
             <Route index element={<Dashboard />} />
             <Route path="prospectar" element={<Prospect />} />
@@ -197,6 +198,7 @@ export default function Platform() {
             {user.is_admin && <Route path="admin" element={<Admin />} />}
             <Route path="*" element={<Navigate to="/app" replace />} />
           </Routes>
+          </div>
         </main>
         <PlatformDock />
       </div>

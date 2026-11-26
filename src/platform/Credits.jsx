@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, fmtDate, fmtDateTime, fmtInt } from '../lib/api'
 import { useAuth } from '../lib/auth'
+import CountUp from '../components/CountUp'
 
 export default function Credits() {
   const [data, setData] = useState(null)
@@ -29,13 +30,13 @@ export default function Credits() {
       </header>
       <div className="stat-grid">
         <div className="card stat-card">
-            <small>Créditos disponíveis</small><strong>{fmtInt(c.available)}</strong><span className="muted">de {fmtInt(c.monthly_credits)} no mês</span></div>
+            <small>Créditos disponíveis</small><strong><CountUp value={c.available} /></strong><span className="muted">de {fmtInt(c.monthly_credits)} no mês</span></div>
         <div className="card stat-card">
-            <small>Usados hoje</small><strong>{fmtInt(c.today_used)}</strong><span className="muted">limite diário de {fmtInt(c.daily_limit)}</span></div>
+            <small>Usados hoje</small><strong><CountUp value={c.today_used} /></strong><span className="muted">limite diário de {fmtInt(c.daily_limit)}</span></div>
         <div className="card stat-card">
-            <small>Usados no mês</small><strong>{fmtInt(c.month_used)}</strong><span className="muted">renova no dia 1º</span></div>
+            <small>Usados no mês</small><strong><CountUp value={c.month_used} /></strong><span className="muted">renova no dia 1º</span></div>
         <div className="card stat-card">
-            <small>Pode capturar agora</small><strong>{fmtInt(c.can_spend)}</strong><span className="muted">leads novos</span></div>
+            <small>Pode capturar agora</small><strong><CountUp value={c.can_spend} /></strong><span className="muted">leads novos</span></div>
       </div>
       <div className="card meters">
         <label>Mês <span>{fmtInt(c.month_used)} / {fmtInt(c.monthly_credits)}</span></label>

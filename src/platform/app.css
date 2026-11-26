@@ -463,3 +463,84 @@ a.activity__num { color: var(--acc-2); }
 .h2-ic { width: 24px; height: 24px; object-fit: contain; flex: none; filter: drop-shadow(0 3px 8px rgba(139, 92, 246, .5)); }
 .topbar__coin { width: 20px; height: 20px; object-fit: contain; filter: drop-shadow(0 2px 6px rgba(139, 92, 246, .5)); }
 .app .account-card h2 img { width: 28px; height: 28px; object-fit: contain; filter: drop-shadow(0 3px 8px rgba(139, 92, 246, .5)); }
+
+/* ==========================================================================
+   Animações da plataforma (a dock fica de fora)
+   ========================================================================== */
+@keyframes pf-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes pf-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pf-grow-y { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes pf-grow-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes pf-float { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-5px) rotate(-3deg); } }
+@keyframes pf-wiggle { 0%, 100% { transform: rotate(0) scale(1); } 30% { transform: rotate(-10deg) scale(1.12); } 60% { transform: rotate(8deg) scale(1.08); } }
+@keyframes pf-pop { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: scale(1); } }
+@keyframes pf-toast { from { opacity: 0; transform: translate(-50%, 16px) scale(.97); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
+@keyframes pf-shine { from { background-position: -200% 0; } to { background-position: 200% 0; } }
+
+@media (prefers-reduced-motion: no-preference) {
+  /* troca de página: os blocos surgem em sequência */
+  .route-anim > .page > *, .route-anim > .pros > * , .route-anim > .pros .pros__panel > .step, .route-anim > .pros .pros__work > * {
+    animation: pf-rise .55s cubic-bezier(.16, 1, .3, 1) both;
+  }
+  .route-anim > .page > :nth-child(2) { animation-delay: .05s; }
+  .route-anim > .page > :nth-child(3) { animation-delay: .1s; }
+  .route-anim > .page > :nth-child(4) { animation-delay: .15s; }
+  .route-anim > .page > :nth-child(5) { animation-delay: .2s; }
+  .route-anim > .page > :nth-child(6) { animation-delay: .25s; }
+  .route-anim > .page > :nth-child(n+7) { animation-delay: .3s; }
+  .route-anim > .pros .pros__panel > .step:nth-child(2) { animation-delay: .08s; }
+  .route-anim > .pros .pros__panel > .step:nth-child(3) { animation-delay: .16s; }
+  .route-anim > .pros .pros__work > :nth-child(2) { animation-delay: .1s; }
+  .route-anim > .pros .pros__work > :nth-child(3) { animation-delay: .2s; }
+
+  /* cartões dentro das grades também entram em cascata */
+  .app .stat-grid > *, .app .account-grid > *, .app .plan-grid > *, .app .saved-grid > *, .app .radar__cards > *, .app .sec-grid > * {
+    animation: pf-rise .6s cubic-bezier(.16, 1, .3, 1) both;
+  }
+  .app :is(.stat-grid, .account-grid, .plan-grid, .saved-grid, .radar__cards, .sec-grid) > :nth-child(2) { animation-delay: .07s; }
+  .app :is(.stat-grid, .account-grid, .plan-grid, .saved-grid, .radar__cards, .sec-grid) > :nth-child(3) { animation-delay: .14s; }
+  .app :is(.stat-grid, .account-grid, .plan-grid, .saved-grid, .radar__cards, .sec-grid) > :nth-child(4) { animation-delay: .21s; }
+  .app :is(.stat-grid, .account-grid, .plan-grid, .saved-grid, .radar__cards, .sec-grid) > :nth-child(n+5) { animation-delay: .28s; }
+
+  /* gráficos crescem */
+  .bars__col i { transform-origin: 50% 100%; animation: pf-grow-y .7s cubic-bezier(.34, 1.3, .64, 1) both; animation-delay: calc(var(--i, 0) * 18ms + .2s); }
+  .app .meter i, .bk__meter i, .side__meter i { transform-origin: 0 50%; animation: pf-grow-x 1s cubic-bezier(.16, 1, .3, 1) .25s both; }
+  .barlist__fill { transform-origin: 0 50%; animation: pf-grow-x .8s cubic-bezier(.16, 1, .3, 1) both; animation-delay: calc(var(--i, 0) * 70ms + .2s); }
+  .history__bar i { transform-origin: 0 50%; animation: pf-grow-x .8s cubic-bezier(.16, 1, .3, 1) .2s both; }
+
+  /* resultados do mapeamento e listas aparecem um a um */
+  .app .results__list .res { animation: pf-rise .45s cubic-bezier(.16, 1, .3, 1) both; animation-delay: calc(var(--i, 0) * 30ms); }
+  .app .activity li { animation: pf-fade .5s ease both; }
+  .app .table tbody tr { animation: pf-fade .45s ease both; }
+
+  /* ícones 3D vivos */
+  .page__icon { animation: pf-float 4.5s ease-in-out infinite; }
+  .step__icon, .h2-ic, .bk__head img, .account-card h2 img, .h2-icon img { transition: transform .35s cubic-bezier(.34, 1.4, .64, 1); }
+  .step:hover .step__icon, .card:hover .h2-ic, .magic-bento__card:hover .bk__head img, .account-card:hover h2 img, .card:hover .h2-icon img { animation: pf-wiggle .6s ease; }
+  .plan-card__icon { transition: transform .4s cubic-bezier(.34, 1.4, .64, 1); }
+  .plan-card:hover .plan-card__icon { transform: translateY(-4px) rotate(-6deg) scale(1.08); }
+  .catpick__chip.is-on svg, .flag--fit { animation: pf-pop .35s cubic-bezier(.34, 1.6, .64, 1) both; }
+
+  /* cartões levantam ao passar o mouse */
+  .app .saved, .app .plan-card, .app .radar-card, .app .dash__chip, .app .account-card, .app .stat-card {
+    transition: transform .35s cubic-bezier(.16, 1, .3, 1), border-color .2s, box-shadow .35s, background .2s;
+  }
+  .app .saved:hover, .app .plan-card:hover, .app .radar-card:hover, .app .dash__chip:hover, .app .stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, .03) inset, 0 18px 40px -22px rgba(139, 92, 246, .55);
+  }
+
+  /* botões: brilho que passa no principal e leve "aperto" ao clicar */
+  .app .btn--primary { background-image: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, .22) 50%, transparent 70%); background-size: 200% 100%; background-repeat: no-repeat; background-position: -200% 0; }
+  .app .btn--primary:hover:not(:disabled) { animation: pf-shine .9s ease; }
+  .app .btn:active:not(:disabled), .app .btn-mini:active:not(:disabled) { transform: scale(.97); }
+
+  /* avisos */
+  .toast { animation: pf-toast .4s cubic-bezier(.16, 1, .3, 1) both; }
+  .app .form-notice, .app .form-error { animation: pf-rise .35s cubic-bezier(.16, 1, .3, 1) both; }
+  .announce { animation: pf-fade .4s ease both; }
+
+  /* cabeçalho: crédito pulsa quando muda */
+  .topbar__coin { transition: transform .4s cubic-bezier(.34, 1.6, .64, 1); }
+  .topbar__credits:hover .topbar__coin { transform: rotate(180deg) scale(1.1); }
+}

@@ -5,6 +5,7 @@ import { api, fmtInt, fmtDate, fmtDateTime } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { useProspect, emptyConfig } from './Platform'
 import MagicBento from '../components/MagicBento'
+import CountUp from '../components/CountUp'
 
 const PERIODS = [[7, '7 dias'], [30, '30 dias'], [90, '90 dias']]
 const pct = (part, total) => (total ? Math.round((part / total) * 100) : 0)
@@ -38,7 +39,7 @@ function DailyBars({ series, metric }) {
       </div>
       <div className="bars__plot" role="img" aria-label={`Gráfico de ${label} por dia`}>
         {series.map((d, i) => (
-          <div key={d.day} className={`bars__col ${hover === i ? 'is-hover' : ''}`} onMouseEnter={() => setHover(i)} onFocus={() => setHover(i)} tabIndex={0}>
+          <div key={d.day} style={{ '--i': i }} className={`bars__col ${hover === i ? 'is-hover' : ''}`} onMouseEnter={() => setHover(i)} onFocus={() => setHover(i)} tabIndex={0}>
             <i style={{ height: `${(d[metric] / nice) * 100}%` }} className={d[metric] ? '' : 'is-zero'} />
             {(i % every === 0 || i === series.length - 1) && (
               <span className={`bars__x ${i === 0 || i === series.length - 1 || i === Math.floor(series.length / 2) ? 'is-key' : ''}`}>{shortDay(d.day)}</span>
@@ -61,8 +62,8 @@ function BarList({ rows, empty }) {
   const max = Math.max(...rows.map(r => r.n))
   return (
     <ul className="barlist">
-      {rows.map(r => (
-        <li key={r.label}>
+      {rows.map((r, i) => (
+        <li key={r.label} style={{ '--i': i }}>
           <span className="barlist__fill" style={{ width: `${(r.n / max) * 100}%` }} />
           <span className="barlist__label">{r.label}</span>
           <strong>{fmtInt(r.n)}</strong>
@@ -111,7 +112,7 @@ export default function Dashboard() {
           <div className="bk__head"><img src="/icons/chat.webp" alt="" width="34" height="34" /><span>Leads capturados · {days} dias</span></div>
           <div className="bk__row">
             <div>
-              <strong className="bk__num">{fmtInt(t.leads_period)}</strong>
+              <strong className="bk__num"><CountUp value={t.leads_period} /></strong>
               <Delta now={t.leads_period} before={p.leads} />
             </div>
             <div className="magic-bento__bars-plot bk__spark" aria-label="Leads nos últimos 14 dias">
@@ -130,7 +131,7 @@ export default function Dashboard() {
       content: (
         <div className="bk">
           <div className="bk__head"><img src="/icons/pino.webp" alt="" width="34" height="34" /><span>Mapeamentos · {days} dias</span></div>
-          <strong className="bk__num">{fmtInt(t.runs_period)}</strong>
+          <strong className="bk__num"><CountUp value={t.runs_period} /></strong>
           <Delta now={t.runs_period} before={p.runs} />
           <small className="bk__foot">{fmtInt(t.runs)} no total</small>
         </div>
@@ -141,7 +142,7 @@ export default function Dashboard() {
       content: (
         <div className="bk">
           <div className="bk__head"><img src="/icons/moeda.webp" alt="" width="34" height="34" /><span>Créditos disponíveis</span></div>
-          <strong className="bk__num">{fmtInt(c.available)}</strong>
+          <strong className="bk__num"><CountUp value={c.available} /></strong>
           <span className="bk__meter"><i style={{ width: `${creditPct}%` }} /></span>
           <small className="bk__foot">de {fmtInt(c.monthly_credits)} · plano {c.plan?.name} · hoje {fmtInt(c.today_used)}/{fmtInt(c.daily_limit)}</small>
         </div>
@@ -152,7 +153,7 @@ export default function Dashboard() {
       content: (
         <div className="bk">
           <div className="bk__head"><img src="/icons/dados.webp" alt="" width="34" height="34" /><span>Empresas mapeadas</span></div>
-          <strong className="bk__num">{fmtInt(t.mapped)}</strong>
+          <strong className="bk__num"><CountUp value={t.mapped} /></strong>
           <small className="bk__foot">{fmtInt(t.leads)} viraram leads · {pct(t.leads, t.mapped)}% de aproveitamento</small>
         </div>
       ),
@@ -162,7 +163,7 @@ export default function Dashboard() {
       content: (
         <div className="bk">
           <div className="bk__head"><img src="/icons/estrela.webp" alt="" width="34" height="34" /><span>Leads de alta aderência</span></div>
-          <strong className="bk__num">{pct(q.high_fit, q.total)}%</strong>
+          <strong className="bk__num"><CountUp value={pct(q.high_fit, q.total)} suffix="%" /></strong>
           <small className="bk__foot">{fmtInt(q.high_fit)} de {fmtInt(q.total)} atendem aos seus critérios</small>
         </div>
       ),

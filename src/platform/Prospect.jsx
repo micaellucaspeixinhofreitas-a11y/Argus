@@ -6,6 +6,7 @@ import {
 } from 'react-icons/lu'
 import MapView from './MapView'
 import CategoryPicker from './CategoryPicker'
+import CountUp from '../components/CountUp'
 import ProLock from './ProLock'
 import { useProspect } from './Platform'
 import { useAuth } from '../lib/auth'
@@ -490,13 +491,13 @@ export default function Prospect() {
           {stale && <p className="form-notice">Você alterou os critérios. Clique em <strong>Mapear oportunidades</strong> para atualizar os resultados.</p>}
           <div className="radar__cards">
             <button className={`radar-card ${filter === 'all' ? 'is-on' : ''}`} onClick={() => setFilter('all')}>
-              <span className="radar-card__ic radar-card__ic--3d"><img src="/icons/pino.webp" alt="" width="40" height="40" /></span><small>Mapeadas</small><strong>{fmtInt(result?.run.total ?? 0)}</strong>
+              <span className="radar-card__ic radar-card__ic--3d"><img src="/icons/pino.webp" alt="" width="40" height="40" /></span><small>Mapeadas</small><strong><CountUp value={result?.run.total ?? 0} /></strong>
             </button>
             <button className={`radar-card radar-card--fit ${filter === 'fit' ? 'is-on' : ''}`} onClick={() => setFilter('fit')}>
-              <span className="radar-card__ic radar-card__ic--3d"><img src="/icons/estrela.webp" alt="" width="40" height="40" /></span><small>Alta aderência</small><strong>{result && !result.run.config.qualification.criteria.length ? '—' : fmtInt(result?.run.high_fit ?? 0)}</strong>
+              <span className="radar-card__ic radar-card__ic--3d"><img src="/icons/estrela.webp" alt="" width="40" height="40" /></span><small>Alta aderência</small><strong>{result && !result.run.config.qualification.criteria.length ? '—' : <CountUp value={result?.run.high_fit ?? 0} />}</strong>
             </button>
             <button className={`radar-card radar-card--noweb ${filter === 'noweb' ? 'is-on' : ''}`} onClick={() => setFilter('noweb')}>
-              <span className="radar-card__ic radar-card__ic--3d"><img src="/icons/nuvem.webp" alt="" width="40" height="40" /></span><small>Sem website</small><strong>{fmtInt(result?.run.no_website ?? 0)}</strong>
+              <span className="radar-card__ic radar-card__ic--3d"><img src="/icons/nuvem.webp" alt="" width="40" height="40" /></span><small>Sem website</small><strong><CountUp value={result?.run.no_website ?? 0} /></strong>
             </button>
           </div>
           {result && !result.run.config.qualification.criteria.length && (
@@ -524,8 +525,8 @@ export default function Prospect() {
               <p className="muted empty">Nenhuma empresa neste filtro. Tente aumentar o raio, adicionar áreas ou mudar o segmento.</p>
             ) : (
               <ul className="results__list">
-                {visible.slice(0, 500).map(r => (
-                  <li key={r.id} id={`r-${r.id}`} className={`res ${focusId === r.id ? 'is-focus' : ''} ${r.captured ? 'is-captured' : ''}`} onClick={() => setFocusId(r.id)}>
+                {visible.slice(0, 500).map((r, i) => (
+                  <li key={r.id} id={`r-${r.id}`} style={{ '--i': Math.min(i, 20) }} className={`res ${focusId === r.id ? 'is-focus' : ''} ${r.captured ? 'is-captured' : ''}`} onClick={() => setFocusId(r.id)}>
                     <input type="checkbox" checked={selected.has(r.id) || r.captured} disabled={r.captured} onChange={() => toggle(r.id)} onClick={e => e.stopPropagation()} aria-label={`Selecionar ${r.name}`} />
                     <div className="res__main">
                       <strong>{r.name}</strong>
