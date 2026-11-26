@@ -33,7 +33,7 @@ on('GET', 'health', async ({ req, url }) => {
   }
   let db = 'ok'
   try { await query('select 1') } catch (e) { db = e.code === 'DB_NOT_CONFIGURED' ? 'not_configured' : 'error' }
-  const out = { ok: true, db, provider: provider().name, payments: paymentProvider() }
+  const out = { ok: true, db, provider: provider().name, payments: mpConfigured() ? 'mercadopago' : pixConfigured() ? 'pix_manual' : paymentProvider() }
   // ?source=1: verifica se a fonte de dados responde (no máximo 1x por minuto por instância)
   if (url.searchParams.get('source') && Date.now() - lastSourceCheck > 60_000) {
     lastSourceCheck = Date.now()
