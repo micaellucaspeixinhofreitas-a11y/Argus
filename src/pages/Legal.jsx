@@ -7,6 +7,7 @@ const UPDATED = '24/11/2026'
 function Privacy() {
   return (
     <>
+      <img className="legal__icon" src="/icons/olho.webp" alt="" width="64" height="64" />
       <h1>Política de Privacidade</h1>
       <p className="legal__meta">Última atualização: {UPDATED}</p>
       <p>
@@ -86,6 +87,7 @@ function Privacy() {
 function Terms() {
   return (
     <>
+      <img className="legal__icon" src="/icons/martelo.webp" alt="" width="64" height="64" />
       <h1>Termos de Uso</h1>
       <p className="legal__meta">Última atualização: {UPDATED}</p>
       <p>Ao criar uma conta ou usar a Argus, você concorda com estes termos. Se não concordar, não use a plataforma.</p>

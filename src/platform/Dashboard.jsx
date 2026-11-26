@@ -286,7 +286,7 @@ export default function Dashboard() {
       <section className="dash__row dash__row--two">
         <div className="card">
           <div className="dash__card-head">
-            <h2 className="h2-icon"><img className="h2-ic" src="/icons/calendario.webp" alt="" width="24" height="24" /> Últimos mapeamentos</h2>
+            <h2 className="h2-icon"><img className="h2-ic" src="/icons/relogio.webp" alt="" width="24" height="24" /> Últimos mapeamentos</h2>
             <Link to="/app/prospectar" className="dash__more">Prospectar <LuChevronRight /></Link>
           </div>
           {data.recentRuns.length ? (

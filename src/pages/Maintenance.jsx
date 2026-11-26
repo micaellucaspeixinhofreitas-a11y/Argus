@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { LuRefreshCw, LuClock } from 'react-icons/lu'
+import { LuRefreshCw } from 'react-icons/lu'
 import { useSite } from '../lib/site'
 
 const remaining = eta => {
@@ -36,7 +36,7 @@ export default function Maintenance() {
           <h1>Estamos ajustando algumas peças.</h1>
           <p>{m.message || 'A Argus está passando por uma manutenção rápida para ficar ainda melhor. Seus dados, leads e créditos estão seguros.'}</p>
           {when && (
-            <p className="maint__eta"><LuClock aria-hidden="true" /> Previsão de retorno: <strong>{when}</strong>{left ? ` (em ${left})` : ''}</p>
+            <p className="maint__eta"><img src="/icons/relogio.webp" alt="" width="22" height="22" /> Previsão de retorno: <strong>{when}</strong>{left ? ` (em ${left})` : ''}</p>
           )}
           <div className="maint__actions">
             <button className="btn btn--primary" disabled={busy} onClick={async () => { setBusy(true); await refresh(); setBusy(false) }}>

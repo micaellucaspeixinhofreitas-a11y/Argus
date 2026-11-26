@@ -129,7 +129,7 @@ export default function Admin() {
       {security && (
         <div className="sec-grid">
           <div className="card">
-            <h3>Falhas de login</h3>
+            <h3 className="h3-icon"><img src="/icons/olho.webp" alt="" width="20" height="20" /> Falhas de login</h3>
             {security.bursts.length > 0 && (
               <p className="form-error">Possível ataque: {security.bursts.map(b => `${b.n} falhas em 1 min para ${b.email}`).join(' · ')}</p>
             )}
@@ -142,7 +142,7 @@ export default function Admin() {
             )}
           </div>
           <div className="card">
-            <h3>Bloqueios por excesso de requisições</h3>
+            <h3 className="h3-icon"><img src="/icons/martelo.webp" alt="" width="20" height="20" /> Bloqueios por excesso de requisições</h3>
             {security.rateLimited.length === 0 ? <p className="muted small">Nenhum bloqueio nas últimas 24 horas.</p> : (
               <ul className="activity">
                 {security.rateLimited.map(r => (

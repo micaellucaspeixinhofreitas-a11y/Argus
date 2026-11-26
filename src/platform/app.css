@@ -571,3 +571,6 @@ button.topbar__avatar:hover, button.topbar__avatar[aria-expanded="true"] { trans
 .acct__item--out { margin-top: 4px; border-top: 1px solid var(--b1); border-radius: 0 0 9px 9px; color: #fda4af; }
 .acct__item--out:hover { background: rgba(244, 63, 94, .1); }
 .acct__spacer { width: 22px; flex: none; }
+.ctl__ic { width: 22px; height: 22px; object-fit: contain; filter: drop-shadow(0 2px 6px rgba(139, 92, 246, .45)); }
+.app .h3-icon { display: flex; align-items: center; gap: 8px; }
+.app .h3-icon img { width: 20px; height: 20px; object-fit: contain; filter: drop-shadow(0 2px 6px rgba(139, 92, 246, .45)); }

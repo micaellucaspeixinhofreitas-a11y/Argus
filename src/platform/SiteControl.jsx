@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { LuWrench, LuMegaphone, LuSave } from 'react-icons/lu'
+import { LuWrench, LuSave } from 'react-icons/lu'
 import { api, fmtDateTime } from '../lib/api'
 import { useSite } from '../lib/site'
 
@@ -90,7 +90,7 @@ export default function SiteControl() {
         </fieldset>
 
         <fieldset className="ctl__box">
-          <legend><LuMegaphone aria-hidden="true" /> Aviso no topo da plataforma</legend>
+          <legend><img className="ctl__ic" src="/icons/megafone.webp" alt="" width="22" height="22" /> Aviso no topo da plataforma</legend>
           <Toggle checked={form.announcement.enabled} onChange={v => setA({ enabled: v })} label="Mostrar aviso" hint="Faixa no topo para todos os clientes (pode ser fechada)." />
           <label className="field"><span>Texto do aviso</span>
             <input maxLength={240} value={form.announcement.text} onChange={e => setA({ text: e.target.value })} placeholder="Ex.: Novidade: agora dá para exportar leads em CSV!" />
@@ -101,7 +101,7 @@ export default function SiteControl() {
             ))}
           </div>
 
-          <div className="ctl__sub">Funções do site</div>
+          <div className="ctl__sub"><img className="ctl__ic" src="/icons/controle.webp" alt="" width="22" height="22" /> Funções do site</div>
           <Toggle checked={form.registrationsOpen} onChange={v => setForm(f => ({ ...f, registrationsOpen: v }))} label="Cadastros abertos" hint="Desligado: ninguém cria conta nova (e-mail ou Google)." />
           <Toggle checked={form.paymentsEnabled} onChange={v => setForm(f => ({ ...f, paymentsEnabled: v }))} label="Pagamentos ativos" hint="Desligado: não gera novos Pix de assinatura." />
           <Toggle checked={form.mappingEnabled} onChange={v => setForm(f => ({ ...f, mappingEnabled: v }))} label="Mapeamentos ativos" hint="Desligado: clientes não rodam novos mapeamentos (útil se a fonte de dados cair)." />
