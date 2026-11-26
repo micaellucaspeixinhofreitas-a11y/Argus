@@ -90,7 +90,7 @@ export default function Dashboard() {
   const newProspect = () => { setConfig(emptyConfig()); setResult(null); navigate('/app/prospectar') }
   const hello = useMemo(() => {
     const h = new Date().getHours()
-    return h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite'
+    return h < 5 ? 'Boa noite' : h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite'
   }, [])
   const firstName = (user.name || '').trim().split(/\s+/)[0]
 
@@ -164,8 +164,13 @@ export default function Dashboard() {
       content: (
         <div className="bk">
           <div className="bk__head"><img src="/icons/estrela.webp" alt="" width="34" height="34" /><span>Leads de alta aderência</span></div>
-          <strong className="bk__num"><CountUp value={pct(q.high_fit, q.total)} suffix="%" /></strong>
-          <small className="bk__foot">{fmtInt(q.high_fit)} de {fmtInt(q.total)} atendem aos seus critérios</small>
+          {q.scored ? <>
+            <strong className="bk__num"><CountUp value={pct(q.high_fit, q.scored)} suffix="%" /></strong>
+            <small className="bk__foot">{fmtInt(q.high_fit)} de {fmtInt(q.scored)} leads qualificados atendem aos seus critérios</small>
+          </> : <>
+            <strong className="bk__num">—</strong>
+            <small className="bk__foot">Ative a qualificação na prospecção para medir a aderência dos leads</small>
+          </>}
         </div>
       ),
     },
@@ -254,7 +259,7 @@ export default function Dashboard() {
             <ul className="meters-list">
               {[
                 ['Com telefone', q.phone, 'Contato direto disponível'],
-                ['Alta aderência', q.high_fit, 'Atendem aos seus critérios'],
+                ...(q.scored ? [['Alta aderência', q.high_fit, 'Atendem aos seus critérios']] : []),
                 ['Sem website', q.no_website, 'Oportunidade de presença digital'],
                 ['Com e-mail', q.email, 'Endereço de e-mail encontrado'],
               ].map(([l, n, hint]) => (

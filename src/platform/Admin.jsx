@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api, money, fmtDate, fmtDateTime, fmtInt } from '../lib/api'
 import SiteControl from './SiteControl'
 
+const SUB_STATUS = { pending_payment: 'aguardando pagamento', active: 'ativa', canceled: 'cancelada', expired: 'expirada' }
 const blankPlan = { id: '', name: '', description: '', monthly_credits: 0, daily_limit: 0, price_monthly_cents: 0, price_quarterly_cents: 0, features: [], is_default: false, active: true, sort: 10 }
 
 function PlanForm({ plan, onSave, onDelete }) {
@@ -236,19 +237,25 @@ export default function Admin() {
           <thead><tr><th>Usuário</th><th>Assinatura</th><th>Uso</th><th>Ações</th></tr></thead>
           <tbody>
             {data.users.map(u => {
-              const c = choice[u.id] || { planId: data.plans.find(p => !p.is_default)?.id || data.plans[0]?.id, period: 'monthly', credits: '' }
+              const pend = u.subscription?.status === 'pending_payment' ? u.subscription : null
+              // com Pix pendente, já vem marcado o plano/período que o cliente pediu
+              const c = choice[u.id] || { planId: pend?.plan_id || data.plans.find(p => !p.is_default)?.id || data.plans[0]?.id, period: pend?.period || 'monthly', credits: '' }
+              const planName = id => data.plans.find(p => p.id === id)?.name || id
               const setC = patch => setChoice(x => ({ ...x, [u.id]: { ...c, ...patch } }))
               return (
                 <tr key={u.id}>
                   <td data-label="Usuário"><strong>{u.name || '—'}</strong>{u.is_admin && <span className="flag flag--fit">admin</span>}<small className="muted block">{u.email} · desde {fmtDate(u.created_at)}</small></td>
-                  <td data-label="Assinatura">{u.subscription ? <>{u.subscription.plan_id} · {u.subscription.status}
+                  <td data-label="Assinatura">{u.subscription ? <>{planName(u.subscription.plan_id)}{u.subscription.period ? ` ${u.subscription.period === 'quarterly' ? 'trimestral' : 'mensal'}` : ''} · {SUB_STATUS[u.subscription.status] || u.subscription.status}
                     {u.subscription.payment_reported_at && u.subscription.status === 'pending_payment' && <span className="flag flag--noweb block">Pix informado · {u.subscription.payment_reference}</span>}<small className="muted block">{u.subscription.current_period_end ? `até ${fmtDate(u.subscription.current_period_end)}` : ''}</small></> : <span className="muted">Plano padrão</span>}</td>
                   <td data-label="Uso">{fmtInt(u.leads)} leads<small className="muted block">{fmtInt(u.runs)} mapeamentos</small></td>
                   <td className="admin-actions" data-label="Ações">
                     <select value={c.planId} onChange={e => setC({ planId: e.target.value })}>{data.plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
                     <select value={c.period} onChange={e => setC({ period: e.target.value })}><option value="monthly">Mensal</option><option value="quarterly">Trimestral</option></select>
-                    <button className="btn-mini" onClick={() => act(() => api('admin/subscription', { method: 'POST', body: { userId: u.id, action: 'activate', planId: c.planId, period: c.period } }), 'Assinatura ativada.')}>Ativar</button>
-                    <button className="btn-mini btn-mini--danger" onClick={() => act(() => api('admin/subscription', { method: 'POST', body: { userId: u.id, action: 'cancel' } }), 'Assinatura cancelada.')}>Cancelar</button>
+                    <button className="btn-mini" onClick={() => {
+                      if (pend && (pend.plan_id !== c.planId || pend.period !== c.period) && !window.confirm(`O cliente pediu ${planName(pend.plan_id)} ${pend.period === 'quarterly' ? 'trimestral' : 'mensal'}. Ativar ${planName(c.planId)} ${c.period === 'quarterly' ? 'trimestral' : 'mensal'} mesmo assim? (o pedido Pix e o cupom dele serão descartados)`)) return
+                      act(() => api('admin/subscription', { method: 'POST', body: { userId: u.id, action: 'activate', planId: c.planId, period: c.period } }), 'Assinatura ativada.')
+                    }}>{pend ? 'Confirmar Pix e ativar' : 'Ativar'}</button>
+                    <button className="btn-mini btn-mini--danger" onClick={() => { if (window.confirm(`Cancelar a assinatura de ${u.email}? O acesso ao plano pago termina agora.`)) act(() => api('admin/subscription', { method: 'POST', body: { userId: u.id, action: 'cancel' } }), 'Assinatura cancelada.') }}>Cancelar</button>
                     <input type="number" placeholder="± créditos" value={c.credits} onChange={e => setC({ credits: e.target.value })} />
                     <button className="btn-mini" onClick={() => act(() => api('admin/credits', { method: 'POST', body: { userId: u.id, amount: Number(c.credits) } }), 'Créditos ajustados.')}>Aplicar</button>
                   </td>

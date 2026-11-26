@@ -178,7 +178,18 @@ try {
     await api('POST', 'admin/subscription', { userId: me.id, action: 'activate', planId: 'pro', period: 'monthly' })
     r = await api('GET', 'auth/me'); assert.equal(r.data.credits.monthly_credits, 22500); assert.equal(r.data.credits.daily_limit, 10)
     await api('POST', 'admin/credits', { userId: me.id, amount: 100 })
-    r = await api('GET', 'auth/me'); assert.equal(r.data.credits.available, 22500 - 150 + 100)
+    r = await api('GET', 'auth/me'); assert.equal(r.data.credits.available, 22500 + 100, 'plano pago começa um ciclo novo de créditos na ativação')
+    assert.ok(Math.abs(new Date(r.data.credits.renews_at) - Date.now() - 30 * 86400000) < 3 * 86400000, 'renova um mês depois da ativação')
+    {
+      const { creditCycle } = await import('../../api/_lib/credits.js')
+      const c1 = creditCycle({ subscription_id: 1, current_period_start: '2026-01-28T15:00:00Z' }, new Date('2026-03-05T12:00:00Z'))
+      assert.equal(c1.start.toISOString(), '2026-02-28T15:00:00.000Z'); assert.equal(c1.end.toISOString(), '2026-03-28T15:00:00.000Z')
+      const c2 = creditCycle({ subscription_id: 1, current_period_start: '2026-01-31T10:00:00Z' }, new Date('2026-02-15T00:00:00Z'))
+      assert.equal(c2.end.toISOString(), '2026-02-28T10:00:00.000Z', '31/01 + 1 mês = 28/02')
+      const c3 = creditCycle({ subscription_id: 1, current_period_start: '2026-06-10T10:00:00Z' }, new Date('2026-05-20T00:00:00Z'))
+      assert.equal(c3.start.toISOString(), '2026-05-10T10:00:00.000Z', 'renovação antecipada (início no futuro) mantém o aniversário')
+      assert.equal(creditCycle({ subscription_id: null }), null, 'grátis: dia 1º')
+    }
     // renovar o mesmo plano antes do vencimento soma os dias; plano vencido vira "expirada"
     const { query: q3 } = await import('../../api/_lib/db.js')
     const endOf = async () => (await q3(`select current_period_end from subscriptions where user_id = $1 and status = 'active'`, [me.id])).rows[0]?.current_period_end

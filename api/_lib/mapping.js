@@ -111,7 +111,7 @@ export async function runMapping(user, input) {
     if (recent.rows.length) fail(429, 'Aguarde alguns segundos antes de iniciar outro mapeamento.')
     const status = await creditStatus(user.id, db)
     if (status.today_used >= status.daily_limit) fail(429, `Você atingiu o limite de ${status.daily_limit} busca(s) por dia do seu plano. O limite renova à meia-noite.`, 'DAILY_LIMIT')
-    if (status.available < price) fail(402, `Esta busca (${config.maxResults} empresas) custa ${price} créditos e você tem ${status.available}. Escolha uma quantidade menor ou assine um plano.`, 'NO_CREDITS')
+    if (status.available < price) fail(402, `Esta busca (${config.maxResults} empresas) custa ${price} créditos e você tem ${status.available}. Escolha uma quantidade menor${status.plan.id === 'gratuito' ? ' ou assine um plano' : ' ou aguarde a renovação dos créditos'}.`, 'NO_CREDITS')
     const { rows: [r] } = await db.query(
       `insert into mapping_runs (user_id, config, provider) values ($1, $2, $3) returning id, created_at`,
       [user.id, JSON.stringify(config), prov.name])
@@ -324,11 +324,14 @@ export async function captureLeads(user, { runId, companyIds }) {
     const already = new Set(existing.map(e => String(e.company_id)))
     const fresh = valid.filter(v => !already.has(String(v.company_id)))
     const allowed = fresh
-    for (const v of allowed) {
+    // grava tudo de uma vez (até 1.000 empresas sem estourar o tempo da função)
+    if (allowed.length) {
       await db.query(
-        `insert into leads (user_id, company_id, run_id, score, high_fit) values ($1, $2, $3, $4, $5)
+        `insert into leads (user_id, company_id, run_id, score, high_fit)
+         select $1, i.company_id, i.run_id, i.score, i.high_fit
+           from unnest($2::bigint[], $3::bigint[], $4::int[], $5::bool[]) as i(company_id, run_id, score, high_fit)
          on conflict (user_id, company_id) do nothing`,
-        [user.id, v.company_id, v.run_id, v.score, v.high_fit]
+        [user.id, allowed.map(v => v.company_id), allowed.map(v => v.run_id), allowed.map(v => v.score), allowed.map(v => v.high_fit)]
       )
     }
     await db.query(`insert into operations_log (user_id, type, detail) values ($1, 'capture', $2)`, [

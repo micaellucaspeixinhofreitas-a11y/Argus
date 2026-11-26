@@ -469,7 +469,8 @@ on('GET', 'dashboard', async ({ req, url }) => {
               count(*) filter (where c.phone is not null)::int as phone,
               count(*) filter (where c.website is null)::int as no_website,
               count(*) filter (where c.email is not null)::int as email,
-              count(*) filter (where l.high_fit)::int as high_fit
+              count(*) filter (where l.high_fit)::int as high_fit,
+              count(*) filter (where l.score is not null)::int as scored
          from leads l join companies c on c.id = l.company_id where l.user_id = $1`, [uid]),
     query(
       `select id, config, status, total, high_fit, no_website, created_at from mapping_runs

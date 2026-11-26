@@ -36,7 +36,7 @@ export default function Credits() {
         <div className="card stat-card">
             <small>Buscas hoje</small><strong><CountUp value={c.today_used} /></strong><span className="muted">limite de {fmtInt(c.daily_limit)} por dia</span></div>
         <div className="card stat-card">
-            <small>Créditos usados no mês</small><strong><CountUp value={c.month_used} /></strong><span className="muted">renova no dia 1º</span></div>
+            <small>Créditos usados no mês</small><strong><CountUp value={c.month_used} /></strong><span className="muted">renova em {c.renews_at ? fmtDate(c.renews_at) : "—"}</span></div>
         <div className="card stat-card">
             <small>Buscas de 20 empresas</small><strong><CountUp value={c.searches_available ?? 0} /></strong><span className="muted">possíveis com o saldo</span></div>
       </div>
@@ -54,7 +54,7 @@ export default function Credits() {
           </li>
           <li>Se a área tiver menos empresas novas do que você pediu, paga só a faixa do que veio. Busca sem nenhuma empresa nova não cobra nada.</li>
           <li>Capturar leads, ver o radar, salvar buscas e exportar não consomem créditos.</li>
-          <li>Os créditos renovam todo dia 1º e o limite de buscas por dia reinicia à meia-noite (horário de Brasília).</li>
+          <li>Os créditos do plano renovam todo mês (no plano grátis, no dia 1º; nos planos pagos, no dia em que a assinatura começou) — próxima renovação em <strong>{c.renews_at ? fmtDate(c.renews_at) : '—'}</strong>. Créditos não usados não acumulam. O limite de buscas por dia reinicia à meia-noite (horário de Brasília).</li>
         </ul>
       </div>
       <div className="card">

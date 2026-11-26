@@ -6,12 +6,13 @@ import { query } from './db.js'
 //   (tabela SEARCH_TIERS). Se vierem menos empresas novas, cobra a faixa do que veio;
 //   busca sem nenhuma empresa nova não cobra nada.
 // - Capturar leads não consome créditos.
-// - Mês e dia são contados no fuso de São Paulo.
+// - Créditos do plano pago renovam no aniversário da assinatura; no grátis, todo dia 1º.
+// - Dia (limite de buscas) é contado no fuso de São Paulo.
 export const TZ = 'America/Sao_Paulo'
 
 export async function activePlan(userId, db = { query }) {
   const { rows } = await db.query(
-    `select s.id as subscription_id, s.status, s.period, s.current_period_end, s.cancel_at_period_end, p.*
+    `select s.id as subscription_id, s.status, s.period, s.current_period_start, s.current_period_end, s.cancel_at_period_end, p.*
        from subscriptions s join plans p on p.id = s.plan_id
       where s.user_id = $1 and s.status = 'active'
         and (s.current_period_end is null or s.current_period_end > now())
@@ -45,15 +46,42 @@ export function tierFor(n) {
 }
 export const searchCost = n => (n > 0 ? tierFor(n).cost : 0)
 
+// soma meses mantendo o dia (31/01 + 1 mês = 28 ou 29/02)
+function addMonths(date, n) {
+  const d = new Date(date)
+  const day = d.getUTCDate()
+  d.setUTCDate(1)
+  d.setUTCMonth(d.getUTCMonth() + n)
+  const last = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate()
+  d.setUTCDate(Math.min(day, last))
+  return d
+}
+
+// Ciclo de créditos: no plano pago, renova todo mês no "aniversário" da assinatura
+// (assinou dia 28 → renova todo dia 28); no plano grátis, todo dia 1º.
+export function creditCycle(plan, now = new Date()) {
+  if (!plan.subscription_id || !plan.current_period_start) return null
+  const anchor = new Date(plan.current_period_start)
+  let k = (now.getUTCFullYear() - anchor.getUTCFullYear()) * 12 + (now.getUTCMonth() - anchor.getUTCMonth())
+  let start = addMonths(anchor, k)
+  while (start > now) start = addMonths(anchor, --k)
+  while (addMonths(anchor, k + 1) <= now) start = addMonths(anchor, ++k)
+  return { start, end: addMonths(anchor, k + 1) }
+}
+
 export async function creditStatus(userId, db = { query }) {
   const plan = await activePlan(userId, db)
+  const cycle = creditCycle(plan)
   const { rows } = await db.query(
-    `select
-       coalesce(sum(amount) filter (where created_at >= date_trunc('month', now() at time zone $2) at time zone $2), 0)::int as month_net,
-       coalesce(-sum(amount) filter (where amount < 0 and created_at >= date_trunc('month', now() at time zone $2) at time zone $2), 0)::int as month_used,
-       count(*) filter (where reason = 'search' and created_at >= date_trunc('day', now() at time zone $2) at time zone $2)::int as today_used
-     from credit_ledger where user_id = $1`,
-    [userId, TZ]
+    `with c as (select coalesce($3::timestamptz, date_trunc('month', now() at time zone $2) at time zone $2) as start)
+     select
+       coalesce(sum(amount) filter (where created_at >= c.start), 0)::int as month_net,
+       coalesce(-sum(amount) filter (where amount < 0 and created_at >= c.start), 0)::int as month_used,
+       count(*) filter (where reason = 'search' and created_at >= date_trunc('day', now() at time zone $2) at time zone $2)::int as today_used,
+       coalesce($4::timestamptz, (date_trunc('month', now() at time zone $2) + interval '1 month') at time zone $2) as renews_at
+     from c left join credit_ledger l on l.user_id = $1
+     group by c.start`,
+    [userId, TZ, cycle?.start || null, cycle?.end || null]
   )
   const r = rows[0]
   const available = Math.max(0, plan.monthly_credits + r.month_net)
@@ -64,6 +92,8 @@ export async function creditStatus(userId, db = { query }) {
     month_used: r.month_used,
     today_used: r.today_used,
     available,
+    // quando os créditos do plano renovam (aniversário da assinatura ou dia 1º no grátis)
+    renews_at: r.renews_at,
     today_remaining: Math.max(0, plan.daily_limit - r.today_used),
     tiers: SEARCH_TIERS,
     // pode fazer ao menos a menor busca agora (créditos e limite diário de buscas)

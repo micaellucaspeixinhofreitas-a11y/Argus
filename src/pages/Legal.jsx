@@ -108,7 +108,7 @@ function Terms() {
       <h2>3. Planos, créditos e pagamento</h2>
       <ul>
         <li>Cada busca consome créditos conforme a quantidade de empresas pedida, de acordo com a tabela exibida na plataforma (por exemplo, 150 créditos por 20 empresas); capturar leads não consome créditos.</li>
-        <li>Os créditos e limites de cada plano são os informados na tela de planos. Créditos não usados não acumulam para o mês seguinte.</li>
+        <li>Os créditos e limites de cada plano são os informados na tela de planos. Os créditos renovam todo mês — no plano grátis no dia 1º, nos planos pagos no dia em que a assinatura começou — e créditos não usados não acumulam.</li>
         <li>Planos pagos são liberados após a confirmação do pagamento e valem pelo período contratado (mensal ou trimestral).</li>
         <li>Não há cobrança automática: o plano vale pelo período pago e é renovado com um novo pagamento. Renovando o mesmo plano antes do vencimento, os dias restantes são somados ao novo período.</li>
         <li>O direito de arrependimento de 7 dias (art. 49 do CDC) é garantido para a primeira contratação.</li>
