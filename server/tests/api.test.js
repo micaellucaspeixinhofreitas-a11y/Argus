@@ -379,11 +379,12 @@ try {
   {
     process.env.MP_ACCESS_TOKEN = 'TEST-token'
     const fetchBefore = globalThis.fetch
-    let mpStatus = 'pending', created = 0, lastBody = null
+    let mpStatus = 'pending', created = 0, lastBody = null, refuse = true
     globalThis.fetch = async (u, o = {}) => {
       const url = String(u)
       if (!url.startsWith('https://api.mercadopago.com')) return fetchBefore(u, o)
       assert.equal(o.headers.Authorization, 'Bearer TEST-token')
+      if (o.method === 'POST' && refuse) return new Response(JSON.stringify({ message: 'Unauthorized use of live credentials', status: 401 }), { status: 401 })
       if (o.method === 'POST') {
         created++; lastBody = JSON.parse(o.body)
         return new Response(JSON.stringify({ id: 777001, status: 'pending', date_of_expiration: new Date(Date.now() + 86400000).toISOString(),
@@ -392,6 +393,9 @@ try {
       return new Response(JSON.stringify({ id: 777001, status: mpStatus, external_reference: lastBody.external_reference, transaction_amount: lastBody.transaction_amount, payment_method_id: 'pix' }), { status: 200 })
     }
     let p = await api('POST', 'payment/pix', { planId: 'pro', period: 'quarterly' }, otherCookie)
+    assert.equal(p.status, 200, 'Mercado Pago recusou: cai para o Pix com a chave'); assert.ok(p.data.payload.startsWith('000201') && !p.data.automatic)
+    refuse = false
+    p = await api('POST', 'payment/pix', { planId: 'pro', period: 'quarterly' }, otherCookie)
     assert.equal(p.status, 200, JSON.stringify(p.data)); assert.equal(p.data.automatic, true); assert.equal(p.data.payload, '00020126MERCADOPAGO')
     assert.equal(lastBody.payment_method_id, 'pix'); assert.equal(lastBody.transaction_amount, 531); assert.equal(lastBody.external_reference, p.data.subscription.payment_reference)
     p = await api('POST', 'payment/pix', { planId: 'pro', period: 'quarterly' }, otherCookie)

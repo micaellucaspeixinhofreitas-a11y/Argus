@@ -725,6 +725,7 @@ on('POST', 'payment/pix', async ({ req, body }) => {
     }
     // Pix automático (Mercado Pago): reaproveita a cobrança ainda válida do mesmo valor; senão gera outra
     if (mpConfigured()) {
+      const auto = await (async () => {
       const valid = sub.provider_payment_id && sub.pix_payload && sub.pix_expires_at && new Date(sub.pix_expires_at) > new Date(Date.now() + 10 * 60_000)
         && sub.amount_cents === amount_cents && !['rejected', 'cancelled', 'expired'].includes(sub.provider_payment_status)
       if (!valid) {
@@ -737,6 +738,8 @@ on('POST', 'payment/pix', async ({ req, body }) => {
           })
         } catch (err) {
           console.error(JSON.stringify({ evt: 'mp_create_failed', subscription: sub.id, error: String(err.message).slice(0, 300), detail: JSON.stringify(err.detail || {}).slice(0, 300) }))
+          // Mercado Pago indisponível: cai para o Pix com a chave do recebedor (confirmação manual)
+          if (pixConfigured()) return null
           fail(502, 'Não foi possível gerar o Pix agora. Tente novamente em instantes.', 'PIX_PROVIDER')
         }
         await db.query(
@@ -745,6 +748,8 @@ on('POST', 'payment/pix', async ({ req, body }) => {
         Object.assign(sub, { provider_payment_id: charge.id, pix_payload: charge.payload, pix_expires_at: charge.expiresAt })
       }
       return { ...base, amount_cents, payload: sub.pix_payload, automatic: true, expires_at: sub.pix_expires_at }
+      })()
+      if (auto) return auto
     }
     if (!pixConfigured()) fail(503, 'O pagamento por Pix está indisponível no momento. Tente novamente mais tarde.', 'PIX_NOT_CONFIGURED')
     const payload = pixPayload({ amountCents: amount_cents, txid: sub.payment_reference, description: `Argus ${plan.name}` })
