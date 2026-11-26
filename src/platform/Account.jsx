@@ -71,7 +71,8 @@ export default function Account() {
       <header className="page__head">
         <div>
           <img className="page__icon" src="/icons/usuario.webp" alt="" width="56" height="56" /><p className="eyebrow">// Conta</p><h1>Minha <span className="grad">conta</span></h1>
-          <p className="muted">Conta criada em {fmtDate(account.created_at)}{account.google ? ' · vinculada ao Google' : ''}.</p>
+          <p className="muted">Conta criada em {fmtDate(account.created_at)}.</p>
+          {account.google && <span className="linked-chip"><img src="/icons/corrente.webp" alt="" width="18" height="18" /> Vinculada ao Google</span>}
         </div>
       </header>
 

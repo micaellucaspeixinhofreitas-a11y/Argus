@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { LuDownload, LuSearch, LuPhone, LuGlobe, LuMail, LuMapPin } from 'react-icons/lu'
+import { LuDownload, LuSearch, LuPhone, LuMail, LuMapPin } from 'react-icons/lu'
 import { api, fmtDateTime, fmtInt } from '../lib/api'
 
 const waLink = phone => {
@@ -55,7 +55,7 @@ export default function Leads() {
                       {l.phone && waLink(l.phone) && <a href={waLink(l.phone)} target="_blank" rel="noreferrer">WhatsApp</a>}
                       {l.email && <a href={`mailto:${l.email}`}><LuMail /> {l.email}</a>}
                       {l.website
-                        ? <a href={l.website.startsWith('http') ? l.website : `https://${l.website}`} target="_blank" rel="noreferrer"><LuGlobe /> site</a>
+                        ? <a href={l.website.startsWith('http') ? l.website : `https://${l.website}`} target="_blank" rel="noreferrer"><img className="ic3d-sm" src="/icons/corrente.webp" alt="" width="16" height="16" /> site</a>
                         : <span className="flag flag--noweb">Sem website</span>}
                       {Object.entries(l.social || {}).map(([k, v]) => <span key={k} className="flag">{k}: {v}</span>)}
                       {!l.phone && !l.email && !l.website && <span className="muted">Sem contatos cadastrados</span>}

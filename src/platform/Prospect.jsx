@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   LuSearch, LuX, LuTrash2, LuRefreshCw, LuPlay, LuSave, LuCrosshair,
-  LuGlobe, LuPhone, LuMail, LuMapPin, LuCheck, LuLoader, LuLocateFixed,
+  LuPhone, LuMail, LuMapPin, LuCheck, LuLoader, LuLocateFixed,
 } from 'react-icons/lu'
 import MapView from './MapView'
 import CategoryPicker from './CategoryPicker'
@@ -542,7 +542,7 @@ export default function Prospect() {
                       {r.captured && (
                         <div className="res__contact">
                           {r.phone && <a href={`tel:${r.phone}`}><LuPhone /> {r.phone}</a>}
-                          {r.website && <a href={r.website.startsWith('http') ? r.website : `https://${r.website}`} target="_blank" rel="noreferrer"><LuGlobe /> site</a>}
+                          {r.website && <a href={r.website.startsWith('http') ? r.website : `https://${r.website}`} target="_blank" rel="noreferrer"><img className="ic3d-sm" src="/icons/corrente.webp" alt="" width="16" height="16" /> site</a>}
                           {r.email && <a href={`mailto:${r.email}`}><LuMail /> {r.email}</a>}
                           {r.address && <span><LuMapPin /> {r.address}</span>}
                         </div>
