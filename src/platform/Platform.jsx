@@ -148,7 +148,7 @@ function TopBar() {
         <div className="topbar__actions">
           {credits && (
             <NavLink to="/app/creditos" className="topbar__credits" title="Créditos disponíveis no mês · leads capturados hoje">
-              <LuCoins aria-hidden="true" />
+              <img className="topbar__coin" src="/icons/moeda.webp" alt="" width="20" height="20" />
               <strong>{fmtInt(credits.available)}</strong>
               <span>créditos</span>
               <i aria-hidden="true" />

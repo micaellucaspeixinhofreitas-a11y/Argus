@@ -140,7 +140,7 @@ export default function Dashboard() {
       id: 'credits', onClick: () => navigate('/app/creditos'),
       content: (
         <div className="bk">
-          <div className="bk__head"><img src="/icons/raio.webp" alt="" width="34" height="34" /><span>Créditos disponíveis</span></div>
+          <div className="bk__head"><img src="/icons/moeda.webp" alt="" width="34" height="34" /><span>Créditos disponíveis</span></div>
           <strong className="bk__num">{fmtInt(c.available)}</strong>
           <span className="bk__meter"><i style={{ width: `${creditPct}%` }} /></span>
           <small className="bk__foot">de {fmtInt(c.monthly_credits)} · plano {c.plan?.name} · hoje {fmtInt(c.today_used)}/{fmtInt(c.daily_limit)}</small>
@@ -235,7 +235,7 @@ export default function Dashboard() {
         <div className="card dash__chart">
           <div className="dash__card-head">
             <div>
-              <h2>{metric === 'leads' ? 'Leads capturados por dia' : 'Mapeamentos por dia'}</h2>
+              <h2 className="h2-icon"><img className="h2-ic" src="/icons/calendario.webp" alt="" width="24" height="24" /> {metric === 'leads' ? 'Leads capturados por dia' : 'Mapeamentos por dia'}</h2>
               <p className="muted small">{fmtInt(periodSum)} nos últimos {days} dias</p>
             </div>
             <div className="seg-tabs">
@@ -247,7 +247,7 @@ export default function Dashboard() {
         </div>
 
         <div className="card dash__quality">
-          <div className="dash__card-head"><h2>Qualidade dos leads</h2></div>
+          <div className="dash__card-head"><h2 className="h2-icon"><img className="h2-ic" src="/icons/estrela.webp" alt="" width="24" height="24" /> Qualidade dos leads</h2></div>
           {q.total ? (
             <ul className="meters-list">
               {[
@@ -269,15 +269,15 @@ export default function Dashboard() {
 
       <section className="dash__row">
         <div className="card">
-          <div className="dash__card-head"><h2>Segmentos mais buscados</h2></div>
+          <div className="dash__card-head"><h2 className="h2-icon"><img className="h2-ic" src="/icons/lupa.webp" alt="" width="24" height="24" /> Segmentos mais buscados</h2></div>
           <BarList rows={data.segments} empty="Nenhum segmento pesquisado ainda." />
         </div>
         <div className="card">
-          <div className="dash__card-head"><h2>Cidades dos seus leads</h2></div>
+          <div className="dash__card-head"><h2 className="h2-icon"><img className="h2-ic" src="/icons/pino.webp" alt="" width="24" height="24" /> Cidades dos seus leads</h2></div>
           <BarList rows={data.cities} empty="Sem leads capturados ainda." />
         </div>
         <div className="card">
-          <div className="dash__card-head"><h2>Tipos de empresa</h2></div>
+          <div className="dash__card-head"><h2 className="h2-icon"><img className="h2-ic" src="/icons/dados.webp" alt="" width="24" height="24" /> Tipos de empresa</h2></div>
           <BarList rows={data.categories.map(r => ({ ...r, label: r.label.replace(/_/g, ' ') }))} empty="Sem leads capturados ainda." />
         </div>
       </section>
@@ -285,7 +285,7 @@ export default function Dashboard() {
       <section className="dash__row dash__row--two">
         <div className="card">
           <div className="dash__card-head">
-            <h2>Últimos mapeamentos</h2>
+            <h2 className="h2-icon"><img className="h2-ic" src="/icons/calendario.webp" alt="" width="24" height="24" /> Últimos mapeamentos</h2>
             <Link to="/app/prospectar" className="dash__more">Prospectar <LuChevronRight /></Link>
           </div>
           {data.recentRuns.length ? (
@@ -305,7 +305,7 @@ export default function Dashboard() {
         </div>
         <div className="card">
           <div className="dash__card-head">
-            <h2>Últimos leads</h2>
+            <h2 className="h2-icon"><img className="h2-ic" src="/icons/coracao.webp" alt="" width="24" height="24" /> Últimos leads</h2>
             <span className="dash__links">
               <a href="/api/leads/export" className="dash__more"><LuDownload /> CSV</a>
               <Link to="/app/leads" className="dash__more">Ver todos <LuChevronRight /></Link>
@@ -331,7 +331,7 @@ export default function Dashboard() {
       {data.savedSearches.length > 0 && (
         <section className="card dash__saved">
           <div className="dash__card-head">
-            <h2>Buscas salvas</h2>
+            <h2 className="h2-icon"><img className="h2-ic" src="/icons/pasta.webp" alt="" width="24" height="24" /> Buscas salvas</h2>
             <Link to="/app/buscas" className="dash__more">Abrir <LuChevronRight /></Link>
           </div>
           <div className="dash__chips">

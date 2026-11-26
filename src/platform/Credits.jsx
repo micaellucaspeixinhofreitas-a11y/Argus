@@ -23,7 +23,7 @@ export default function Credits() {
     <div className="page">
       <header className="page__head">
         <div>
-          <img className="page__icon" src="/icons/grafico.webp" alt="" width="56" height="56" /><p className="eyebrow">// Créditos</p><h1>Seus <span className="grad">créditos</span></h1>
+          <img className="page__icon" src="/icons/moeda.webp" alt="" width="56" height="56" /><p className="eyebrow">// Créditos</p><h1>Seus <span className="grad">créditos</span></h1>
           <p className="muted">Plano atual: <strong>{c.plan.name}</strong>. <Link to="/app/planos">Ver planos</Link></p>
         </div>
       </header>
@@ -44,7 +44,7 @@ export default function Credits() {
         <div className="meter"><i style={{ width: `${dayPct}%` }} /></div>
       </div>
       <div className="card rules">
-        <h2>Como os créditos funcionam</h2>
+        <h2 className="h2-icon"><img className="h2-ic" src="/icons/lupa.webp" alt="" width="24" height="24" /> Como os créditos funcionam</h2>
         <ul>
           <li>1 crédito por <strong>novo</strong> lead capturado. Mapear, ver o radar e salvar buscas não consome créditos.</li>
           <li>Capturar de novo uma empresa que já é sua não cobra nada (deduplicação).</li>
@@ -53,7 +53,7 @@ export default function Credits() {
         </ul>
       </div>
       <div className="card">
-        <h2>Histórico de consumo</h2>
+        <h2 className="h2-icon"><img className="h2-ic" src="/icons/calendario.webp" alt="" width="24" height="24" /> Histórico de consumo</h2>
         {data.history.length === 0 ? <p className="muted">Nenhum consumo ainda.</p> : (
           <ul className="history">
             {data.history.map(h => (

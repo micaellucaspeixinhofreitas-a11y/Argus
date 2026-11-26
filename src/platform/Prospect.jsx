@@ -276,7 +276,7 @@ export default function Prospect() {
       {/* ===== painel de configuração ===== */}
       <aside className="pros__panel">
         <section className="step card">
-          <header className="step__head"><img className="step__icon" src="/icons/raio.webp" alt="" width="40" height="40" /> <h2>Defina o alvo</h2><span className="step__n">01</span></header>
+          <header className="step__head"><img className="step__icon" src="/icons/lupa.webp" alt="" width="40" height="40" /> <h2>Defina o alvo</h2><span className="step__n">01</span></header>
           <div className="field">
             <span>Segmentos <em>(opcional)</em></span>
             <div className="chips-input">

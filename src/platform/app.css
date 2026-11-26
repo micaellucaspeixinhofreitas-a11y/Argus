@@ -460,3 +460,5 @@ a.activity__num { color: var(--acc-2); }
 .catpick__chip:hover { color: #fff; border-color: #3a3a44; }
 .catpick__chip.is-on { color: #fff; background: rgba(139, 92, 246, .18); border-color: rgba(139, 92, 246, .55); }
 .catpick__chip svg { font-size: 13px; color: #c4b5fd; }
+.h2-ic { width: 24px; height: 24px; object-fit: contain; flex: none; filter: drop-shadow(0 3px 8px rgba(139, 92, 246, .5)); }
+.topbar__coin { width: 20px; height: 20px; object-fit: contain; filter: drop-shadow(0 2px 6px rgba(139, 92, 246, .5)); }
