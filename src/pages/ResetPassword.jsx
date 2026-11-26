@@ -38,6 +38,7 @@ export default function ResetPassword() {
         <img src="/argus-chrome.webp" alt="Argus" width="1400" height="454" />
       </Link>
       <form className="auth__card card" onSubmit={submit}>
+        <img className="auth__icon" src="/icons/chave.webp" alt="" width="64" height="64" />
         <h1>Crie uma nova senha</h1>
         {!token ? (
           <>

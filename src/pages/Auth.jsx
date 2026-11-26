@@ -72,6 +72,7 @@ export default function Auth() {
         <img src="/argus-chrome.webp" alt="Argus" width="1400" height="454" />
       </Link>
       <form className="auth__card card" onSubmit={submit}>
+        {mode === 'forgot' && <img className="auth__icon" src="/icons/envelope.webp" alt="" width="64" height="64" />}
         <h1>{title}</h1>
         <p className="muted">{lead}</p>
         {google && mode !== 'forgot' && (

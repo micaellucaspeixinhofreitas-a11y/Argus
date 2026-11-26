@@ -594,3 +594,4 @@ html, body { overflow-x: clip; }
   .maint__inner { grid-template-columns: 1fr; gap: 10px; text-align: left; }
   .maint__bot { width: min(360px, 90%); justify-self: center; }
 }
+.auth__icon { width: 64px; height: 64px; object-fit: contain; filter: drop-shadow(0 8px 18px rgba(139, 92, 246, .5)); margin-bottom: -4px; }

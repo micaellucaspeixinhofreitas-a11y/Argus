@@ -145,7 +145,7 @@ export default function Subscription() {
           </div>
           <form className="coupon" onSubmit={e => { e.preventDefault(); applyCoupon() }}>
             <label className="field">
-              <span className="coupon__label"><img src="/icons/presente.webp" alt="" width="22" height="22" /> Cupom de desconto</span>
+              <span className="coupon__label"><img src="/icons/cupom.webp" alt="" width="22" height="22" /> Cupom de desconto</span>
               <div className="coupon__row">
                 <input value={couponInput} onChange={e => setCouponInput(e.target.value.toUpperCase())} placeholder="Ex.: LANCAMENTO20" autoComplete="off" />
                 {coupon

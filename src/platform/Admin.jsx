@@ -179,7 +179,7 @@ export default function Admin() {
       ))}
       <details className="card"><summary>Novo plano</summary><PlanForm plan={blankPlan} onSave={body => act(() => api('admin/plans', { method: 'POST', body }), 'Plano criado.')} /></details>
 
-      <h2 className="h2-icon"><img src="/icons/presente.webp" alt="" width="26" height="26" /> Cupons de desconto</h2>
+      <h2 className="h2-icon"><img src="/icons/cupom.webp" alt="" width="26" height="26" /> Cupons de desconto</h2>
       <details className="card"><summary>Novo cupom</summary>
         <CouponForm plans={data.plans} onSave={async body => {
           setError(''); setMsg('')
