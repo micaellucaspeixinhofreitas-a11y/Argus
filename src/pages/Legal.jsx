@@ -47,7 +47,7 @@ function Privacy() {
       <p>Apenas com fornecedores necessários para o serviço funcionar, que tratam os dados em nosso nome:</p>
       <ul>
         <li>Hospedagem e banco de dados (Vercel e Neon).</li>
-        <li>Mapas e dados de estabelecimentos (CARTO, OpenStreetMap e TomTom) — recebem as áreas pesquisadas, não seus dados de cadastro.</li>
+        <li>Mapas e dados de estabelecimentos (CARTO, OpenStreetMap, TomTom e Google) — recebem as áreas pesquisadas, não seus dados de cadastro.</li>
         <li>Envio de e-mails transacionais (Resend).</li>
       </ul>
       <p>Alguns desses fornecedores podem armazenar dados fora do Brasil, com as garantias previstas na LGPD.</p>
@@ -110,7 +110,7 @@ function Terms() {
         <li>Cada busca consome créditos conforme a quantidade de empresas pedida, de acordo com a tabela exibida na plataforma (por exemplo, 150 créditos por 20 empresas); capturar leads não consome créditos.</li>
         <li>Os créditos e limites de cada plano são os informados na tela de planos. Créditos não usados não acumulam para o mês seguinte.</li>
         <li>Planos pagos são liberados após a confirmação do pagamento e valem pelo período contratado (mensal ou trimestral).</li>
-        <li>Você pode cancelar a renovação quando quiser e mantém o acesso até o fim do período já pago.</li>
+        <li>Não há cobrança automática: o plano vale pelo período pago e é renovado com um novo pagamento. Renovando o mesmo plano antes do vencimento, os dias restantes são somados ao novo período.</li>
         <li>O direito de arrependimento de 7 dias (art. 49 do CDC) é garantido para a primeira contratação.</li>
       </ul>
 
@@ -137,7 +137,7 @@ function Terms() {
       </p>
 
       <h2>7. Encerramento</h2>
-      <p>Você pode pedir a exclusão da conta a qualquer momento pelo e-mail <a href={`mailto:${contact.email}`}>{contact.email}</a>.</p>
+      <p>Você pode excluir sua conta a qualquer momento na própria plataforma (Minha conta → Excluir conta) ou pedir a exclusão pelo e-mail <a href={`mailto:${contact.email}`}>{contact.email}</a>.</p>
 
       <h2>8. Alterações e lei aplicável</h2>
       <p>

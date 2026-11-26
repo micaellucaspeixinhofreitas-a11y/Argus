@@ -4,7 +4,7 @@ import { query, tx } from './_lib/db.js'
 import { send, readJson, fail, HttpError, str, num } from './_lib/http.js'
 import { hashPassword, verifyPassword, sessionCookie, clearCookie, currentUser, requireUser, requireAdmin, newResetToken, hashToken, NO_PASSWORD, hasPassword, oauthCookie, clearOauthCookie, readOauthCookie } from './_lib/auth.js'
 import crypto from 'node:crypto'
-import { sendMail } from './_lib/mail.js'
+import { sendMail, mailConfigured } from './_lib/mail.js'
 import { getSettings, saveSetting, publicStatus } from './_lib/settings.js'
 import { creditStatus, creditHistory, activePlan, hasPro, TZ } from './_lib/credits.js'
 import { pixConfigured, pixPayload } from './_lib/pix.js'
@@ -81,7 +81,7 @@ const basemapKey = () => process.env.CARTO_BASEMAPS_KEY || process.env.CARTO_API
 
 const googleConfigured = () => Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
 
-on('GET', 'meta', async () => ({ segments: catalogList(), criteria: criteriaList(), limits: LIMITS, basemapKey: basemapKey(), googleAuth: googleConfigured() }))
+on('GET', 'meta', async () => ({ segments: catalogList(), criteria: criteriaList(), limits: LIMITS, basemapKey: basemapKey(), googleAuth: googleConfigured(), mail: mailConfigured() }))
 
 // ---------- status do site (manutenção, aviso) ----------
 on('GET', 'site/status', async () => publicStatus(await getSettings()))
@@ -166,6 +166,8 @@ const RESET_MINUTES = 60
 on('POST', 'auth/forgot', async ({ req, body }) => {
   const email = str(body.email, 160).toLowerCase()
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail(400, 'Informe um e-mail válido.')
+  // sem envio de e-mail configurado, não finge que mandou (vale igual para qualquer e-mail)
+  if (!mailConfigured()) fail(503, 'A recuperação de senha por e-mail está indisponível no momento. Tente novamente mais tarde.', 'MAIL_NOT_CONFIGURED')
   // resposta sempre igual: não revela se o e-mail tem conta
   const done = { ok: true, message: 'Se houver uma conta com este e-mail, enviamos um link para redefinir a senha. Confira também a caixa de spam.' }
   if ((await recentEvents('password_forgot', email, 60)) >= 3) return done
@@ -460,7 +462,7 @@ on('GET', 'dashboard', async ({ req, url }) => {
       `select coalesce(nullif(c.city, ''), 'Sem cidade') as label, count(*)::int as n
          from leads l join companies c on c.id = l.company_id where l.user_id = $1 group by 1 order by n desc, 1 limit 6`, [uid]),
     query(
-      `select coalesce(nullif(split_part(c.category, ':', 2), ''), c.category, 'Outros') as label, count(*)::int as n
+      `select coalesce(c.category, 'Outros') as label, count(*)::int as n
          from leads l join companies c on c.id = l.company_id where l.user_id = $1 group by 1 order by n desc, 1 limit 6`, [uid]),
     query(
       `select count(*)::int as total,
@@ -502,16 +504,21 @@ const leadsQuery = `
 
 on('GET', 'leads', async ({ req, url }) => {
   const user = await requireUser(req)
-  const { rows } = await query(`${leadsQuery} limit 1000`, [user.id, str(url.searchParams.get('q'), 80)])
-  return { leads: rows }
+  const q = str(url.searchParams.get('q'), 80)
+  const { rows } = await query(`${leadsQuery} limit 1000`, [user.id, q])
+  const total = rows.length < 1000 ? rows.length
+    : (await query(`select count(*)::int as n from (${leadsQuery}) t`, [user.id, q])).rows[0].n
+  return { leads: rows, total }
 })
 
 on('GET', 'leads/export', async ({ req }) => {
   const user = await requireUser(req)
   const { rows } = await query(leadsQuery, [user.id, ''])
-  const cols = ['name', 'category', 'phone', 'website', 'email', 'address', 'city', 'lat', 'lng', 'score', 'captured_at']
+  const cols = ['name', 'category', 'phone', 'website', 'email', 'address', 'city', 'opening_hours', 'social', 'lat', 'lng', 'score', 'captured_at']
   const escCsv = v => {
-    if (typeof v === 'string' && /^[=+\-@\t\r]/.test(v)) v = `'${v}`
+    if (v && typeof v === 'object' && !(v instanceof Date)) v = Object.entries(v).map(([k, x]) => `${k}: ${x}`).join(' | ')
+    // evita fórmulas no Excel, sem estragar telefones como +55 11 ...
+    if (typeof v === 'string' && /^[=+\-@\t\r]/.test(v) && !/^\+?[\d\s().-]+$/.test(v)) v = `'${v}`
     const s = v == null ? '' : v instanceof Date ? v.toISOString() : String(v)
     return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
   }
@@ -565,7 +572,21 @@ on('GET', 'plans', async () => {
   return { plans: rows }
 })
 
+// Pix não renova sozinho: assinatura cujo período acabou passa a "expirada"
+const expireSubscriptions = (userId = null) => query(
+  `update subscriptions set status = 'expired', updated_at = now()
+    where status = 'active' and current_period_end is not null and current_period_end < now() and ($1::bigint is null or user_id = $1)`, [userId])
+
+// Início do novo período: renovar o MESMO plano antes do fim soma os dias que faltam; trocar de plano começa agora
+async function periodStart(db, userId, planId) {
+  const { rows: [cur] } = await db.query(
+    `select current_period_end from subscriptions where user_id = $1 and status = 'active' and plan_id = $2 and current_period_end > now()
+      order by current_period_end desc limit 1`, [userId, planId])
+  return cur ? cur.current_period_end : new Date()
+}
+
 async function subscriptionState(userId) {
+  await expireSubscriptions(userId)
   const { rows } = await query(
     `select s.*, p.name as plan_name from subscriptions s join plans p on p.id = s.plan_id
       where s.user_id = $1 order by s.created_at desc limit 10`, [userId])
@@ -655,15 +676,16 @@ on('POST', 'payment/pix', async ({ req, body }) => {
       coupon: coupon ? { code: coupon.code, label: couponLabel(coupon) } : null }
     // cupom de 100%: libera o plano na hora, sem Pix
     if (amount_cents === 0) {
+      const start = await periodStart(db, user.id, plan.id)
       await db.query(`update subscriptions set status = 'canceled', updated_at = now() where user_id = $1 and status = 'active'`, [user.id])
       await db.query(
-        `update subscriptions set status = 'active', payment_provider = 'coupon', current_period_start = now(),
-                current_period_end = now() + ($2 || ' months')::interval, updated_at = now() where id = $1`,
-        [sub.id, String(periodMonths(period))])
+        `update subscriptions set status = 'active', payment_provider = 'coupon', current_period_start = $3,
+                current_period_end = $3::timestamptz + ($2 || ' months')::interval, updated_at = now() where id = $1`,
+        [sub.id, String(periodMonths(period)), start])
       await db.query(`insert into operations_log (user_id, type, detail) values ($1, 'coupon_free_activation', $2)`, [user.id, JSON.stringify({ subscription: sub.id, coupon: coupon.code })])
       return { ...base, activated: true }
     }
-    if (!pixConfigured()) fail(503, 'O pagamento por Pix ainda não foi configurado. Fale com o suporte.', 'PIX_NOT_CONFIGURED')
+    if (!pixConfigured()) fail(503, 'O pagamento por Pix está indisponível no momento. Tente novamente mais tarde.', 'PIX_NOT_CONFIGURED')
     const payload = pixPayload({ amountCents: amount_cents, txid: sub.payment_reference, description: `Argus ${plan.name}` })
     return { ...base, amount_cents, payload, receiver: process.env.PIX_NAME }
   })
@@ -691,6 +713,7 @@ on('GET', 'admin/runs', async ({ req }) => {
 
 on('GET', 'admin/overview', async ({ req }) => {
   await requireAdmin(req)
+  await expireSubscriptions()
   const { rows: users } = await query(
     `select u.id, u.email, u.name, u.is_admin, u.created_at,
             (select json_build_object('id', s.id, 'plan_id', s.plan_id, 'status', s.status, 'period', s.period, 'current_period_end', s.current_period_end,
@@ -740,17 +763,18 @@ on('POST', 'admin/subscription', async ({ req, body }) => {
       const { rows: [pending] } = await db.query(
         `select id from subscriptions where user_id = $1 and status = 'pending_payment' and plan_id = $2 and period = $3
           order by created_at desc limit 1`, [userId, plan.id, period])
+      const start = await periodStart(db, userId, plan.id)
       await db.query(`update subscriptions set status = 'canceled', updated_at = now() where user_id = $1 and status in ('active','pending_payment') and id <> $2`, [userId, pending?.id || 0])
       if (pending) {
         await db.query(
-          `update subscriptions set status = 'active', current_period_start = now(), current_period_end = now() + ($2 || ' months')::interval,
-                  updated_at = now() where id = $1`, [pending.id, String(periodMonths(period))])
+          `update subscriptions set status = 'active', current_period_start = $3, current_period_end = $3::timestamptz + ($2 || ' months')::interval,
+                  updated_at = now() where id = $1`, [pending.id, String(periodMonths(period)), start])
       } else {
         const price = period === 'quarterly' ? plan.price_quarterly_cents : plan.price_monthly_cents
         await db.query(
           `insert into subscriptions (user_id, plan_id, period, status, payment_provider, current_period_start, current_period_end, amount_cents)
-           values ($1, $2, $3, 'active', 'manual', now(), now() + ($4 || ' months')::interval, $5)`,
-          [userId, plan.id, period, String(periodMonths(period)), price])
+           values ($1, $2, $3, 'active', 'manual', $6, $6::timestamptz + ($4 || ' months')::interval, $5)`,
+          [userId, plan.id, period, String(periodMonths(period)), price, start])
       }
     })
   } else if (action === 'cancel') {

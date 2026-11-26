@@ -25,6 +25,7 @@ export default function Auth() {
   const [form, setForm] = useState({ name: '', email: '', password: '', accept: false })
   const [error, setError] = useState(() => GOOGLE_ERRORS[params.get('erro')] || '')
   const [google, setGoogle] = useState(false)
+  const [mail, setMail] = useState(true)
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -33,7 +34,7 @@ export default function Auth() {
     if (!loading && user) navigate(next, { replace: true })
   }, [loading, user, navigate, next])
 
-  useEffect(() => { api('meta').then(m => setGoogle(Boolean(m.googleAuth))).catch(() => {}) }, [])
+  useEffect(() => { api('meta').then(m => { setGoogle(Boolean(m.googleAuth)); setMail(m.mail !== false) }).catch(() => {}) }, [])
 
   const set = k => e => {
     if (k === 'accept' && e.target.checked) setError('')
@@ -117,7 +118,8 @@ export default function Auth() {
         {closed && <p className="form-notice">Novos cadastros estão temporariamente fechados. Se você já tem conta, é só entrar.</p>}
         {error && <p className="form-error" role="alert">{error}</p>}
         {notice && <p className="form-notice" role="status">{notice}</p>}
-        <button className="btn btn--primary btn--block" disabled={busy || closed}>
+        {mode === 'forgot' && !mail && <p className="form-notice">A recuperação de senha por e-mail está indisponível no momento. Tente novamente mais tarde.</p>}
+        <button className="btn btn--primary btn--block" disabled={busy || closed || (mode === 'forgot' && !mail)}>
           {busy ? 'Aguarde…' : mode === 'register' ? 'Criar conta grátis' : mode === 'forgot' ? 'Enviar link' : 'Entrar'}
         </button>
         <p className="auth__switch">

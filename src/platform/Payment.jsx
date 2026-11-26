@@ -5,8 +5,8 @@ import { api, money } from '../lib/api'
 import { useAuth } from '../lib/auth'
 
 // Pagamento por Pix (QR Code + Copia e Cola), exibido dentro da tela de planos
-export default function Payment({ planId = 'pro', period = 'monthly', couponCode = '' }) {
-  const { pro, refresh } = useAuth()
+export default function Payment({ planId = 'pro', period = 'monthly', couponCode = '', onActivated }) {
+  const { refresh } = useAuth()
   const [data, setData] = useState(null)
   const [qr, setQr] = useState('')
   const [error, setError] = useState('')
@@ -15,25 +15,34 @@ export default function Payment({ planId = 'pro', period = 'monthly', couponCode
 
   // gera (ou reaproveita) o pedido e o QR Code
   useEffect(() => {
-    if (pro) return
     setData(null); setQr(''); setError('')
     api('payment/pix', { method: 'POST', body: { planId, period, couponCode } })
       .then(async d => {
         // cupom de 100%: o plano já foi liberado
-        if (d.activated) return refresh()
+        if (d.activated) { await refresh(); onActivated?.(d.plan); return }
         setData(d)
         setReported(Boolean(d.subscription.payment_reported_at))
         setQr(await QRCode.toDataURL(d.payload, { width: 320, margin: 1, color: { dark: '#0b0914', light: '#ffffff' } }))
       })
       .catch(e => setError(e.message))
-  }, [planId, period, couponCode, pro, refresh])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planId, period, couponCode])
 
-  // confere a liberação do plano a cada 15 s
+  // confere a cada 15 s se ESTE pedido foi confirmado
+  const subId = data?.subscription?.id
   useEffect(() => {
-    if (pro) return
-    const t = setInterval(refresh, 15000)
+    if (!subId) return
+    const t = setInterval(async () => {
+      try {
+        const s = await api('subscription')
+        if (s.subscriptions.find(x => x.id === subId)?.status === 'active') {
+          clearInterval(t); await refresh(); onActivated?.(data.plan)
+        }
+      } catch { /* tenta de novo */ }
+    }, 15000)
     return () => clearInterval(t)
-  }, [pro, refresh])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subId])
 
   const copy = async () => {
     try {
@@ -50,8 +59,6 @@ export default function Payment({ planId = 'pro', period = 'monthly', couponCode
       setReported(true)
     } catch (e) { setError(e.message) }
   }
-
-  if (pro) return null
 
   return (
     <>
@@ -80,7 +87,7 @@ export default function Payment({ planId = 'pro', period = 'monthly', couponCode
             <ol className="pay__steps">
               <li>Pague o valor exato pelo QR Code ou pelo código Copia e Cola.</li>
               <li>Clique em <strong>Já paguei</strong> para registrar o pagamento.</li>
-              <li>Após a confirmação, o plano Pro é liberado automaticamente nesta tela.</li>
+              <li>Após a confirmação, o plano {data.plan.name} é liberado automaticamente nesta tela.</li>
             </ol>
             {reported
               ? <p className="form-notice notice-icon"><img src="/icons/sino.webp" alt="" width="26" height="26" /> <span>Recebemos seu aviso de pagamento. A liberação acontece assim que o Pix for confirmado — esta página atualiza sozinha.</span></p>

@@ -1,20 +1,24 @@
 import { useEffect, useState } from 'react'
 import { LuDownload, LuSearch, LuPhone, LuMail, LuMapPin } from 'react-icons/lu'
 import { api, fmtDateTime, fmtInt } from '../lib/api'
+import { catLabel } from '../lib/category'
 
+// WhatsApp exige o número com código do país (Brasil = 55 quando vier só DDD + número)
 const waLink = phone => {
-  const digits = String(phone).replace(/\D/g, '')
-  return digits.length >= 10 ? `https://wa.me/${digits}` : null
+  let digits = String(phone).replace(/\D/g, '').replace(/^0+/, '')
+  if (digits.length === 10 || digits.length === 11) digits = '55' + digits
+  return digits.length >= 12 ? `https://wa.me/${digits}` : null
 }
 
 export default function Leads() {
   const [q, setQ] = useState('')
   const [leads, setLeads] = useState(null)
+  const [total, setTotal] = useState(0)
   const [error, setError] = useState('')
 
   useEffect(() => {
     const t = setTimeout(() => {
-      api(`leads?q=${encodeURIComponent(q)}`).then(d => setLeads(d.leads)).catch(e => setError(e.message))
+      api(`leads?q=${encodeURIComponent(q)}`).then(d => { setLeads(d.leads); setTotal(d.total ?? d.leads.length) }).catch(e => setError(e.message))
     }, 250)
     return () => clearTimeout(t)
   }, [q])
@@ -37,7 +41,7 @@ export default function Leads() {
         <div className="card empty-state"><img className="empty-state__icon" src="/icons/robo.webp" alt="" width="88" height="88" /><p><strong>Nenhum lead ainda.</strong> Mapeie uma região e capture as empresas que interessam.</p></div>
       ) : (
         <>
-          <p className="hint">{fmtInt(leads.length)} lead(s){q && ' no filtro'}</p>
+          <p className="hint">{fmtInt(total)} lead(s){q && ' no filtro'}{total > leads.length && ` · mostrando os ${fmtInt(leads.length)} mais recentes (use o filtro ou exporte o CSV para ver todos)`}</p>
           <div className="table-wrap card">
             <table className="table table--cards">
               <thead>
@@ -48,7 +52,7 @@ export default function Leads() {
                   <tr key={l.id}>
                     <td data-label="Empresa">
                       <strong>{l.name}</strong>
-                      <small className="muted block">{l.category?.split(':')[1]?.replace(/_/g, ' ') || '—'}</small>
+                      <small className="muted block">{catLabel(l.category)}</small>
                     </td>
                     <td className="contacts" data-label="Contato">
                       {l.phone && <a href={`tel:${l.phone}`}><LuPhone /> {l.phone}</a>}

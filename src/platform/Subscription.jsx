@@ -14,7 +14,7 @@ const STATUS = {
 }
 
 export default function Subscription() {
-  const { refresh, pro } = useAuth()
+  const { refresh } = useAuth()
   const [params] = useSearchParams()
   const [plans, setPlans] = useState([])
   const [state, setState] = useState(null)
@@ -53,7 +53,7 @@ export default function Subscription() {
   useEffect(() => { load() }, [])
 
   const cancel = async resume => {
-    if (!resume && !window.confirm('Cancelar a renovação? Você mantém o plano até o fim do período atual.')) return
+    if (!resume && !window.confirm('Desistir deste pedido de pagamento?')) return
     setBusy(true)
     try { setState(await api('subscription/cancel', { method: 'POST', body: { resume } })); refresh() } catch (e) { setError(e.message) } finally { setBusy(false) }
   }
@@ -61,6 +61,7 @@ export default function Subscription() {
   if (!state) return <div className="page">{error ? <p className="form-error">{error}</p> : <p className="muted">Carregando…</p>}</div>
   const current = state.current
   const latest = state.subscriptions[0]
+  const daysLeft = latest?.current_period_end ? Math.ceil((new Date(latest.current_period_end) - Date.now()) / 86400000) : null
 
   return (
     <div className="page">
@@ -83,16 +84,17 @@ export default function Subscription() {
             <small>Última assinatura</small>
             <strong>{latest.plan_name} · {latest.period === 'quarterly' ? 'Trimestral' : 'Mensal'}</strong>
             <span className={`flag ${latest.status === 'active' ? 'flag--fit' : latest.status === 'pending_payment' ? 'flag--noweb' : ''}`}>{STATUS[latest.status]}</span>
-            {latest.status === 'active' && (
+            {latest.status === 'active' && latest.current_period_end && (
               <span className="muted">
-                {latest.cancel_at_period_end ? `Encerra em ${fmtDate(latest.current_period_end)}` : `Renova em ${fmtDate(latest.current_period_end)}`}
+                Válido até {fmtDate(latest.current_period_end)}{daysLeft != null && daysLeft <= 7 ? ` · ${daysLeft <= 0 ? 'vence hoje' : `faltam ${daysLeft} dia(s)`}` : ''}
               </span>
             )}
+            {latest.status === 'expired' && <span className="muted">Venceu em {fmtDate(latest.current_period_end)}. Pague um novo Pix para voltar ao plano.</span>}
           </div>
         )}
-        {latest?.status === 'active' && (
-          <button className="btn-mini" disabled={busy} onClick={() => cancel(latest.cancel_at_period_end)}>
-            {latest.cancel_at_period_end ? 'Reativar renovação' : 'Cancelar renovação'}
+        {(latest?.status === 'active' || latest?.status === 'expired') && plans.some(p => p.id === latest.plan_id) && (
+          <button className="btn-mini" onClick={() => { setPeriod(latest.period); setCheckout(latest.plan_id) }}>
+            <LuQrCode /> {latest.status === 'active' ? 'Renovar agora' : 'Renovar'}
           </button>
         )}
         {latest?.status === 'pending_payment' && <button className="btn-mini" disabled={busy} onClick={() => cancel(false)}>Desistir</button>}
@@ -127,19 +129,25 @@ export default function Subscription() {
               </ul>
               {isCurrent ? <span className="flag flag--fit">Plano atual</span>
                 : free ? <span className="muted small">Disponível sem assinatura</span>
-                : pro ? <span className="muted small">Você já tem um plano pago ativo</span>
-                : <button className="btn btn--primary btn--sm btn--block" onClick={() => setCheckout(p.id)}><LuQrCode /> Assinar com Pix</button>}
+                : <button className="btn btn--primary btn--sm btn--block" onClick={() => setCheckout(p.id)}><LuQrCode /> {current.subscription_id ? 'Trocar para este plano' : 'Assinar com Pix'}</button>}
             </article>
           )
         })}
       </div>
 
-      {checkout && !pro && (
+      {checkout && (
         <section className="checkout" ref={checkoutRef}>
           <div className="checkout__head">
             <div>
               <h2>Pagamento · {plans.find(p => p.id === checkout)?.name || 'Pro'} {period === 'quarterly' ? 'trimestral' : 'mensal'}</h2>
               <p className="muted">Pague com Pix pelo QR Code. Assim que o pagamento for confirmado, seu acesso é liberado.</p>
+              {current.subscription_id && (
+                <p className="muted small">
+                  {checkout === current.id
+                    ? 'Renovando antes do vencimento, os dias que faltam do período atual são somados ao novo.'
+                    : `Ao trocar de plano, o ${plans.find(p => p.id === checkout)?.name || 'novo plano'} começa quando o pagamento for confirmado e substitui o ${current.name}.`}
+                </p>
+              )}
             </div>
             <button className="btn-mini" onClick={() => setCheckout(null)}>Fechar</button>
           </div>
@@ -161,7 +169,7 @@ export default function Subscription() {
             )}
             {couponError && <p className="form-error">{couponError}</p>}
           </form>
-          <Payment planId={checkout} period={period} couponCode={coupon?.code || ''} />
+          <Payment planId={checkout} period={period} couponCode={coupon?.code || ''} onActivated={plan => { setCheckout(null); setCoupon(null); setCouponInput(''); setMessage(`Pagamento confirmado: plano ${plan?.name || ''} liberado.`); load() }} />
         </section>
       )}
     </div>

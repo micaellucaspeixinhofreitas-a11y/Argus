@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { LuPlay, LuUpload, LuTrash2 } from 'react-icons/lu'
-import { api, fmtDateTime } from '../lib/api'
+import { api, fmtDateTime, fmtInt } from '../lib/api'
 import { countryByCode } from '../lib/countries'
 import { useProspect, emptyConfig } from './Platform'
+import { useAuth } from '../lib/auth'
+import { tierOf, TIERS } from '../lib/tiers'
 
 // Converte a configuração salva no servidor para o formato da tela de prospecção
 const toDraft = c => ({
@@ -12,6 +14,7 @@ const toDraft = c => ({
   country: c.country || 'BR',
   locality: c.locality || '',
   radiusKm: c.radiusKm || 2,
+  maxResults: c.maxResults || 100,
   areas: (c.areas || []).map(a => ({ lat: a.lat, lng: a.lng, radiusKm: a.radiusKm, label: a.label })),
   qualification: {
     enabled: (c.qualification?.criteria || []).length > 0,
@@ -25,6 +28,8 @@ export default function Saved() {
   const [error, setError] = useState('')
   const { setConfig, setPendingRun, setResult, meta } = useProspect()
   const navigate = useNavigate()
+  const { credits } = useAuth()
+  const tiers = credits?.tiers || TIERS
   const critLabel = k => meta.criteria.find(c => c.key === k)?.label || k
 
   const load = () => api('searches').then(d => setSearches(d.searches)).catch(e => setError(e.message))
@@ -64,11 +69,12 @@ export default function Saved() {
                 <dt>Localidade</dt><dd>{s.config.locality || '—'}</dd>
                 <dt>Qualificação</dt><dd>{s.config.qualification?.criteria?.length ? `${s.config.qualification.criteria.map(critLabel).join(', ')} (mín. ${s.config.qualification.minScore}%)` : 'Sem filtros'}</dd>
                 <dt>Áreas</dt><dd>{s.config.areas?.length ? s.config.areas.map(a => `${a.label} (${a.radiusKm} km)`).join(' · ') : `Localidade com raio de ${s.config.radiusKm} km`}</dd>
+                <dt>Quantidade</dt><dd>{tierOf(s.config.maxResults, tiers).max} empresas · {fmtInt(tierOf(s.config.maxResults, tiers).cost)} créditos por execução</dd>
                 <dt>Criada em</dt><dd>{fmtDateTime(s.created_at)}</dd>
                 <dt>Última execução</dt><dd>{fmtDateTime(s.last_run_at)}</dd>
               </dl>
               <div className="btn-row">
-                <button className="btn btn--primary btn--sm" onClick={() => open(s, true)}><LuPlay /> Executar novamente</button>
+                <button className="btn btn--primary btn--sm" onClick={() => open(s, true)}><LuPlay /> Executar · {fmtInt(tierOf(s.config.maxResults, tiers).cost)} créditos</button>
                 <button className="btn-mini" onClick={() => open(s, false)}><LuUpload /> Carregar</button>
                 <button className="btn-mini btn-mini--danger" onClick={() => remove(s)}><LuTrash2 /> Excluir</button>
               </div>

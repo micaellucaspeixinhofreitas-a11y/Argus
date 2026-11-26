@@ -4,6 +4,8 @@ import { api, fmtDate, fmtDateTime, fmtInt } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import CountUp from '../components/CountUp'
 
+const REASONS = { search: 'Busca', admin_adjustment: 'Ajuste do administrador', lead: 'Captura (regra antiga)' }
+
 export default function Credits() {
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
@@ -71,9 +73,9 @@ export default function Credits() {
         )}
         {data.adjustments.length > 0 && (
           <>
-            <h3>Ajustes</h3>
+            <h3>Últimas movimentações</h3>
             <ul className="plain">
-              {data.adjustments.map((a, i) => <li key={i}>{fmtDateTime(a.created_at)} — {a.amount > 0 ? '+' : ''}{a.amount} ({a.note || a.reason})</li>)}
+              {data.adjustments.map((a, i) => <li key={i}>{fmtDateTime(a.created_at)} — <strong>{a.amount > 0 ? '+' : ''}{fmtInt(a.amount)}</strong> · {REASONS[a.reason] || a.reason}{a.note ? ` (${a.note})` : ''}</li>)}
             </ul>
           </>
         )}

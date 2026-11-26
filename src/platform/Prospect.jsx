@@ -8,33 +8,15 @@ import MapView from './MapView'
 import CategoryPicker from './CategoryPicker'
 import CountUp from '../components/CountUp'
 import ProLock from './ProLock'
+import { TIERS } from '../lib/tiers'
 import { useProspect } from './Platform'
 import { useAuth } from '../lib/auth'
 import { api, fmtInt } from '../lib/api'
 import { COUNTRIES, countryByCode } from '../lib/countries'
+import { catLabel } from '../lib/category'
 
-const CATEGORY_PT = {
-  shop: 'Loja', amenity: 'Serviço', office: 'Escritório', craft: 'Ofício', healthcare: 'Saúde', leisure: 'Lazer', tourism: 'Hospedagem',
-}
-const GOOGLE_PT = {
-  restaurant: 'Restaurante', cafe: 'Cafeteria', bar: 'Bar', bakery: 'Padaria', gym: 'Academia', fitness_center: 'Academia',
-  dentist: 'Dentista', dental_clinic: 'Clínica odontológica', doctor: 'Médico', medical_clinic: 'Clínica', hospital: 'Hospital',
-  pharmacy: 'Farmácia', drugstore: 'Farmácia', beauty_salon: 'Salão de beleza', hair_salon: 'Cabeleireiro', barber_shop: 'Barbearia',
-  spa: 'Spa', real_estate_agency: 'Imobiliária', lawyer: 'Advocacia', accounting: 'Contabilidade', car_repair: 'Oficina',
-  store: 'Loja', clothing_store: 'Loja de roupas', supermarket: 'Supermercado', grocery_store: 'Mercado', pet_store: 'Pet shop',
-  veterinary_care: 'Veterinário', hotel: 'Hotel', lodging: 'Hospedagem', school: 'Escola', insurance_agency: 'Seguros',
-  pizza_restaurant: 'Pizzaria', fast_food_restaurant: 'Lanchonete', physiotherapist: 'Fisioterapia', point_of_interest: 'Estabelecimento',
-}
-const catLabel = c => {
-  if (!c) return 'Estabelecimento'
-  const [k, v] = c.split(':')
-  if (k === 'google') return GOOGLE_PT[v] || String(v).replace(/_/g, ' ')
-  if (k === 'tomtom') return String(v).charAt(0).toUpperCase() + String(v).slice(1).replace(/_/g, ' ')
-  return `${CATEGORY_PT[k] || k} · ${String(v).replace(/_/g, ' ')}`
-}
 
-// faixas padrão (o servidor envia as atuais em credits.tiers)
-const TIERS = [{ max: 20, cost: 150 }, { max: 50, cost: 300 }, { max: 100, cost: 450 }, { max: 250, cost: 1050 }, { max: 500, cost: 2100 }, { max: 1000, cost: 4200 }]
+
 
 export default function Prospect() {
   const { config, setConfig, result, setResult, meta, pendingRun, setPendingRun } = useProspect()
@@ -193,7 +175,7 @@ export default function Prospect() {
           const cv = data.coverage || {}
           const parts = [`${fmtInt(cv.fresh ?? data.run.total)} empresa(s) nova(s) mapeada(s)`]
           if (cv.alreadyLeads) parts.push(`${fmtInt(cv.alreadyLeads)} já eram seus leads (aba Capturadas)`)
-          if (data.charged) parts.push(`${fmtInt(data.charged)} créditos usados`)
+          parts.push(data.charged ? `${fmtInt(data.charged)} créditos usados` : 'nenhum crédito usado')
           if (cv.requested && cv.fresh < cv.requested) {
             parts.push(`você pediu ${fmtInt(cv.requested)}, mas a área marcada só tem ${fmtInt(cv.fresh)} empresa(s) nova(s) desse tipo — aumente o raio, adicione áreas ou mude o segmento para encontrar mais`)
           }
@@ -280,7 +262,7 @@ export default function Prospect() {
 
   return (
     <div className={`pros ${outOfCredits && !lockClosed ? 'is-locked' : ''}`}>
-      {outOfCredits && !lockClosed && <ProLock daily={credits.available > 0} onClose={() => setLockClosed(true)} />}
+      {outOfCredits && !lockClosed && <ProLock daily={credits.available >= (tiers[0]?.cost || 150)} onClose={() => setLockClosed(true)} />}
       {/* ===== painel de configuração ===== */}
       <aside className="pros__panel">
         <section className="step card">
@@ -499,7 +481,7 @@ export default function Prospect() {
 
         <div ref={listRef} className="radar">
           <p className="eyebrow">// Radar</p>
-          <h2 className="radar__title">Oportunidades <span className="grad">capturadas</span></h2>
+          <h2 className="radar__title">Radar de <span className="grad">oportunidades</span></h2>
           {stale && <p className="form-notice">Você alterou os critérios. Clique em <strong>Mapear oportunidades</strong> para atualizar os resultados.</p>}
           <div className="radar__cards">
             <button className={`radar-card ${filter === 'all' ? 'is-on' : ''}`} onClick={() => setFilter('all')}>
@@ -532,12 +514,12 @@ export default function Prospect() {
                 </button>
               </div>
             </div>
-            <p className="hint">Capturar leads não consome créditos — a busca já foi cobrada.</p>
+            <p className="hint">Os contatos já vêm na busca. Capturar guarda a empresa em Leads (para acompanhar e exportar) e não consome créditos.</p>
             {visible.length === 0 ? (
               <p className="muted empty">Nenhuma empresa neste filtro. Tente aumentar o raio, adicionar áreas ou mudar o segmento.</p>
             ) : (
               <ul className="results__list">
-                {visible.slice(0, 500).map((r, i) => (
+                {visible.slice(0, 1000).map((r, i) => (
                   <li key={r.id} id={`r-${r.id}`} style={{ '--i': Math.min(i, 20) }} className={`res ${focusId === r.id ? 'is-focus' : ''} ${r.captured ? 'is-captured' : ''}`} onClick={() => setFocusId(r.id)}>
                     <input type="checkbox" checked={selected.has(r.id) || r.captured} disabled={r.captured} onChange={() => toggle(r.id)} onClick={e => e.stopPropagation()} aria-label={`Selecionar ${r.name}`} />
                     <div className="res__main">
@@ -547,11 +529,11 @@ export default function Prospect() {
                         {r.high_fit && <span className="flag flag--fit">Alta aderência</span>}
                         {r.score != null && <span className="flag">{r.score}% aderência</span>}
                         {!r.has_website && <span className="flag flag--noweb">Sem website</span>}
-                        {r.has_phone && <span className="flag"><LuPhone /> telefone</span>}
-                        {r.has_email && <span className="flag"><LuMail /> e-mail</span>}
+                        {r.has_phone && !r.phone && <span className="flag"><LuPhone /> telefone</span>}
+                        {r.has_email && !r.email && <span className="flag"><LuMail /> e-mail</span>}
                         {r.rating != null && <span className="flag">★ {Number(r.rating).toLocaleString('pt-BR')}{r.user_ratings ? ` (${r.user_ratings})` : ''}</span>}
                       </div>
-                      {r.captured && (
+                      {(r.phone || r.website || r.email || r.address) && (
                         <div className="res__contact">
                           {r.phone && <a href={`tel:${r.phone}`}><LuPhone /> {r.phone}</a>}
                           {r.website && <a href={r.website.startsWith('http') ? r.website : `https://${r.website}`} target="_blank" rel="noreferrer"><img className="ic3d-sm" src="/icons/corrente.webp" alt="" width="16" height="16" /> site</a>}
@@ -567,10 +549,10 @@ export default function Prospect() {
                 ))}
               </ul>
             )}
-            {visible.length > 500 && <p className="hint">Mostrando 500 de {fmtInt(visible.length)}. Use os filtros para refinar.</p>}
+            {visible.length > 1000 && <p className="hint">Mostrando 1.000 de {fmtInt(visible.length)}. Use os filtros para refinar.</p>}
             <p className="hint">
               Fontes: {results.some(r => r.source === 'google') && 'Google Maps · '}{results.some(r => r.source === 'tomtom') && 'TomTom · '}© colaboradores do OpenStreetMap.
-              Contatos aparecem após a captura e em <Link to="/app/leads">Leads</Link>.
+              Capture as empresas que interessam para guardá-las em <Link to="/app/leads">Leads</Link> e exportar.
             </p>
           </div>
         ) : (

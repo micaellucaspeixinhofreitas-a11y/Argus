@@ -18,7 +18,7 @@ export const stats = [
   { value: 50, suffix: '', label: 'Buscas por mês no plano Pro' },
   { value: 5000, suffix: '', label: 'Empresas por mês no plano Pro' },
   { value: 150, suffix: '', label: 'Créditos por busca de 20 empresas' },
-  { value: 0, suffix: '', label: 'Cobrança por lead repetido' },
+  { value: 0, suffix: '', label: 'Créditos para capturar e exportar' },
 ]
 
 export const services = [
@@ -70,8 +70,8 @@ export const steps = [
 export const differentials = [
   { title: 'Empresas reais', text: 'Nada de dados fictícios: cada resultado vem de fontes públicas de estabelecimentos, com coordenadas e contatos quando cadastrados.' },
   { title: 'Território sob controle', text: 'Várias áreas na mesma operação, cada uma com raio próprio. O que está fora do raio não entra.' },
-  { title: 'Sem duplicidade', text: 'A mesma empresa nunca aparece duas vezes e um lead já capturado nunca é cobrado de novo.' },
-  { title: 'Créditos transparentes', text: 'Você vê quantos créditos tem, quanto usou hoje e o limite diário antes de cada captura.' },
+  { title: 'Sem duplicidade', text: 'A mesma empresa nunca aparece duas vezes, e empresas que já são seus leads não entram na conta da busca.' },
+  { title: 'Créditos transparentes', text: 'Você vê quantos créditos tem e quanto cada busca vai custar antes de clicar.' },
   { title: 'Foco em prospecção', text: 'Não é um CRM inchado. A Argus faz uma coisa muito bem: encontrar quem pode virar seu cliente.' },
   { title: 'Exportação em CSV', text: 'Leve seus leads capturados para a planilha ou para a ferramenta que você já usa.' },
 ]
@@ -82,10 +82,10 @@ export const segmentsLoop = [
 ]
 
 export const faq = [
-  { q: 'De onde vêm as empresas encontradas?', a: 'De fontes públicas de dados geográficos (OpenStreetMap). Cada empresa tem localização real e, quando cadastrados, telefone, site, e-mail, horário e redes sociais. A arquitetura permite adicionar outros provedores, como o Google Places.' },
-  { q: 'Como funcionam os créditos?', a: 'Cada busca custa créditos conforme a quantidade de empresas: 20 empresas = 150 créditos, 50 = 300, 100 = 450, e assim por diante. Se vierem menos empresas, você paga só a faixa do que veio. Capturar leads não consome créditos. O Gratuito faz cerca de 12 buscas de 20 empresas por mês e o Pro cerca de 50 buscas de 100. Capturar de novo uma empresa que já é sua não cobra nada.' },
+  { q: 'De onde vêm as empresas encontradas?', a: 'De bases de mapas e estabelecimentos (OpenStreetMap e parceiros como TomTom e Google, quando ativos). Cada empresa tem localização real e, quando cadastrados, telefone, site, e-mail, horário e redes sociais.' },
+  { q: 'Como funcionam os créditos?', a: 'Cada busca custa créditos conforme a quantidade de empresas: 20 empresas = 150 créditos, 50 = 300, 100 = 450, e assim por diante. Se vierem menos empresas, você paga só a faixa do que veio. Capturar e exportar leads não consome créditos. O Gratuito faz cerca de 12 buscas de 20 empresas por mês e o Pro cerca de 50 buscas de 100.' },
   { q: 'Posso prospectar em várias regiões ao mesmo tempo?', a: 'Sim. Você marca quantas áreas quiser (até 10 por operação), cada uma com seu próprio raio, e a Argus junta tudo sem repetir empresas.' },
   { q: 'O que é a qualificação?', a: 'São critérios que você escolhe — como ter telefone, ter e-mail ou não ter website. A Argus dá uma nota para cada empresa com base nos dados encontrados e destaca as de alta aderência.' },
   { q: 'Funciona fora do Brasil?', a: 'Sim. Você escolhe o país e a busca de cidades, bairros e endereços passa a usar esse país como referência.' },
-  { q: 'Como pago a assinatura?', a: 'Por Pix ou cartão, em planos mensais ou trimestrais. Você acompanha a situação, a renovação e pode cancelar quando quiser pela própria plataforma.' },
+  { q: 'Como pago a assinatura?', a: 'Por Pix, em planos mensais ou trimestrais. Não há cobrança automática: o plano vale pelo período pago e você renova com um novo Pix quando quiser, pela própria plataforma (renovando antes do vencimento, os dias que faltam são somados).' },
 ]

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { LuArrowUpRight, LuArrowDownRight, LuMinus, LuPlus, LuDownload, LuChevronRight, LuPhone } from 'react-icons/lu'
 import { api, fmtInt, fmtDate, fmtDateTime } from '../lib/api'
+import { catLabel } from '../lib/category'
 import { useAuth } from '../lib/auth'
 import { useProspect, emptyConfig } from './Platform'
 import MagicBento from '../components/MagicBento'
@@ -279,7 +280,7 @@ export default function Dashboard() {
         </div>
         <div className="card">
           <div className="dash__card-head"><h2 className="h2-icon"><img className="h2-ic" src="/icons/dados.webp" alt="" width="24" height="24" /> Tipos de empresa</h2></div>
-          <BarList rows={data.categories.map(r => ({ ...r, label: r.label.replace(/_/g, ' ') }))} empty="Sem leads capturados ainda." />
+          <BarList rows={data.categories.map(r => ({ ...r, label: r.label === 'Outros' ? r.label : catLabel(r.label) }))} empty="Sem leads capturados ainda." />
         </div>
       </section>
 

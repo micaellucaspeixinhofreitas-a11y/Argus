@@ -24,7 +24,7 @@ export default function Plans() {
           center
           eyebrow="// Planos"
           title={<>Créditos claros, <span className="grad">sem surpresas.</span></>}
-          text="Mapear é livre. Você só usa créditos ao capturar um lead novo — e lead repetido nunca é cobrado."
+          text="Você paga por busca, conforme a quantidade de empresas — e só a faixa do que realmente veio. Capturar e exportar os leads não custa nada."
         />
         <div className="period-toggle" role="tablist" data-reveal>
           <button role="tab" aria-selected={period === 'monthly'} className={period === 'monthly' ? 'is-on' : ''} onClick={() => setPeriod('monthly')}>Mensal</button>

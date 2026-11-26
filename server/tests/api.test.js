@@ -49,8 +49,15 @@ try {
   // redefinição de senha: resposta genérica, token de uso único, sessões antigas encerradas
   const { query: dbq } = await import('../../api/_lib/db.js')
   const { hashToken } = await import('../../api/_lib/auth.js')
+  r = await api('POST', 'auth/forgot', { email }); assert.equal(r.status, 503, 'sem e-mail configurado não finge que enviou')
+  // com e-mail configurado (envio simulado)
+  process.env.RESEND_API_KEY = 'teste'; process.env.MAIL_FROM = 'Argus <a@ex.com>'
+  const fetchBefore = globalThis.fetch; let sent = 0
+  globalThis.fetch = async (u, o) => String(u).includes('resend.com') ? (sent++, new Response('{}', { status: 200 })) : fetchBefore(u, o)
   r = await api('POST', 'auth/forgot', { email: 'ninguem@ex.com' }); assert.equal(r.status, 200)
   r = await api('POST', 'auth/forgot', { email }); assert.equal(r.status, 200)
+  assert.equal(sent, 1, 'só envia para conta existente')
+  globalThis.fetch = fetchBefore; delete process.env.RESEND_API_KEY; delete process.env.MAIL_FROM
   const { rows: [pr] } = await dbq('select count(*)::int as n from password_resets'); assert.equal(pr.n, 1, 'só cria token para conta existente')
   const oldCookie = cookie
   await dbq(`insert into password_resets (user_id, token_hash, expires_at) select id, $1, now() + interval '1 hour' from users where email = $2`, [hashToken('tok-teste'), email])
@@ -76,7 +83,7 @@ try {
   assert.deepEqual(names, ['Clínica Sorriso', 'Dente Feliz', 'Odonto Vida'], 'respeita o raio e remove duplicata')
   assert.equal(r.data.run.total, 3); assert.equal(r.data.run.no_website, 2); assert.equal(r.data.run.high_fit, 1)
   assert.equal(r.data.results[0].name, 'Odonto Vida', 'alta aderência primeiro')
-  assert.equal(r.data.results[0].phone, null, 'contato oculto antes da captura')
+  assert.ok(r.data.results.find(x => x.name === 'Odonto Vida').phone, 'a busca foi paga: contatos vêm junto')
   assert.equal(r.data.charged, 150, 'pediu 100, vieram 3 novas: cobra a faixa de 20 (150 créditos)')
   assert.equal(r.data.credits.available, 1650); assert.equal(r.data.credits.today_used, 1, '1 busca hoje')
   const runId = r.data.run.id
@@ -172,6 +179,19 @@ try {
     r = await api('GET', 'auth/me'); assert.equal(r.data.credits.monthly_credits, 22500); assert.equal(r.data.credits.daily_limit, 10)
     await api('POST', 'admin/credits', { userId: me.id, amount: 100 })
     r = await api('GET', 'auth/me'); assert.equal(r.data.credits.available, 22500 - 150 + 100)
+    // renovar o mesmo plano antes do vencimento soma os dias; plano vencido vira "expirada"
+    const { query: q3 } = await import('../../api/_lib/db.js')
+    const endOf = async () => (await q3(`select current_period_end from subscriptions where user_id = $1 and status = 'active'`, [me.id])).rows[0]?.current_period_end
+    const end1 = await endOf()
+    await api('POST', 'admin/subscription', { userId: me.id, action: 'activate', planId: 'pro', period: 'monthly' })
+    const end2 = await endOf()
+    assert.ok(end2 - end1 > 25 * 86400000, 'renovação antecipada soma o período ao vencimento atual')
+    await q3(`update subscriptions set current_period_end = now() - interval '1 day' where user_id = $1 and status = 'active'`, [me.id])
+    r = await api('GET', 'subscription'); assert.equal(r.data.subscriptions[0].status, 'expired', 'assinatura vencida é marcada como expirada')
+    assert.equal(r.data.current.id, 'gratuito', 'volta para o plano grátis')
+    await api('POST', 'admin/subscription', { userId: me.id, action: 'activate', planId: 'pro', period: 'monthly' })
+    const end3 = await endOf()
+    assert.ok(Math.abs(end3 - Date.now() - 30 * 86400000) < 3 * 86400000, 'depois de vencida, o novo período começa agora')
   }
   // cupons de desconto
   if (firstIsAdmin) {
@@ -305,6 +325,7 @@ try {
     await q2(`update companies set name = '=HYPERLINK("http://mal.example")' where id = (select company_id from leads where user_id = $1 limit 1)`, [me2.id])
     const csv = (await raw('leads/export', { headers: { Cookie: cookie } })).text
     assert.ok(!/(^|,)"?=HYPERLINK/m.test(csv) && csv.includes("'=HYPERLINK"), 'fórmula neutralizada no CSV')
+    assert.ok(!csv.includes("'+55"), 'telefones (+55 ...) não recebem apóstrofo')
   }
   // limite de tentativas de cupom
   {

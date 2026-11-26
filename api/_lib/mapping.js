@@ -99,161 +99,177 @@ export async function runMapping(user, input) {
     config.areas.push({ lat: Number(place.lat), lng: Number(place.lng), radiusKm: config.radiusKm, label: place.display_name.split(',').slice(0, 2).join(',') })
   }
 
-  // Evita rajadas: 1 mapeamento a cada 8 segundos por usuário
-  const recent = await query(
-    `select 1 from mapping_runs where user_id = $1 and created_at > now() - interval '8 seconds' limit 1`,
-    [user.id]
-  )
-  if (recent.rows.length) fail(429, 'Aguarde alguns segundos antes de iniciar outro mapeamento.')
-
-  // créditos: a busca custa conforme a quantidade pedida
-  const status = await creditStatus(user.id)
-  if (status.today_used >= status.daily_limit) fail(429, `Você atingiu o limite de ${status.daily_limit} busca(s) por dia do seu plano. O limite renova à meia-noite.`, 'DAILY_LIMIT')
-  const price = searchCost(config.maxResults)
-  if (status.available < price) fail(402, `Esta busca (${config.maxResults} empresas) custa ${price} créditos e você tem ${status.available}. Escolha uma quantidade menor ou assine um plano.`, 'NO_CREDITS')
-
+  // Verificações e reserva de créditos numa transação com o usuário travado:
+  // duas buscas simultâneas não passam juntas nem deixam o saldo negativo.
   const prov = provider()
-  const { rows: [run] } = await query(
-    `insert into mapping_runs (user_id, config, provider) values ($1, $2, $3) returning id, created_at`,
-    [user.id, JSON.stringify(config), prov.name]
-  )
-  for (const a of config.areas) {
-    await query(
-      `insert into mapping_areas (run_id, label, center, radius_m)
-       values ($1, $2, st_setsrid(st_makepoint($4, $3), 4326)::geography, $5)`,
-      [run.id, a.label, a.lat, a.lng, Math.round(a.radiusKm * 1000)]
-    )
-  }
-  for (const term of config.segments) {
-    await query(
-      `insert into segments (user_id, term) values ($1, lower($2))
-       on conflict (user_id, term) do update set uses = segments.uses + 1, last_used = now()`,
-      [user.id, term]
-    )
-  }
-
-  let places
+  const price = searchCost(config.maxResults)
+  const { run, reservation } = await tx(async db => {
+    await db.query('select id from users where id = $1 for update', [user.id])
+    // evita rajadas: 1 mapeamento a cada 8 segundos por usuário
+    const recent = await db.query(
+      `select 1 from mapping_runs where user_id = $1 and created_at > now() - interval '8 seconds' limit 1`, [user.id])
+    if (recent.rows.length) fail(429, 'Aguarde alguns segundos antes de iniciar outro mapeamento.')
+    const status = await creditStatus(user.id, db)
+    if (status.today_used >= status.daily_limit) fail(429, `Você atingiu o limite de ${status.daily_limit} busca(s) por dia do seu plano. O limite renova à meia-noite.`, 'DAILY_LIMIT')
+    if (status.available < price) fail(402, `Esta busca (${config.maxResults} empresas) custa ${price} créditos e você tem ${status.available}. Escolha uma quantidade menor ou assine um plano.`, 'NO_CREDITS')
+    const { rows: [r] } = await db.query(
+      `insert into mapping_runs (user_id, config, provider) values ($1, $2, $3) returning id, created_at`,
+      [user.id, JSON.stringify(config), prov.name])
+    // reserva o valor cheio; no fim, ajusta para a faixa do que veio (ou devolve tudo)
+    const { rows: [res] } = await db.query(
+      `insert into credit_ledger (user_id, amount, reason, note) values ($1, $2, 'search', $3) returning id`,
+      [user.id, -price, `busca #${r.id} · reservado`])
+    return { run: r, reservation: res.id }
+  })
+  const release = () => query('delete from credit_ledger where id = $1', [reservation]).catch(() => {})
+  let settled = false
   try {
-    places = await prov.searchPlaces({
-      areas: config.areas.map(a => ({ lat: a.lat, lng: a.lng, radius_m: a.radiusKm * 1000 })),
-      segments: resolveSegments(config.segments),
-      allBusiness: ALL_BUSINESS,
-      country: config.country,
-      want: config.maxResults,
-    })
-  } catch (err) {
-    await query(`update mapping_runs set status = 'failed', error = $2, finished_at = now() where id = $1`, [run.id, String(err.message).slice(0, 300)])
-    console.log(JSON.stringify({ evt: 'mapping_failed', run: run.id, user: user.id, provider: prov.name, error: String(err.message).slice(0, 300) }))
-    if (/tomtom|google/i.test(err.message) && /40[13]|invalid|key|chave|forbidden|unauthori/i.test(err.message)) {
-      fail(502, 'A chave da fonte de empresas foi recusada. Confira a chave da TomTom/Google nas configurações.', 'SOURCE_KEY')
+    for (const a of config.areas) {
+      await query(
+        `insert into mapping_areas (run_id, label, center, radius_m)
+         values ($1, $2, st_setsrid(st_makepoint($4, $3), 4326)::geography, $5)`,
+        [run.id, a.label, a.lat, a.lng, Math.round(a.radiusKm * 1000)]
+      )
     }
-    fail(502, 'A fonte de dados de estabelecimentos não respondeu. Tente novamente em instantes ou reduza o raio.')
-  }
-  const raw = places.length
-  const sourceErrors = places.sourceErrors || {}
-  const bySource = places.reduce((acc, p) => ({ ...acc, [p.source]: (acc[p.source] || 0) + 1 }), {})
-  places = dedupe(places)
-  // só o que está dentro de alguma área, do mais próximo ao mais distante, até a quantidade pedida
-  for (const p of places) {
-    p._dist = Math.min(...config.areas.map(a => {
-      const d = haversine(p.lat, p.lng, a.lat, a.lng)
-      return d <= a.radiusKm * 1000 ? d : Infinity
-    }))
-  }
-  places = places.filter(p => p._dist !== Infinity).sort((a, b) => a._dist - b._dist)
-  const available = places.length
-  // a quantidade pedida vale para empresas NOVAS: as que já são leads do usuário não ocupam vaga
-  const keys = places.map(p => `${p.source}:${p.source_id}`)
-  const { rows: mine } = keys.length ? await query(
-    `select c.source || ':' || c.source_id as k from leads l join companies c on c.id = l.company_id
-      where l.user_id = $1 and c.source || ':' || c.source_id = any($2::text[])`, [user.id, keys]) : { rows: [] }
-  const owned = new Set(mine.map(r => r.k))
-  const fresh = places.filter(p => !owned.has(`${p.source}:${p.source_id}`)).slice(0, config.maxResults)
-  const already = places.filter(p => owned.has(`${p.source}:${p.source_id}`)).slice(0, 1000)
-  places = [...fresh, ...already]
-  places.forEach(p => delete p._dist)
+    for (const term of config.segments) {
+      await query(
+        `insert into segments (user_id, term) values ($1, lower($2))
+         on conflict (user_id, term) do update set uses = segments.uses + 1, last_used = now()`,
+        [user.id, term]
+      )
+    }
 
-  // Grava empresas (sem duplicidade) e associa ao mapeamento respeitando os limites das áreas
-  const idBySource = new Map()
-  for (let i = 0; i < places.length; i += 400) {
-    const chunk = places.slice(i, i + 400)
-    const { rows } = await query(
-      `insert into companies (source, source_id, name, category, tags, phone, website, email, address, city, opening_hours, social, geom)
-       select r.source, r.source_id, r.name, r.category, r.tags, r.phone, r.website, r.email, r.address, r.city, r.opening_hours, r.social,
-              st_setsrid(st_makepoint(r.lng, r.lat), 4326)::geography
-         from jsonb_to_recordset($1::jsonb) as r(source text, source_id text, name text, category text, tags jsonb, phone text,
-              website text, email text, address text, city text, opening_hours text, social jsonb, lat float8, lng float8)
-       on conflict (source, source_id) do update set
-         name = excluded.name, category = excluded.category, tags = excluded.tags, phone = excluded.phone,
-         website = excluded.website, email = excluded.email, address = excluded.address, city = excluded.city,
-         opening_hours = excluded.opening_hours, social = excluded.social, geom = excluded.geom, updated_at = now()
-       returning id, source_id`,
-      [JSON.stringify(chunk)]
-    )
-    for (const r of rows) idBySource.set(r.source_id, r.id)
-  }
-
-  const ids = []
-  const scores = []
-  const fits = []
-  for (const p of places) {
-    const id = idBySource.get(p.source_id)
-    if (!id) continue
-    const q = qualify(p, config.qualification)
-    ids.push(id)
-    scores.push(q.score)
-    fits.push(q.highFit)
-  }
-
-  await query(
-    `insert into mapping_results (run_id, company_id, score, high_fit, distance_m)
-     select $1, i.company_id, i.score, i.high_fit, min(st_distance(c.geom, a.center))::int
-       from unnest($2::bigint[], $3::int[], $4::bool[]) as i(company_id, score, high_fit)
-       join companies c on c.id = i.company_id
-       join mapping_areas a on a.run_id = $1 and st_dwithin(c.geom, a.center, a.radius_m)
-      group by i.company_id, i.score, i.high_fit
-     on conflict do nothing`,
-    [run.id, ids, scores, fits]
-  )
-
-  const { rows: [stats] } = await query(
-    `select count(*)::int as total,
-            count(*) filter (where r.high_fit)::int as high_fit,
-            count(*) filter (where c.website is null)::int as no_website
-       from mapping_results r join companies c on c.id = r.company_id where r.run_id = $1`,
-    [run.id]
-  )
-  await query(
-    `update mapping_runs set status = 'done', total = $2, high_fit = $3, no_website = $4, finished_at = now() where id = $1`,
-    [run.id, stats.total, stats.high_fit, stats.no_website]
-  )
-  // cobra a faixa do que realmente veio de empresas novas (nada, se não veio nenhuma)
-  const charged = searchCost(Math.min(fresh.length, config.maxResults))
-  if (charged) {
-    await query(`insert into credit_ledger (user_id, amount, reason, note) values ($1, $2, 'search', $3)`, [user.id, -charged, `busca #${run.id} · ${fresh.length} empresa(s)`])
-  }
-  await query(`insert into operations_log (user_id, type, detail) values ($1, 'mapping', $2)`, [user.id, JSON.stringify({ run_id: run.id, ...stats, charged })])
-  if (input.savedSearchId) {
-    await query(`update saved_searches set last_run_at = now() where id = $1 and user_id = $2`, [Number(input.savedSearchId), user.id])
-  }
-  if (Object.keys(sourceErrors).length) {
-    await query(`update mapping_runs set error = $2 where id = $1`, [run.id, JSON.stringify(sourceErrors).slice(0, 300)])
-  }
-  console.log(JSON.stringify({ evt: 'mapping', sourceErrors, run: run.id, user: user.id, provider: prov.name, segments: config.segments, areas: config.areas.map(a => `${a.lat.toFixed(4)},${a.lng.toFixed(4)} r${a.radiusKm}km`), max: config.maxResults, raw, bySource, kept: places.length, fresh: fresh.length, already: already.length, total: stats.total, ms: Date.now() - startedAt }))
-  // área vazia: procura a empresa do tipo mais próxima para orientar o usuário
-  let hint = null
-  if (!stats.total && tomtom.available()) {
+    let places
     try {
-      const a = config.areas[0]
-      const seg = resolveSegments(config.segments)[0]
-      const near = await tomtom.nearest({ lat: a.lat, lng: a.lng, term: seg ? seg.tt || seg.label || seg.term : 'loja', country: config.country })
-      if (near) hint = { ...near, segment: seg ? seg.label || seg.term : 'comércio', radius_km: a.radiusKm }
-    } catch { /* sem dica */ }
+      places = await prov.searchPlaces({
+        areas: config.areas.map(a => ({ lat: a.lat, lng: a.lng, radius_m: a.radiusKm * 1000 })),
+        segments: resolveSegments(config.segments),
+        allBusiness: ALL_BUSINESS,
+        country: config.country,
+        want: config.maxResults,
+      })
+    } catch (err) {
+      await release()
+      settled = true
+      await query(`update mapping_runs set status = 'failed', error = $2, finished_at = now() where id = $1`, [run.id, String(err.message).slice(0, 300)])
+      console.log(JSON.stringify({ evt: 'mapping_failed', run: run.id, user: user.id, provider: prov.name, error: String(err.message).slice(0, 300) }))
+      if (/tomtom|google/i.test(err.message) && /40[13]|invalid|key|chave|forbidden|unauthori/i.test(err.message)) {
+        fail(502, 'A chave da fonte de empresas foi recusada. Confira a chave da TomTom/Google nas configurações.', 'SOURCE_KEY')
+      }
+      fail(502, 'A fonte de dados de estabelecimentos não respondeu. Tente novamente em instantes ou reduza o raio.')
+    }
+    const raw = places.length
+    const sourceErrors = places.sourceErrors || {}
+    const bySource = places.reduce((acc, p) => ({ ...acc, [p.source]: (acc[p.source] || 0) + 1 }), {})
+    places = dedupe(places)
+    // só o que está dentro de alguma área, do mais próximo ao mais distante, até a quantidade pedida
+    for (const p of places) {
+      p._dist = Math.min(...config.areas.map(a => {
+        const d = haversine(p.lat, p.lng, a.lat, a.lng)
+        return d <= a.radiusKm * 1000 ? d : Infinity
+      }))
+    }
+    places = places.filter(p => p._dist !== Infinity).sort((a, b) => a._dist - b._dist)
+    const available = places.length
+    // a quantidade pedida vale para empresas NOVAS: as que já são leads do usuário não ocupam vaga
+    const keys = places.map(p => `${p.source}:${p.source_id}`)
+    const { rows: mine } = keys.length ? await query(
+      `select c.source || ':' || c.source_id as k from leads l join companies c on c.id = l.company_id
+        where l.user_id = $1 and c.source || ':' || c.source_id = any($2::text[])`, [user.id, keys]) : { rows: [] }
+    const owned = new Set(mine.map(r => r.k))
+    const fresh = places.filter(p => !owned.has(`${p.source}:${p.source_id}`)).slice(0, config.maxResults)
+    const already = places.filter(p => owned.has(`${p.source}:${p.source_id}`)).slice(0, 1000)
+    places = [...fresh, ...already]
+    places.forEach(p => delete p._dist)
+
+    // Grava empresas (sem duplicidade) e associa ao mapeamento respeitando os limites das áreas
+    const idBySource = new Map()
+    for (let i = 0; i < places.length; i += 400) {
+      const chunk = places.slice(i, i + 400)
+      const { rows } = await query(
+        `insert into companies (source, source_id, name, category, tags, phone, website, email, address, city, opening_hours, social, geom)
+         select r.source, r.source_id, r.name, r.category, r.tags, r.phone, r.website, r.email, r.address, r.city, r.opening_hours, r.social,
+                st_setsrid(st_makepoint(r.lng, r.lat), 4326)::geography
+           from jsonb_to_recordset($1::jsonb) as r(source text, source_id text, name text, category text, tags jsonb, phone text,
+                website text, email text, address text, city text, opening_hours text, social jsonb, lat float8, lng float8)
+         on conflict (source, source_id) do update set
+           name = excluded.name, category = excluded.category, tags = excluded.tags, phone = excluded.phone,
+           website = excluded.website, email = excluded.email, address = excluded.address, city = excluded.city,
+           opening_hours = excluded.opening_hours, social = excluded.social, geom = excluded.geom, updated_at = now()
+         returning id, source, source_id`,
+        [JSON.stringify(chunk)]
+      )
+      for (const r of rows) idBySource.set(`${r.source}:${r.source_id}`, r.id)
+    }
+
+    const ids = []
+    const scores = []
+    const fits = []
+    for (const p of places) {
+      const id = idBySource.get(`${p.source}:${p.source_id}`)
+      if (!id) continue
+      const q = qualify(p, config.qualification)
+      ids.push(id)
+      scores.push(q.score)
+      fits.push(q.highFit)
+    }
+
+    await query(
+      `insert into mapping_results (run_id, company_id, score, high_fit, distance_m)
+       select $1, i.company_id, i.score, i.high_fit, min(st_distance(c.geom, a.center))::int
+         from unnest($2::bigint[], $3::int[], $4::bool[]) as i(company_id, score, high_fit)
+         join companies c on c.id = i.company_id
+         join mapping_areas a on a.run_id = $1 and st_dwithin(c.geom, a.center, a.radius_m)
+        group by i.company_id, i.score, i.high_fit
+       on conflict do nothing`,
+      [run.id, ids, scores, fits]
+    )
+
+    const { rows: [stats] } = await query(
+      `select count(*)::int as total,
+              count(*) filter (where r.high_fit)::int as high_fit,
+              count(*) filter (where c.website is null)::int as no_website
+         from mapping_results r join companies c on c.id = r.company_id where r.run_id = $1`,
+      [run.id]
+    )
+    await query(
+      `update mapping_runs set status = 'done', total = $2, high_fit = $3, no_website = $4, finished_at = now() where id = $1`,
+      [run.id, stats.total, stats.high_fit, stats.no_website]
+    )
+    // cobra a faixa do que realmente veio de empresas novas (nada, se não veio nenhuma)
+    const charged = searchCost(Math.min(fresh.length, config.maxResults))
+    if (charged) {
+      await query(`update credit_ledger set amount = $2, note = $3 where id = $1`, [reservation, -charged, `busca #${run.id} · ${fresh.length} empresa(s)`])
+    } else await release()
+    settled = true
+    await query(`insert into operations_log (user_id, type, detail) values ($1, 'mapping', $2)`, [user.id, JSON.stringify({ run_id: run.id, ...stats, charged })])
+    if (input.savedSearchId) {
+      await query(`update saved_searches set last_run_at = now() where id = $1 and user_id = $2`, [Number(input.savedSearchId), user.id])
+    }
+    if (Object.keys(sourceErrors).length) {
+      await query(`update mapping_runs set error = $2 where id = $1`, [run.id, JSON.stringify(sourceErrors).slice(0, 300)])
+    }
+    console.log(JSON.stringify({ evt: 'mapping', sourceErrors, run: run.id, user: user.id, provider: prov.name, segments: config.segments, areas: config.areas.map(a => `${a.lat.toFixed(4)},${a.lng.toFixed(4)} r${a.radiusKm}km`), max: config.maxResults, raw, bySource, kept: places.length, fresh: fresh.length, already: already.length, total: stats.total, ms: Date.now() - startedAt }))
+    // área vazia: procura a empresa do tipo mais próxima para orientar o usuário
+    let hint = null
+    if (!stats.total && tomtom.available()) {
+      try {
+        const a = config.areas[0]
+        const seg = resolveSegments(config.segments)[0]
+        const near = await tomtom.nearest({ lat: a.lat, lng: a.lng, term: seg ? seg.tt || seg.label || seg.term : 'loja', country: config.country })
+        if (near) hint = { ...near, segment: seg ? seg.label || seg.term : 'comércio', radius_km: a.radiusKm }
+      } catch { /* sem dica */ }
+    }
+    return { run_id: run.id, config, stats, sourceErrors, hint, charged, coverage: { requested: config.maxResults, fresh: fresh.length, alreadyLeads: already.length, available } }
+  } catch (err) {
+    // qualquer falha inesperada devolve a reserva
+    if (!settled) await release()
+    await query(`update mapping_runs set status = 'failed', finished_at = coalesce(finished_at, now()) where id = $1 and status <> 'done'`, [run.id]).catch(() => {})
+    throw err
   }
-  return { run_id: run.id, config, stats, sourceErrors, hint, charged, coverage: { requested: config.maxResults, fresh: fresh.length, alreadyLeads: already.length, available } }
 }
 
-// Resultados de um mapeamento do usuário. Contatos só aparecem para leads capturados.
+// Resultados de um mapeamento do usuário (a busca foi paga: os contatos vêm junto).
 export async function runResults(user, runId) {
   const { rows: [run] } = await query(
     `select id, config, status, total, high_fit, no_website, created_at, finished_at
@@ -270,10 +286,7 @@ export async function runResults(user, runId) {
             (c.email is not null) as has_email, (c.address is not null) as has_address,
             (c.opening_hours is not null) as has_hours, (c.social <> '{}'::jsonb) as has_social,
             (l.id is not null) as captured,
-            case when l.id is not null then c.phone end as phone,
-            case when l.id is not null then c.website end as website,
-            case when l.id is not null then c.email end as email,
-            case when l.id is not null then c.address end as address
+            c.phone, c.website, c.email, c.address
        from mapping_results r
        join companies c on c.id = r.company_id
        left join leads l on l.company_id = c.id and l.user_id = $2
