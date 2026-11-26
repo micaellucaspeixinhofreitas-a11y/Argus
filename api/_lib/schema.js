@@ -229,4 +229,11 @@ update plans set monthly_credits = 1800, daily_limit = 3,
 update plans set monthly_credits = 22500, daily_limit = 10,
   features = '["Cerca de 50 buscas de 100 empresas por mês","Capturar leads não consome créditos","Lead repetido não é cobrado","Exportação em CSV"]'
  where id = 'pro' and monthly_credits = 7000 and daily_limit = 700;
+
+-- plano Mega retirado por enquanto (arquivado: some do site e do painel; recriar com o id "mega" no admin o traz de volta).
+-- Só age sobre o Mega com os valores de quando foi retirado e sem assinatura ativa ou pendente.
+update plans set active = false, is_default = false, deleted_at = now(), updated_at = now()
+ where id = 'mega' and deleted_at is null and monthly_credits = 3450 and daily_limit = 1200
+   and not exists (select 1 from subscriptions s where s.plan_id = 'mega'
+                    and (s.status = 'pending_payment' or (s.status = 'active' and s.current_period_end > now())));
 `
