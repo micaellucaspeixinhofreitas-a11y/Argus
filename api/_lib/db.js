@@ -17,8 +17,10 @@ function getPool() {
     throw err
   }
   const local = /localhost|127\.0\.0\.1/.test(url)
+  // o SSL é definido abaixo; tirar o sslmode da URL evita o aviso repetido do driver nos registros
+  const cleanUrl = url.replace(/([?&])sslmode=[^&]*(&|$)/, (_, a, b) => (b ? a : '')).replace(/[?&]$/, '')
   pool = new pg.Pool({
-    connectionString: url,
+    connectionString: cleanUrl,
     ssl: local ? false : { rejectUnauthorized: false },
     max: 3,
     idleTimeoutMillis: 10_000,
