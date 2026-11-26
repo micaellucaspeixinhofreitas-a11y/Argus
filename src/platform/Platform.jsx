@@ -1,11 +1,12 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { LuRadar, LuUsers, LuBookmark, LuCoins, LuCrown, LuShield, LuLogOut, LuHouse, LuUserCog, LuLayoutDashboard } from 'react-icons/lu'
+import { LuRadar, LuUsers, LuBookmark, LuCoins, LuCrown, LuShield, LuLogOut, LuHouse, LuLayoutDashboard } from 'react-icons/lu'
 import Dock from '../components/Dock'
 import { useAuth } from '../lib/auth'
 import { useSite } from '../lib/site'
 import Maintenance from '../pages/Maintenance'
 import AnnouncementBar from '../components/AnnouncementBar'
+import AccountMenu from './AccountMenu'
 import { api, fmtInt } from '../lib/api'
 import Prospect from './Prospect'
 import Dashboard from './Dashboard'
@@ -93,7 +94,6 @@ function PlatformDock() {
       active: at('/app/creditos'), onClick: go('/app/creditos'),
       badge: credits && credits.can_spend === 0 ? '!' : undefined,
     },
-    { icon: <LuUserCog />, label: 'Minha conta', active: at('/app/conta'), onClick: go('/app/conta') },
     ...(user.is_admin ? [{ icon: <LuShield />, label: 'Admin', active: at('/app/admin'), onClick: go('/app/admin') }] : []),
     { separator: true },
     { icon: <LuHouse />, label: 'Página inicial', onClick: go('/') },
@@ -136,7 +136,6 @@ function TopBar() {
   const { user, credits, pro } = useAuth()
   const { pathname } = useLocation()
   const title = TITLES.find(([p]) => pathname.startsWith(p))?.[1] || 'Dashboard'
-  const initial = (user.name || user.email || '?').trim().charAt(0).toUpperCase()
   return (
     <header className="topbar">
       <div className="topbar__inner">
@@ -158,7 +157,7 @@ function TopBar() {
           <NavLink to="/app/planos" className={`topbar__plan ${pro ? '' : 'is-upgrade'}`}>
             <LuCrown aria-hidden="true" /> <span>{pro ? 'Planos' : 'Assinar Pro'}</span>
           </NavLink>
-          <NavLink to="/app/conta" className="topbar__avatar" title="Minha conta" aria-label="Minha conta">{initial}</NavLink>
+          <AccountMenu />
         </div>
       </div>
     </header>
