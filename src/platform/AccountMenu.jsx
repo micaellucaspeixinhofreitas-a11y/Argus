@@ -42,8 +42,7 @@ export default function AccountMenu() {
             </span>
             {plan && <em className="acct__pro" title={`Plano ${plan.name}`}><img src={planIcon(plan)} alt="" width="16" height="16" />{plan.name}</em>}
           </div>
-          {item('/app/conta', 'usuario', 'Minha conta')}
-          {item('/app/conta', 'chave', 'Senha e segurança')}
+          {item('/app/conta', 'usuario', 'Minha conta e senha')}
           {item('/app/planos', 'coroa', 'Plano e assinatura')}
           {item('/app/creditos', 'moeda', 'Créditos')}
           {user.is_admin && item('/app/admin', 'engrenagem', 'Administração')}
