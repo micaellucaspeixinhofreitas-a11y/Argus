@@ -276,7 +276,7 @@ export async function runResults(user, runId) {
   return { run, areas: areas.rows, results: rows }
 }
 
-// Captura leads: 1 crédito por lead NOVO, respeitando limites diário e mensal.
+// Captura leads: N créditos (custo por lead) por lead NOVO, respeitando limites diário e mensal.
 export async function captureLeads(user, { runId, companyIds }, creditStatus) {
   const ids = [...new Set((companyIds || []).map(Number).filter(Number.isInteger))].slice(0, 1000)
   if (!ids.length) fail(400, 'Selecione ao menos uma empresa.')
@@ -306,7 +306,7 @@ export async function captureLeads(user, { runId, companyIds }, creditStatus) {
         [user.id, v.company_id, v.run_id, v.score, v.high_fit]
       )
       if (lead) {
-        await db.query(`insert into credit_ledger (user_id, amount, reason, lead_id) values ($1, -1, 'lead', $2)`, [user.id, lead.id])
+        await db.query(`insert into credit_ledger (user_id, amount, reason, lead_id) values ($1, $2, 'lead', $3)`, [user.id, -status.cost_per_lead, lead.id])
       }
     }
     await db.query(`insert into operations_log (user_id, type, detail) values ($1, 'capture', $2)`, [
@@ -316,7 +316,7 @@ export async function captureLeads(user, { runId, companyIds }, creditStatus) {
       captured: allowed.length,
       already_captured: already.size,
       blocked_by_limit: fresh.length - allowed.length,
-      credits_spent: allowed.length,
+      credits_spent: allowed.length * status.cost_per_lead,
     }
   })
 }

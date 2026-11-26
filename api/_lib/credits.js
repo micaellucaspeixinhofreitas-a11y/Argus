@@ -1,8 +1,9 @@
 import { query } from './db.js'
+import { getSettings } from './settings.js'
 
 // Regras de créditos (contabilizadas no servidor):
-// - Créditos mensais e limite diário vêm do plano ativo (configurável no admin).
-// - 1 crédito por NOVO lead capturado; lead já capturado nunca é cobrado de novo
+// - Créditos mensais e limite diário (em leads) vêm do plano ativo (configurável no admin).
+// - Cada NOVO lead capturado custa N créditos ("creditsPerLead", no Controle do site); lead já capturado nunca é cobrado de novo
 //   (garantido pela restrição unique(user_id, company_id) da tabela leads).
 // - Mês e dia são contados no fuso de São Paulo.
 export const TZ = 'America/Sao_Paulo'
@@ -28,18 +29,27 @@ export async function hasPro(user, db = { query }) {
   return Boolean(plan.subscription_id) && (plan.price_monthly_cents > 0 || plan.price_quarterly_cents > 0)
 }
 
+// Créditos gastos por lead novo (definido pelo administrador)
+export async function costPerLead() {
+  const n = Number((await getSettings()).creditsPerLead)
+  return Number.isInteger(n) && n > 0 ? n : 150
+}
+
 export async function creditStatus(userId, db = { query }) {
   const plan = await activePlan(userId, db)
   const { rows } = await db.query(
     `select
        coalesce(sum(amount) filter (where created_at >= date_trunc('month', now() at time zone $2) at time zone $2), 0)::int as month_net,
        coalesce(-sum(amount) filter (where amount < 0 and created_at >= date_trunc('month', now() at time zone $2) at time zone $2), 0)::int as month_used,
-       coalesce(-sum(amount) filter (where amount < 0 and created_at >= date_trunc('day', now() at time zone $2) at time zone $2), 0)::int as today_used
+       coalesce(-sum(amount) filter (where amount < 0 and created_at >= date_trunc('day', now() at time zone $2) at time zone $2), 0)::int as today_credits,
+       count(*) filter (where reason = 'lead' and amount < 0 and created_at >= date_trunc('day', now() at time zone $2) at time zone $2)::int as today_used
      from credit_ledger where user_id = $1`,
     [userId, TZ]
   )
   const r = rows[0]
+  const cost = await costPerLead()
   const available = Math.max(0, plan.monthly_credits + r.month_net)
+  const leadsAvailable = Math.floor(available / cost)
   return {
     plan: { id: plan.id, name: plan.name },
     monthly_credits: plan.monthly_credits,
@@ -48,7 +58,10 @@ export async function creditStatus(userId, db = { query }) {
     today_used: r.today_used,
     available,
     today_remaining: Math.max(0, plan.daily_limit - r.today_used),
-    can_spend: Math.max(0, Math.min(available, plan.daily_limit - r.today_used)),
+    cost_per_lead: cost,
+    leads_available: leadsAvailable,
+    // quantos leads novos dá para capturar agora (créditos e limite diário)
+    can_spend: Math.max(0, Math.min(leadsAvailable, plan.daily_limit - r.today_used)),
   }
 }
 

@@ -4,10 +4,12 @@ import SpecularLink from '../components/SpecularLink'
 import SectionHead from './SectionHead'
 import { api, money, fmtInt } from '../lib/api'
 import { useAuth } from '../lib/auth'
+import { useSite } from '../lib/site'
 
 // Planos vêm do banco (configuráveis no painel admin)
 export default function Plans() {
   const { user } = useAuth()
+  const cost = useSite()?.status?.creditsPerLead || 150
   const [plans, setPlans] = useState(null)
   const [period, setPeriod] = useState('monthly')
 
@@ -47,7 +49,7 @@ export default function Plans() {
                   <span>{free ? 'para sempre' : period === 'quarterly' ? 'por trimestre' : 'por mês'}</span>
                 </div>
                 <ul className="plan__list">
-                  <li><Icon name="check" size={18} /> {fmtInt(p.monthly_credits)} créditos por mês</li>
+                  <li><Icon name="check" size={18} /> {fmtInt(p.monthly_credits)} créditos por mês (≈ {fmtInt(Math.floor(p.monthly_credits / cost))} {Math.floor(p.monthly_credits / cost) === 1 ? "lead" : "leads"})</li>
                   <li><Icon name="check" size={18} /> Até {fmtInt(p.daily_limit)} leads por dia</li>
                   {(p.features || []).filter(f => !/créditos por mês|leads por dia/i.test(f)).map(f => (
                     <li key={f}><Icon name="check" size={18} /> {f}</li>

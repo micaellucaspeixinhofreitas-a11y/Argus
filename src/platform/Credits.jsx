@@ -47,7 +47,7 @@ export default function Credits() {
       <div className="card rules">
         <h2 className="h2-icon"><img className="h2-ic" src="/icons/lupa.webp" alt="" width="24" height="24" /> Como os créditos funcionam</h2>
         <ul>
-          <li>1 crédito por <strong>novo</strong> lead capturado. Mapear, ver o radar e salvar buscas não consome créditos.</li>
+          <li>{fmtInt(c.cost_per_lead || 150)} créditos por <strong>novo</strong> lead capturado ({fmtInt(c.leads_available ?? 0)} {c.leads_available === 1 ? "lead" : "leads"} com o saldo atual). Mapear, ver o radar e salvar buscas não consome créditos.</li>
           <li>Capturar de novo uma empresa que já é sua não cobra nada (deduplicação).</li>
           <li>Os créditos renovam todo dia 1º e o limite diário reinicia à meia-noite (horário de Brasília).</li>
           <li>A contagem é feita no servidor no momento da captura.</li>

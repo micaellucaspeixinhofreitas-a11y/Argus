@@ -793,6 +793,11 @@ on('POST', 'admin/settings', async ({ req, body }) => {
     await saveSetting('announcement', { enabled: a.enabled === true, text: str(a.text, 240), tone: ['info', 'warning', 'success'].includes(a.tone) ? a.tone : 'info' }, admin.id)
     changed.push('announcement')
   }
+  if (body.creditsPerLead !== undefined) {
+    const n = Number(body.creditsPerLead)
+    if (!Number.isInteger(n) || n < 1 || n > 1_000_000) fail(400, 'Custo por lead deve ser um número inteiro entre 1 e 1.000.000.')
+    if (n !== current.creditsPerLead) { await saveSetting('creditsPerLead', n, admin.id); changed.push('creditsPerLead') }
+  }
   for (const key of ['registrationsOpen', 'paymentsEnabled', 'mappingEnabled']) {
     if (typeof body[key] === 'boolean' && body[key] !== current[key]) {
       await saveSetting(key, body[key], admin.id)

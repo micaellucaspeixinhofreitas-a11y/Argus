@@ -258,7 +258,7 @@ export default function Prospect() {
       setResult(r => ({ ...r, ...refreshed }))
       setSelected(new Set())
       setNotice(
-        `${fmtInt(data.captured)} lead(s) capturado(s) · ${fmtInt(data.credits_spent)} crédito(s) usado(s)` +
+        `${fmtInt(data.captured)} lead(s) capturado(s) · ${fmtInt(data.credits_spent)} créditos usados` +
           (data.already_captured ? ` · ${data.already_captured} já eram seus (sem cobrança)` : '') +
           (data.blocked_by_limit ? ` · ${data.blocked_by_limit} não capturado(s) por limite de créditos` : '')
       )
@@ -516,7 +516,7 @@ export default function Prospect() {
               <div className="results__actions">
                 <button className="btn-mini" onClick={selectVisible} disabled={!visible.some(r => !r.captured)}>Selecionar visíveis</button>
                 <button className="btn btn--primary btn--sm" disabled={!freshSelected.length || capturing} onClick={() => capture(freshSelected)}>
-                  {capturing ? 'Capturando…' : `Capturar ${fmtInt(freshSelected.length)} lead(s) · ${fmtInt(freshSelected.length)} crédito(s)`}
+                  {capturing ? 'Capturando…' : `Capturar ${fmtInt(freshSelected.length)} lead(s) · ${fmtInt(freshSelected.length * (credits?.cost_per_lead || 150))} créditos`}
                 </button>
               </div>
             </div>

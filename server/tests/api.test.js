@@ -83,11 +83,17 @@ try {
   // limite de frequência
   assert.equal((await api('POST', 'mapping/run', config)).status, 429)
 
-  // captura: 2 leads = 2 créditos; recapturar não cobra
+  // custo por lead: padrão 150, ajustável pelo admin (validado)
+  assert.equal((await api('GET', 'auth/me')).data.credits.cost_per_lead, 150, 'padrão: 150 créditos por lead')
+  assert.equal((await api('POST', 'admin/settings', { creditsPerLead: 0 })).status, 400)
+  assert.equal((await api('POST', 'admin/settings', { creditsPerLead: 50 })).status, 200)
+  r = await api('GET', 'auth/me'); assert.equal(r.data.credits.cost_per_lead, 50); assert.equal(r.data.credits.can_spend, 3, '150 créditos / 50 = 3 leads')
+
+  // captura: 2 leads = 100 créditos; recapturar não cobra; para quando o saldo acaba
   r = await api('POST', 'leads/capture', { runId, companyIds: ids.slice(0, 2) })
-  assert.equal(r.data.captured, 2); assert.equal(r.data.credits.today_used, 2); assert.equal(r.data.credits.available, 148)
+  assert.equal(r.data.captured, 2); assert.equal(r.data.credits_spent, 100); assert.equal(r.data.credits.today_used, 2); assert.equal(r.data.credits.available, 50)
   r = await api('POST', 'leads/capture', { runId, companyIds: ids })
-  assert.equal(r.data.captured, 1); assert.equal(r.data.already_captured, 2); assert.equal(r.data.credits.available, 147)
+  assert.equal(r.data.captured, 1); assert.equal(r.data.already_captured, 2); assert.equal(r.data.credits.available, 0); assert.equal(r.data.credits.can_spend, 0)
   r = await api('GET', `mapping/result?run=${runId}`)
   assert.ok(r.data.results.find(x => x.name === 'Odonto Vida').phone, 'contato revelado após captura')
 
@@ -117,7 +123,7 @@ try {
   assert.ok(r.data.coverage.alreadyLeads >= 1, 'empresas já capturadas são identificadas')
 
   // créditos e planos
-  r = await api('GET', 'credits'); assert.equal(r.data.credits.month_used, 3); assert.equal(r.data.history[0].used, 3)
+  r = await api('GET', 'credits'); assert.equal(r.data.credits.month_used, 150); assert.equal(r.data.history[0].used, 150)
   r = await api('GET', 'plans'); assert.ok(r.data.plans.find(p => p.id === 'pro' && p.monthly_credits === 7000 && p.daily_limit === 700))
   r = await api('POST', 'subscription', { planId: 'pro', period: 'quarterly', paymentMethod: 'pix' })
   assert.equal(r.status, 201); assert.equal(r.data.subscription.status, 'pending_payment')
@@ -163,7 +169,7 @@ try {
     await api('POST', 'admin/subscription', { userId: me.id, action: 'activate', planId: 'pro', period: 'monthly' })
     r = await api('GET', 'auth/me'); assert.equal(r.data.credits.monthly_credits, 7000); assert.equal(r.data.credits.daily_limit, 700)
     await api('POST', 'admin/credits', { userId: me.id, amount: 100 })
-    r = await api('GET', 'auth/me'); assert.equal(r.data.credits.available, 7000 - 3 + 100)
+    r = await api('GET', 'auth/me'); assert.equal(r.data.credits.available, 7000 - 150 + 100)
   }
   // cupons de desconto
   if (firstIsAdmin) {

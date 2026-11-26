@@ -7,6 +7,7 @@ export const DEFAULTS = {
   registrationsOpen: true,
   paymentsEnabled: true,
   mappingEnabled: true,
+  creditsPerLead: 150,
 }
 
 let cache = null
@@ -41,5 +42,6 @@ export function publicStatus(s) {
     registrationsOpen: s.registrationsOpen,
     paymentsEnabled: s.paymentsEnabled,
     mappingEnabled: s.mappingEnabled,
+    creditsPerLead: s.creditsPerLead,
   }
 }

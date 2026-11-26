@@ -14,7 +14,8 @@ const STATUS = {
 }
 
 export default function Subscription() {
-  const { refresh, pro } = useAuth()
+  const { refresh, pro, credits } = useAuth()
+  const cost = credits?.cost_per_lead || 150
   const [params] = useSearchParams()
   const [plans, setPlans] = useState([])
   const [state, setState] = useState(null)
@@ -121,7 +122,7 @@ export default function Subscription() {
               <p className="muted">{p.description}</p>
               <div className="plan-card__price">{free ? 'Grátis' : money(cents)}<small>{free ? '' : period === 'quarterly' ? '/trimestre' : '/mês'}</small></div>
               <ul className="plain">
-                <li><LuCheck /> {fmtInt(p.monthly_credits)} créditos por mês</li>
+                <li><LuCheck /> {fmtInt(p.monthly_credits)} créditos por mês (≈ {fmtInt(Math.floor(p.monthly_credits / cost))} {Math.floor(p.monthly_credits / cost) === 1 ? "lead" : "leads"})</li>
                 <li><LuCheck /> Até {fmtInt(p.daily_limit)} leads por dia</li>
                 {(p.features || []).filter(f => !/créditos por mês|leads por dia/i.test(f)).map(f => <li key={f}><LuCheck /> {f}</li>)}
               </ul>

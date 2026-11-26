@@ -11,8 +11,8 @@ export default function ProLock({ daily = false, onClose }) {
         <h2 id="pro-lock-title">{daily ? 'Limite diário do plano grátis atingido' : 'Seus créditos grátis acabaram'}</h2>
         <p className="muted">
           {daily
-            ? 'Você usou todos os leads de hoje. O limite renova à meia-noite — ou assine o Pro para capturar até 700 leads por dia.'
-            : 'Assine o Pro para continuar capturando: 7.000 créditos por mês, até 700 leads por dia e lead repetido sem cobrança.'}
+            ? 'Você usou todos os leads de hoje. O limite renova à meia-noite — ou assine um plano pago para capturar mais leads por dia.'
+            : 'Assine um plano pago para continuar capturando, com mais créditos por mês e lead repetido sem cobrança.'}
         </p>
         <Link to="/app/planos" className="btn btn--primary btn--block">Ver planos e assinar</Link>
         {onClose && <button className="link small" onClick={onClose}>Agora não</button>}
