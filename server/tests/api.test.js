@@ -70,7 +70,7 @@ try {
   r = await api('POST', 'auth/login', { email, password: 'nova-senha-123' }); assert.equal(r.status, 200)
   r = await api('GET', 'auth/me'); assert.equal(r.data.user.email, email, 'nova sessão vale')
   void newCookie
-  assert.equal(r.data.credits.monthly_credits, 1800); assert.equal(r.data.credits.daily_limit, 3)
+  assert.equal(r.data.credits.monthly_credits, 300); assert.equal(r.data.credits.daily_limit, 1)
 
   // mapeamento com 1 área de 1 km e qualificação "tem telefone" + "sem website"
   const config = { segments: ['dentistas'], country: 'BR', locality: 'Pinheiros', radiusKm: 1,
@@ -85,7 +85,7 @@ try {
   assert.equal(r.data.results[0].name, 'Odonto Vida', 'alta aderência primeiro')
   assert.ok(r.data.results.find(x => x.name === 'Odonto Vida').phone, 'a busca foi paga: contatos vêm junto')
   assert.equal(r.data.charged, 150, 'pediu 100, vieram 3 novas: cobra a faixa de 20 (150 créditos)')
-  assert.equal(r.data.credits.available, 1650); assert.equal(r.data.credits.today_used, 1, '1 busca hoje')
+  assert.equal(r.data.credits.available, 150); assert.equal(r.data.credits.today_used, 1, '1 busca hoje')
   const runId = r.data.run.id
   const ids = r.data.results.map(x => x.id)
 
@@ -94,9 +94,9 @@ try {
 
   // captura não consome créditos; recapturar não duplica
   r = await api('POST', 'leads/capture', { runId, companyIds: ids.slice(0, 2) })
-  assert.equal(r.data.captured, 2); assert.equal(r.data.credits_spent, 0); assert.equal(r.data.credits.available, 1650)
+  assert.equal(r.data.captured, 2); assert.equal(r.data.credits_spent, 0); assert.equal(r.data.credits.available, 150)
   r = await api('POST', 'leads/capture', { runId, companyIds: ids })
-  assert.equal(r.data.captured, 1); assert.equal(r.data.already_captured, 2); assert.equal(r.data.credits.available, 1650)
+  assert.equal(r.data.captured, 1); assert.equal(r.data.already_captured, 2); assert.equal(r.data.credits.available, 150)
   r = await api('GET', `mapping/result?run=${runId}`)
   assert.ok(r.data.results.find(x => x.name === 'Odonto Vida').phone, 'contato revelado após captura')
 
@@ -129,7 +129,7 @@ try {
 
   // créditos e planos
   r = await api('GET', 'credits'); assert.equal(r.data.credits.month_used, 150); assert.equal(r.data.history[0].used, 150)
-  r = await api('GET', 'plans'); assert.ok(r.data.plans.find(p => p.id === 'pro' && p.monthly_credits === 22500 && p.daily_limit === 10))
+  r = await api('GET', 'plans'); assert.ok(r.data.plans.find(p => p.id === 'pro' && p.monthly_credits === 22500 && p.daily_limit === 10) && r.data.plans.find(p => p.id === 'gratuito' && p.monthly_credits === 300 && p.daily_limit === 1))
   r = await api('POST', 'subscription', { planId: 'pro', period: 'quarterly', paymentMethod: 'pix' })
   assert.equal(r.status, 201); assert.equal(r.data.subscription.status, 'pending_payment')
 
@@ -145,8 +145,8 @@ try {
   assert.equal((await api('GET', 'leads')).data.leads.length, 0)
   r = await api('POST', 'leads/capture', { companyIds: ids })
   assert.equal(r.status, 200); assert.equal(r.data.captured, 0, 'não captura empresas de mapeamentos de outro usuário')
-  r = await api('POST', 'mapping/run', config)
-  assert.equal(r.status, 200, 'plano grátis também mapeia'); assert.ok(r.data.run.total > 0)
+  r = await api('POST', 'mapping/run', { ...config, maxResults: 20 })
+  assert.equal(r.status, 200, 'plano grátis também mapeia (amostra de 20 empresas)'); assert.ok(r.data.run.total > 0)
   const freeIds = r.data.results.slice(0, 3).map(x => x.id)
   r = await api('POST', 'leads/capture', { companyIds: freeIds })
   assert.equal(r.data.captured, freeIds.length, 'plano grátis captura dentro dos créditos')
@@ -154,7 +154,14 @@ try {
   // saldo insuficiente para a quantidade pedida: recusa antes de buscar
   await new Promise(res => setTimeout(res, 8200))
   r = await api('POST', 'mapping/run', { ...config, maxResults: 1000 })
-  assert.equal(r.status, 402); assert.equal(r.data.code, 'NO_CREDITS')
+  assert.equal(r.status, 429); assert.equal(r.data.code, 'DAILY_LIMIT', 'grátis: 1 busca por dia')
+  {
+    const { query: q4 } = await import('../../api/_lib/db.js')
+    await q4(`update credit_ledger set created_at = created_at - interval '1 day' where reason = 'search' and user_id = (select id from users where email = $1)`, [(await api('GET', 'auth/me')).data.user.email])
+    await q4(`update mapping_runs set created_at = created_at - interval '1 minute'`)
+    r = await api('POST', 'mapping/run', { ...config, maxResults: 1000 })
+    assert.equal(r.status, 402); assert.equal(r.data.code, 'NO_CREDITS', 'saldo insuficiente para a quantidade pedida')
+  }
   // pagamento por Pix: gera BR Code e registra o aviso
   process.env.PIX_KEY = 'contato@argus.dev'; process.env.PIX_NAME = 'Argus Teste'; process.env.PIX_CITY = 'Sao Paulo'
   let pay = await api('POST', 'payment/pix', { planId: 'pro', period: 'monthly' })

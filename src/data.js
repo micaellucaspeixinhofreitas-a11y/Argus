@@ -83,7 +83,7 @@ export const segmentsLoop = [
 
 export const faq = [
   { q: 'De onde vêm as empresas encontradas?', a: 'De bases de mapas e estabelecimentos (OpenStreetMap e parceiros como TomTom e Google, quando ativos). Cada empresa tem localização real e, quando cadastrados, telefone, site, e-mail, horário e redes sociais.' },
-  { q: 'Como funcionam os créditos?', a: 'Cada busca custa créditos conforme a quantidade de empresas: 20 empresas = 150 créditos, 50 = 300, 100 = 450, e assim por diante. Se vierem menos empresas, você paga só a faixa do que veio. Capturar e exportar leads não consome créditos. O Gratuito faz cerca de 12 buscas de 20 empresas por mês e o Pro cerca de 50 buscas de 100.' },
+  { q: 'Como funcionam os créditos?', a: 'Cada busca custa créditos conforme a quantidade de empresas: 20 empresas = 150 créditos, 50 = 300, 100 = 450, e assim por diante. Se vierem menos empresas, você paga só a faixa do que veio. Capturar e exportar leads não consome créditos. O Gratuito dá para testar com 2 buscas de 20 empresas; o Pro faz cerca de 50 buscas de 100 empresas por mês.' },
   { q: 'Posso prospectar em várias regiões ao mesmo tempo?', a: 'Sim. Você marca quantas áreas quiser (até 10 por operação), cada uma com seu próprio raio, e a Argus junta tudo sem repetir empresas.' },
   { q: 'O que é a qualificação?', a: 'São critérios que você escolhe — como ter telefone, ter e-mail ou não ter website. A Argus dá uma nota para cada empresa com base nos dados encontrados e destaca as de alta aderência.' },
   { q: 'Funciona fora do Brasil?', a: 'Sim. Você escolhe o país e a busca de cidades, bairros e endereços passa a usar esse país como referência.' },

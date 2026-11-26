@@ -216,8 +216,8 @@ create index if not exists operations_log_type_idx on operations_log(type, creat
 export const SEED = `
 insert into plans (id, name, description, monthly_credits, daily_limit, price_monthly_cents, price_quarterly_cents, features, is_default, sort)
 values
-  ('gratuito', 'Gratuito', 'Para conhecer a plataforma', 1800, 3, 0, 0,
-   '["Cerca de 12 buscas de 20 empresas por mês","Mapa e radar completos","Buscas salvas"]', true, 0),
+  ('gratuito', 'Gratuito', 'Para testar a plataforma', 300, 1, 0, 0,
+   '["2 buscas de 20 empresas para testar","Mapa e radar completos"]', true, 0),
   ('pro', 'Pro', 'Prospecção contínua para quem vende todo dia', 22500, 10, 19700, 53100,
    '["Cerca de 50 buscas de 100 empresas por mês","Capturar leads não consome créditos","Lead repetido não é cobrado","Exportação em CSV"]', false, 1)
 on conflict (id) do nothing;
@@ -230,10 +230,18 @@ update plans set monthly_credits = 22500, daily_limit = 10,
   features = '["Cerca de 50 buscas de 100 empresas por mês","Capturar leads não consome créditos","Lead repetido não é cobrado","Exportação em CSV"]'
  where id = 'pro' and monthly_credits = 7000 and daily_limit = 700;
 
+-- plano grátis reduzido a uma amostra (para quem quer continuar, o caminho é assinar)
+update plans set monthly_credits = 300, daily_limit = 1, description = 'Para testar a plataforma',
+  features = '["2 buscas de 20 empresas para testar","Mapa e radar completos"]'
+ where id = 'gratuito' and monthly_credits = 1800 and daily_limit = 3;
+
 -- plano Mega retirado por enquanto (arquivado: some do site e do painel; recriar com o id "mega" no admin o traz de volta).
--- Só age sobre o Mega com os valores de quando foi retirado e sem assinatura ativa ou pendente.
+-- Pedidos de Pix ainda não pagos do Mega são cancelados; assinatura paga e ativa impede a retirada.
+update subscriptions set status = 'canceled', updated_at = now()
+ where plan_id = 'mega' and status = 'pending_payment'
+   and exists (select 1 from plans where id = 'mega' and deleted_at is null and monthly_credits = 3450 and daily_limit = 1200);
 update plans set active = false, is_default = false, deleted_at = now(), updated_at = now()
  where id = 'mega' and deleted_at is null and monthly_credits = 3450 and daily_limit = 1200
    and not exists (select 1 from subscriptions s where s.plan_id = 'mega'
-                    and (s.status = 'pending_payment' or (s.status = 'active' and s.current_period_end > now())));
+                    and s.status = 'active' and s.current_period_end > now());
 `

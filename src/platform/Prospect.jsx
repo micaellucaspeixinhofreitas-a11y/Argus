@@ -20,7 +20,7 @@ import { catLabel } from '../lib/category'
 
 export default function Prospect() {
   const { config, setConfig, result, setResult, meta, pendingRun, setPendingRun } = useProspect()
-  const { credits, setCredits, pro } = useAuth()
+  const { credits, setCredits, pro, user } = useAuth()
   const [segInput, setSegInput] = useState('')
   const [geo, setGeo] = useState({ q: '', results: [], busy: false, error: '' })
   const [flyTo, setFlyTo] = useState(null)
@@ -43,7 +43,14 @@ export default function Prospect() {
   const tiers = credits?.tiers || TIERS
   const qty = (tiers.find(t => (config.maxResults || 100) <= t.max) || tiers[tiers.length - 1]).max
   const price = (tiers.find(t => t.max === qty) || {}).cost || 0
-  const short = credits ? credits.available < price : false
+  const short = credits && !user?.is_admin ? credits.available < price : false
+  // quantidade que o saldo não cobre: escolhe sozinha a maior que cabe
+  useEffect(() => {
+    if (!short || user?.is_admin) return
+    const fit = [...tiers].reverse().find(t => t.cost <= credits.available)
+    if (fit && fit.max !== qty) update({ maxResults: fit.max })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [short, credits?.available])
 
   useEffect(() => {
     if (!notice || error) return
@@ -322,7 +329,7 @@ export default function Prospect() {
             <div className="qty qty--tiers">
               {tiers.map(t => (
                 <button key={t.max} type="button" className={`chip chip--tier ${qty === t.max ? 'is-on' : ''}`} onClick={() => update({ maxResults: t.max })}
-                  disabled={credits ? credits.available < t.cost && qty !== t.max : false} title={`${t.max} empresas por ${fmtInt(t.cost)} créditos`}>
+                  disabled={credits && !user?.is_admin ? credits.available < t.cost && qty !== t.max : false} title={`${t.max} empresas por ${fmtInt(t.cost)} créditos`}>
                   <b>{t.max}</b><small>{fmtInt(t.cost)} cr</small>
                 </button>
               ))}

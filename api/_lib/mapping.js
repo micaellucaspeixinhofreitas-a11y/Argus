@@ -110,8 +110,9 @@ export async function runMapping(user, input) {
       `select 1 from mapping_runs where user_id = $1 and created_at > now() - interval '8 seconds' limit 1`, [user.id])
     if (recent.rows.length) fail(429, 'Aguarde alguns segundos antes de iniciar outro mapeamento.')
     const status = await creditStatus(user.id, db)
-    if (status.today_used >= status.daily_limit) fail(429, `Você atingiu o limite de ${status.daily_limit} busca(s) por dia do seu plano. O limite renova à meia-noite.`, 'DAILY_LIMIT')
-    if (status.available < price) fail(402, `Esta busca (${config.maxResults} empresas) custa ${price} créditos e você tem ${status.available}. Escolha uma quantidade menor${status.plan.id === 'gratuito' ? ' ou assine um plano' : ' ou aguarde a renovação dos créditos'}.`, 'NO_CREDITS')
+    // o administrador (dono da plataforma) não fica preso aos limites do plano
+    if (!user.is_admin && status.today_used >= status.daily_limit) fail(429, `Você atingiu o limite de ${status.daily_limit} busca(s) por dia do seu plano. O limite renova à meia-noite.`, 'DAILY_LIMIT')
+    if (!user.is_admin && status.available < price) fail(402, `Esta busca (${config.maxResults} empresas) custa ${price} créditos e você tem ${status.available}. Escolha uma quantidade menor${status.plan.id === 'gratuito' ? ' ou assine um plano' : ' ou aguarde a renovação dos créditos'}.`, 'NO_CREDITS')
     const { rows: [r] } = await db.query(
       `insert into mapping_runs (user_id, config, provider) values ($1, $2, $3) returning id, created_at`,
       [user.id, JSON.stringify(config), prov.name])
