@@ -48,6 +48,7 @@ function Privacy() {
       <ul>
         <li>Hospedagem e banco de dados (Vercel e Neon).</li>
         <li>Mapas e dados de estabelecimentos (CARTO, OpenStreetMap, TomTom e Google) — recebem as áreas pesquisadas, não seus dados de cadastro.</li>
+        <li>Pagamentos (Mercado Pago) — recebe nome, e-mail e valor para gerar e confirmar o Pix.</li>
         <li>Envio de e-mails transacionais (Resend).</li>
       </ul>
       <p>Alguns desses fornecedores podem armazenar dados fora do Brasil, com as garantias previstas na LGPD.</p>

@@ -66,6 +66,13 @@ create table if not exists coupons (
 alter table subscriptions add column if not exists coupon_id bigint references coupons(id) on delete set null;
 alter table subscriptions add column if not exists amount_cents integer;
 alter table subscriptions add column if not exists discount_cents integer not null default 0;
+-- Pix automático (Mercado Pago): id da cobrança, código copia e cola, validade e último status
+alter table subscriptions add column if not exists provider_payment_id text;
+alter table subscriptions add column if not exists provider_payment_status text;
+alter table subscriptions add column if not exists pix_payload text;
+alter table subscriptions add column if not exists pix_expires_at timestamptz;
+alter table subscriptions add column if not exists paid_at timestamptz;
+create index if not exists subscriptions_ref_idx on subscriptions(payment_reference);
 
 -- Livro-razão de créditos: consumo negativo, bônus positivo
 create table if not exists credit_ledger (

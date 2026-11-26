@@ -28,18 +28,16 @@ export default function Payment({ planId = 'pro', period = 'monthly', couponCode
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planId, period, couponCode])
 
-  // confere a cada 15 s se ESTE pedido foi confirmado
+  // confere se ESTE pedido foi confirmado (Pix automático: a cada 5 s; manual: a cada 15 s)
   const subId = data?.subscription?.id
   useEffect(() => {
     if (!subId) return
     const t = setInterval(async () => {
       try {
-        const s = await api('subscription')
-        if (s.subscriptions.find(x => x.id === subId)?.status === 'active') {
-          clearInterval(t); await refresh(); onActivated?.(data.plan)
-        }
+        const s = await api('payment/check', { method: 'POST', body: { subscriptionId: subId } })
+        if (s.status === 'active') { clearInterval(t); await refresh(); onActivated?.(data.plan) }
       } catch { /* tenta de novo */ }
-    }, 15000)
+    }, data?.automatic ? 5000 : 15000)
     return () => clearInterval(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subId])
@@ -76,14 +74,24 @@ export default function Payment({ planId = 'pro', period = 'monthly', couponCode
               {data.discount_cents > 0 && <s className="muted">{money(data.price_cents)}</s>}
               <strong>{money(data.amount_cents)}</strong>
               {data.coupon && <span className="flag flag--fit">Cupom {data.coupon.code} · {data.coupon.label}</span>}
-              <span className="muted">Recebedor: {data.receiver}</span>
+              {data.receiver && <span className="muted">Recebedor: {data.receiver}</span>}
               <span className="muted">Pedido: {data.subscription.payment_reference}</span>
+              {data.expires_at && <span className="muted">Válido até {new Date(data.expires_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>}
             </div>
             <label className="field">
               <span>Pix Copia e Cola</span>
               <textarea readOnly rows="4" value={data.payload} onFocus={e => e.target.select()} />
             </label>
             <button className="btn btn--ghost btn--sm" onClick={copy}>{copied ? <><LuCheck /> Copiado</> : <><LuCopy /> Copiar código</>}</button>
+            {data.automatic ? (
+              <>
+                <ol className="pay__steps">
+                  <li>Pague pelo QR Code ou pelo código Copia e Cola no app do seu banco.</li>
+                  <li>A confirmação é automática: em poucos segundos o plano {data.plan.name} é liberado nesta tela.</li>
+                </ol>
+                <p className="form-notice notice-icon"><img src="/icons/relogio.webp" alt="" width="26" height="26" /> <span>Aguardando o pagamento… pode deixar esta página aberta.</span></p>
+              </>
+            ) : <>
             <ol className="pay__steps">
               <li>Pague o valor exato pelo QR Code ou pelo código Copia e Cola.</li>
               <li>Clique em <strong>Já paguei</strong> para registrar o pagamento.</li>
@@ -92,6 +100,7 @@ export default function Payment({ planId = 'pro', period = 'monthly', couponCode
             {reported
               ? <p className="form-notice notice-icon"><img src="/icons/sino.webp" alt="" width="26" height="26" /> <span>Recebemos seu aviso de pagamento. A liberação acontece assim que o Pix for confirmado — esta página atualiza sozinha.</span></p>
               : <button className="btn btn--primary btn--block" onClick={report}>Já paguei</button>}
+            </>}
           </div>
         </div>
       )}

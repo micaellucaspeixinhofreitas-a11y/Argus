@@ -87,5 +87,5 @@ export const faq = [
   { q: 'Posso prospectar em várias regiões ao mesmo tempo?', a: 'Sim. Você marca quantas áreas quiser (até 10 por operação), cada uma com seu próprio raio, e a Argus junta tudo sem repetir empresas.' },
   { q: 'O que é a qualificação?', a: 'São critérios que você escolhe — como ter telefone, ter e-mail ou não ter website. A Argus dá uma nota para cada empresa com base nos dados encontrados e destaca as de alta aderência.' },
   { q: 'Funciona fora do Brasil?', a: 'Sim. Você escolhe o país e a busca de cidades, bairros e endereços passa a usar esse país como referência.' },
-  { q: 'Como pago a assinatura?', a: 'Por Pix, em planos mensais ou trimestrais. Não há cobrança automática: o plano vale pelo período pago e você renova com um novo Pix quando quiser, pela própria plataforma (renovando antes do vencimento, os dias que faltam são somados).' },
+  { q: 'Como pago a assinatura?', a: 'Por Pix, em planos mensais ou trimestrais. A confirmação é automática: pagou, o plano é liberado em segundos. Não há cobrança recorrente: o plano vale pelo período pago e você renova com um novo Pix quando quiser, pela própria plataforma (renovando antes do vencimento, os dias que faltam são somados).' },
 ]

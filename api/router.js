@@ -17,6 +17,7 @@ const PAID_SOURCES = { google: googleSource, tomtom: tomtomSource }
 import { criteriaList } from './_lib/qualify.js'
 import { findCoupon, applyCoupon, couponLabel, couponUsage, normalizeCode } from './_lib/coupons.js'
 import { createCheckout, periodMonths, paymentProvider } from './_lib/payments.js'
+import { mpConfigured, createPixPayment, getPayment } from './_lib/mercadopago.js'
 
 export const config = { maxDuration: 60 }
 
@@ -586,6 +587,47 @@ async function periodStart(db, userId, planId) {
   return cur ? cur.current_period_end : new Date()
 }
 
+// Ativa uma assinatura paga (idempotente): substitui a ativa anterior e calcula o período
+async function activateSubscription(db, subId, provider) {
+  const { rows: [sub] } = await db.query('select * from subscriptions where id = $1 for update', [subId])
+  if (!sub || sub.status === 'active') return sub
+  const start = await periodStart(db, sub.user_id, sub.plan_id)
+  await db.query(`update subscriptions set status = 'canceled', updated_at = now() where user_id = $1 and status in ('active','pending_payment') and id <> $2`, [sub.user_id, sub.id])
+  const { rows: [done] } = await db.query(
+    `update subscriptions set status = 'active', payment_provider = coalesce($4, payment_provider), paid_at = coalesce(paid_at, now()),
+            current_period_start = $3, current_period_end = $3::timestamptz + ($2 || ' months')::interval, updated_at = now()
+      where id = $1 returning *`, [sub.id, String(periodMonths(sub.period)), start, provider || null])
+  await db.query(`insert into operations_log (user_id, type, detail) values ($1, 'subscription_activated', $2)`, [sub.user_id, JSON.stringify({ subscription: sub.id, plan: sub.plan_id, provider })])
+  return done
+}
+
+// Confere no Mercado Pago o pagamento e aplica o resultado (aprovado → ativa; estornado → cancela)
+async function syncMercadoPago(paymentId) {
+  const p = await getPayment(paymentId)
+  const m = /^ARGUS(\d+)$/.exec(p.reference)
+  if (!m) return { ignored: true }
+  return tx(async db => {
+    const { rows: [sub] } = await db.query('select * from subscriptions where id = $1 for update', [Number(m[1])])
+    if (!sub) return { ignored: true }
+    await db.query('update subscriptions set provider_payment_status = $2, updated_at = now() where id = $1 and (provider_payment_id = $3 or provider_payment_id is null)', [sub.id, p.status, p.id])
+    if (p.status === 'approved' && p.method === 'pix') {
+      if (p.amountCents + 1 < (sub.amount_cents || 0)) {
+        console.error(JSON.stringify({ evt: 'mp_amount_mismatch', subscription: sub.id, paid: p.amountCents, expected: sub.amount_cents }))
+        return { status: sub.status, mismatch: true }
+      }
+      const done = await activateSubscription(db, sub.id, 'mercadopago')
+      console.log(JSON.stringify({ evt: 'mp_approved', subscription: sub.id, payment: p.id }))
+      return { status: done.status }
+    }
+    if ((p.status === 'refunded' || p.status === 'charged_back') && sub.status === 'active' && sub.provider_payment_id === p.id) {
+      await db.query(`update subscriptions set status = 'canceled', updated_at = now() where id = $1`, [sub.id])
+      console.log(JSON.stringify({ evt: 'mp_reversed', subscription: sub.id, payment: p.id, status: p.status }))
+      return { status: 'canceled' }
+    }
+    return { status: sub.status, payment: p.status }
+  })
+}
+
 async function subscriptionState(userId) {
   await expireSubscriptions(userId)
   const { rows } = await query(
@@ -677,19 +719,61 @@ on('POST', 'payment/pix', async ({ req, body }) => {
       coupon: coupon ? { code: coupon.code, label: couponLabel(coupon) } : null }
     // cupom de 100%: libera o plano na hora, sem Pix
     if (amount_cents === 0) {
-      const start = await periodStart(db, user.id, plan.id)
-      await db.query(`update subscriptions set status = 'canceled', updated_at = now() where user_id = $1 and status = 'active'`, [user.id])
-      await db.query(
-        `update subscriptions set status = 'active', payment_provider = 'coupon', current_period_start = $3,
-                current_period_end = $3::timestamptz + ($2 || ' months')::interval, updated_at = now() where id = $1`,
-        [sub.id, String(periodMonths(period)), start])
+      await activateSubscription(db, sub.id, 'coupon')
       await db.query(`insert into operations_log (user_id, type, detail) values ($1, 'coupon_free_activation', $2)`, [user.id, JSON.stringify({ subscription: sub.id, coupon: coupon.code })])
       return { ...base, activated: true }
+    }
+    // Pix automático (Mercado Pago): reaproveita a cobrança ainda válida do mesmo valor; senão gera outra
+    if (mpConfigured()) {
+      const valid = sub.provider_payment_id && sub.pix_payload && sub.pix_expires_at && new Date(sub.pix_expires_at) > new Date(Date.now() + 10 * 60_000)
+        && sub.amount_cents === amount_cents && !['rejected', 'cancelled', 'expired'].includes(sub.provider_payment_status)
+      if (!valid) {
+        let charge
+        try {
+          charge = await createPixPayment({
+            amountCents: amount_cents, description: `Argus ${plan.name} ${period === 'quarterly' ? 'trimestral' : 'mensal'}`,
+            email: user.email, name: user.name, reference: sub.payment_reference,
+            notificationUrl: `${appUrl(req)}/api/payment/webhook`, idempotencyKey: `argus-${sub.id}-${amount_cents}-${Date.now()}`,
+          })
+        } catch (err) {
+          console.error(JSON.stringify({ evt: 'mp_create_failed', subscription: sub.id, error: String(err.message).slice(0, 300), detail: JSON.stringify(err.detail || {}).slice(0, 300) }))
+          fail(502, 'Não foi possível gerar o Pix agora. Tente novamente em instantes.', 'PIX_PROVIDER')
+        }
+        await db.query(
+          `update subscriptions set payment_provider = 'mercadopago', provider_payment_id = $2, provider_payment_status = $3, pix_payload = $4, pix_expires_at = $5, updated_at = now() where id = $1`,
+          [sub.id, charge.id, charge.status, charge.payload, charge.expiresAt])
+        Object.assign(sub, { provider_payment_id: charge.id, pix_payload: charge.payload, pix_expires_at: charge.expiresAt })
+      }
+      return { ...base, amount_cents, payload: sub.pix_payload, automatic: true, expires_at: sub.pix_expires_at }
     }
     if (!pixConfigured()) fail(503, 'O pagamento por Pix está indisponível no momento. Tente novamente mais tarde.', 'PIX_NOT_CONFIGURED')
     const payload = pixPayload({ amountCents: amount_cents, txid: sub.payment_reference, description: `Argus ${plan.name}` })
     return { ...base, amount_cents, payload, receiver: process.env.PIX_NAME }
   })
+})
+
+// Aviso do Mercado Pago: só o id do pagamento é usado; o status é conferido na API com o nosso token
+on('POST', 'payment/webhook', async ({ req, url, body }) => {
+  if (!mpConfigured()) return { ok: true }
+  await rateLimit('mp_webhook', clientIp(req), 300, 10)
+  const type = body?.type || body?.topic || url.searchParams.get('type') || url.searchParams.get('topic') || ''
+  const id = body?.data?.id || url.searchParams.get('data.id') || (type === 'payment' ? url.searchParams.get('id') : null)
+  if (!/payment/.test(type) || !id || !/^\d{1,24}$/.test(String(id))) return { ok: true }
+  const result = await syncMercadoPago(String(id))
+  return { ok: true, ...result }
+})
+
+// A tela de pagamento consulta aqui (caso o aviso do Mercado Pago atrase ou se perca)
+on('POST', 'payment/check', async ({ req, body }) => {
+  const user = await requireUser(req)
+  await rateLimit('payment_check', String(user.id), 60, 10)
+  const { rows: [sub] } = await query('select * from subscriptions where id = $1 and user_id = $2', [Number(body.subscriptionId), user.id])
+  if (!sub) fail(404, 'Pedido de pagamento não encontrado.')
+  if (sub.status === 'pending_payment' && sub.provider_payment_id && mpConfigured()) {
+    try { await syncMercadoPago(sub.provider_payment_id) } catch (err) { console.error(JSON.stringify({ evt: 'mp_check_failed', error: String(err.message).slice(0, 200) })) }
+  }
+  const { rows: [now] } = await query('select status from subscriptions where id = $1', [sub.id])
+  return { status: now.status }
 })
 
 on('POST', 'payment/reported', async ({ req, body }) => {
@@ -925,7 +1009,7 @@ on('POST', 'admin/credits', async ({ req, body }) => {
 })
 
 // ---------- despacho ----------
-const MAINTENANCE_OPEN = new Set(['health', 'site/status', 'meta', 'auth/me', 'auth/login', 'auth/logout', 'auth/forgot', 'auth/reset', 'auth/google', 'auth/google/callback'])
+const MAINTENANCE_OPEN = new Set(['health', 'site/status', 'meta', 'payment/webhook', 'auth/me', 'auth/login', 'auth/logout', 'auth/forgot', 'auth/reset', 'auth/google', 'auth/google/callback'])
 export default async function handler(req, res) {
   const url = new URL(req.url, 'http://localhost')
   const path = (url.searchParams.get('r') || url.pathname.replace(/^\/api\/?/, '')).replace(/\/+$/, '')
@@ -935,7 +1019,8 @@ export default async function handler(req, res) {
     if (['POST', 'PUT', 'DELETE'].includes(req.method)) {
       // proteção CSRF: aceita apenas JSON vindo da própria origem
       const ct = req.headers['content-type'] || ''
-      if (req.method !== 'DELETE' && !ct.includes('application/json')) fail(415, 'Envie JSON.')
+      // (o aviso do Mercado Pago é exceção: só traz um id, conferido direto na API deles)
+      if (req.method !== 'DELETE' && path !== 'payment/webhook' && !ct.includes('application/json')) fail(415, 'Envie JSON.')
       const origin = req.headers.origin
       const host = req.headers['x-forwarded-host'] || req.headers.host
       if (origin && host && new URL(origin).host !== host) fail(403, 'Origem não permitida.')
@@ -948,7 +1033,7 @@ export default async function handler(req, res) {
         fail(503, settings.maintenance.message || 'A Argus está em manutenção. Voltamos em instantes.', 'MAINTENANCE')
       }
     }
-    const body = ['POST', 'PUT'].includes(req.method) ? await readJson(req) : {}
+    const body = ['POST', 'PUT'].includes(req.method) ? await (path === 'payment/webhook' ? readJson(req).catch(() => ({})) : readJson(req)) : {}
     const out = await route({ req, res, url, body })
     if (out && out.redirect) {
       res.statusCode = 302

@@ -375,11 +375,48 @@ try {
     assert.ok(r.data.rateLimited.find(x => x.kind === 'coupon_check'))
   }
 
+  // Pix automático (Mercado Pago simulado): gera cobrança, aviso confere na API, libera; estorno cancela
+  {
+    process.env.MP_ACCESS_TOKEN = 'TEST-token'
+    const fetchBefore = globalThis.fetch
+    let mpStatus = 'pending', created = 0, lastBody = null
+    globalThis.fetch = async (u, o = {}) => {
+      const url = String(u)
+      if (!url.startsWith('https://api.mercadopago.com')) return fetchBefore(u, o)
+      assert.equal(o.headers.Authorization, 'Bearer TEST-token')
+      if (o.method === 'POST') {
+        created++; lastBody = JSON.parse(o.body)
+        return new Response(JSON.stringify({ id: 777001, status: 'pending', date_of_expiration: new Date(Date.now() + 86400000).toISOString(),
+          point_of_interaction: { transaction_data: { qr_code: '00020126MERCADOPAGO', ticket_url: 'https://mp.example/t' } } }), { status: 201 })
+      }
+      return new Response(JSON.stringify({ id: 777001, status: mpStatus, external_reference: lastBody.external_reference, transaction_amount: lastBody.transaction_amount, payment_method_id: 'pix' }), { status: 200 })
+    }
+    let p = await api('POST', 'payment/pix', { planId: 'pro', period: 'quarterly' }, otherCookie)
+    assert.equal(p.status, 200, JSON.stringify(p.data)); assert.equal(p.data.automatic, true); assert.equal(p.data.payload, '00020126MERCADOPAGO')
+    assert.equal(lastBody.payment_method_id, 'pix'); assert.equal(lastBody.transaction_amount, 531); assert.equal(lastBody.external_reference, p.data.subscription.payment_reference)
+    p = await api('POST', 'payment/pix', { planId: 'pro', period: 'quarterly' }, otherCookie)
+    assert.equal(created, 1, 'reaproveita a cobrança Pix ainda válida')
+    const subId = p.data.subscription.id
+    assert.equal((await api('POST', 'payment/check', { subscriptionId: subId }, otherCookie)).data.status, 'pending_payment')
+    assert.equal((await api('POST', 'payment/webhook', { type: 'payment', data: { id: 'abc' } }, '')).status, 200, 'id inválido é ignorado')
+    mpStatus = 'approved'
+    r = await api('POST', 'payment/webhook', { type: 'payment', data: { id: '777001' } }, '')
+    assert.equal(r.status, 200); assert.equal(r.data.status, 'active', 'pagamento aprovado libera o plano')
+    assert.equal((await api('GET', 'auth/me', null, otherCookie)).data.pro, true)
+    r = await api('POST', 'payment/webhook', { type: 'payment', data: { id: '777001' } }, ''); assert.equal(r.data.status, 'active', 'aviso repetido não muda nada')
+    const raw2 = await fetch(base + 'payment/webhook?type=payment&data.id=777001', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: 'x' })
+    assert.equal(raw2.status, 200, 'aviso em outro formato também é aceito')
+    mpStatus = 'refunded'
+    r = await api('POST', 'payment/webhook', { type: 'payment', data: { id: '777001' } }, ''); assert.equal(r.data.status, 'canceled', 'estorno cancela o plano')
+    assert.equal((await api('GET', 'auth/me', null, otherCookie)).data.pro, false)
+    globalThis.fetch = fetchBefore; delete process.env.MP_ACCESS_TOKEN
+  }
+
   // logout
   await api('POST', 'auth/logout'); assert.equal((await api('GET', 'auth/me')).data.user, null)
   console.log('OK — todos os testes da API passaram' + (firstIsAdmin ? ' (incluindo admin)' : ''))
 } catch (err) {
-  console.error('FALHOU:', err.message)
+  console.error('FALHOU:', err.message, err.stack?.split('\n').slice(1,3).join(' | '))
   process.exitCode = 1
 } finally {
   server.close()
