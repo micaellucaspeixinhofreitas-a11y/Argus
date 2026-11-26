@@ -5,6 +5,7 @@ import {
   LuGlobe, LuPhone, LuMail, LuMapPin, LuCheck, LuLoader, LuLocateFixed,
 } from 'react-icons/lu'
 import MapView from './MapView'
+import CategoryPicker from './CategoryPicker'
 import ProLock from './ProLock'
 import { useProspect } from './Platform'
 import { useAuth } from '../lib/auth'
@@ -56,7 +57,7 @@ export default function Prospect() {
 
   useEffect(() => {
     if (!notice || error) return
-    const t = setTimeout(() => setNotice(''), 7000)
+    const t = setTimeout(() => setNotice(''), 15000)
     return () => clearTimeout(t)
   }, [notice, error])
 
@@ -174,12 +175,21 @@ export default function Prospect() {
       setResult({ ...data, configKey: keyOf(areas) })
       if (data.credits) setCredits(data.credits)
       setSelected(new Set())
-      setFilter('all')
+      // empresas que já são seus leads ficam na aba Capturadas; a lista abre nas novas
+      setFilter(data.coverage?.alreadyLeads && data.coverage?.fresh ? 'open' : 'all')
       const failed = Object.keys(data.sourceErrors || {}).filter(k => k !== 'osm')
       if (!data.run.total && failed.length) {
         setError(`A fonte de empresas (${failed.join(', ')}) não respondeu: ${Object.values(data.sourceErrors).find(Boolean)}. Tente novamente em instantes.`)
       } else {
-        if (data.run.total) setNotice(`${fmtInt(data.run.total)} empresa(s) mapeada(s).`)
+        if (data.run.total) {
+          const cv = data.coverage || {}
+          const parts = [`${fmtInt(cv.fresh ?? data.run.total)} empresa(s) nova(s) mapeada(s)`]
+          if (cv.alreadyLeads) parts.push(`${fmtInt(cv.alreadyLeads)} já eram seus leads (aba Capturadas)`)
+          if (cv.requested && cv.fresh < cv.requested) {
+            parts.push(`você pediu ${fmtInt(cv.requested)}, mas a área marcada só tem ${fmtInt(cv.fresh)} empresa(s) nova(s) desse tipo — aumente o raio, adicione áreas ou mude o segmento para encontrar mais`)
+          }
+          setNotice(parts.join(' · ') + '.')
+        }
         else if (data.hint) {
           const km = (data.hint.distance_m / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })
           setError(`Nenhuma empresa de "${data.hint.segment}" num raio de ${data.hint.radius_km} km desta área. A mais próxima fica a ${km} km${data.hint.city ? `, em ${data.hint.city}` : ''}. Aumente o raio, mova a área ou pesquise outra cidade.`)
@@ -291,7 +301,14 @@ export default function Prospect() {
                 {meta.segments.map(s => <option key={s.key} value={s.label} />)}
               </datalist>
             </div>
-            <small className="hint">Vazio = todo tipo de comércio da região. Aceita categorias e palavras-chave.</small>
+            <CategoryPicker
+              catalog={meta.segments}
+              selected={config.segments}
+              onToggle={(label, on) => on
+                ? update({ segments: config.segments.filter(x => x.toLowerCase() !== label.toLowerCase()) })
+                : addSegment(label)}
+            />
+            <small className="hint">Vazio = todo tipo de comércio da região. Aceita as categorias da lista e qualquer palavra-chave (ex.: "sushi", "chaveiro 24h").</small>
           </div>
           <div className="row2">
             <label className="field">
@@ -491,7 +508,7 @@ export default function Prospect() {
           <div className="results card">
             <div className="results__bar">
               <div className="seg-tabs">
-                {[['all', 'Todas'], ['fit', 'Alta aderência'], ['noweb', 'Sem website'], ['open', 'Não capturadas'], ['captured', 'Capturadas']].map(([k, l]) => (
+                {[['all', 'Todas'], ['fit', 'Alta aderência'], ['noweb', 'Sem website'], ['open', 'Novas'], ['captured', 'Capturadas']].map(([k, l]) => (
                   <button key={k} className={filter === k ? 'is-on' : ''} onClick={() => setFilter(k)}>{l}</button>
                 ))}
               </div>

@@ -31,7 +31,10 @@ const hybrid = {
     const osmTask = settle(osm.searchPlaces({ ...opts, deadlineMs: 18000 }))
     const paidSettled = await Promise.all(paid.map(p => settle(p.searchPlaces(opts))))
     const paidOk = paidSettled.some(s => s.status === 'fulfilled' && s.value.length)
-    const osmSettled = await (paidOk ? Promise.race([osmTask, wait(4000)]) : osmTask)
+    // se as fontes pagas trouxeram menos do que o pedido, o OpenStreetMap ganha mais tempo para completar
+    const paidCount = paidSettled.reduce((n, st) => n + (st.status === 'fulfilled' ? st.value.length : 0), 0)
+    const osmWait = paidCount < (opts.want || 200) ? 12000 : 4000
+    const osmSettled = await (paidOk ? Promise.race([osmTask, wait(osmWait)]) : osmTask)
     const settled = [...paidSettled, osmSettled]
     const names = [...paid.map(p => p.name), 'osm']
     const errors = {}

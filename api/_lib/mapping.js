@@ -131,6 +131,7 @@ export async function runMapping(user, input) {
       segments: resolveSegments(config.segments),
       allBusiness: ALL_BUSINESS,
       country: config.country,
+      want: config.maxResults,
     })
   } catch (err) {
     await query(`update mapping_runs set status = 'failed', error = $2, finished_at = now() where id = $1`, [run.id, String(err.message).slice(0, 300)])
@@ -151,7 +152,17 @@ export async function runMapping(user, input) {
       return d <= a.radiusKm * 1000 ? d : Infinity
     }))
   }
-  places = places.filter(p => p._dist !== Infinity).sort((a, b) => a._dist - b._dist).slice(0, config.maxResults)
+  places = places.filter(p => p._dist !== Infinity).sort((a, b) => a._dist - b._dist)
+  const available = places.length
+  // a quantidade pedida vale para empresas NOVAS: as que já são leads do usuário não ocupam vaga
+  const keys = places.map(p => `${p.source}:${p.source_id}`)
+  const { rows: mine } = keys.length ? await query(
+    `select c.source || ':' || c.source_id as k from leads l join companies c on c.id = l.company_id
+      where l.user_id = $1 and c.source || ':' || c.source_id = any($2::text[])`, [user.id, keys]) : { rows: [] }
+  const owned = new Set(mine.map(r => r.k))
+  const fresh = places.filter(p => !owned.has(`${p.source}:${p.source_id}`)).slice(0, config.maxResults)
+  const already = places.filter(p => owned.has(`${p.source}:${p.source_id}`)).slice(0, 1000)
+  places = [...fresh, ...already]
   places.forEach(p => delete p._dist)
 
   // Grava empresas (sem duplicidade) e associa ao mapeamento respeitando os limites das áreas
@@ -215,18 +226,18 @@ export async function runMapping(user, input) {
   if (Object.keys(sourceErrors).length) {
     await query(`update mapping_runs set error = $2 where id = $1`, [run.id, JSON.stringify(sourceErrors).slice(0, 300)])
   }
-  console.log(JSON.stringify({ evt: 'mapping', sourceErrors, run: run.id, user: user.id, provider: prov.name, segments: config.segments, areas: config.areas.map(a => `${a.lat.toFixed(4)},${a.lng.toFixed(4)} r${a.radiusKm}km`), max: config.maxResults, raw, bySource, kept: places.length, total: stats.total, ms: Date.now() - startedAt }))
+  console.log(JSON.stringify({ evt: 'mapping', sourceErrors, run: run.id, user: user.id, provider: prov.name, segments: config.segments, areas: config.areas.map(a => `${a.lat.toFixed(4)},${a.lng.toFixed(4)} r${a.radiusKm}km`), max: config.maxResults, raw, bySource, kept: places.length, fresh: fresh.length, already: already.length, total: stats.total, ms: Date.now() - startedAt }))
   // área vazia: procura a empresa do tipo mais próxima para orientar o usuário
   let hint = null
   if (!stats.total && tomtom.available()) {
     try {
       const a = config.areas[0]
       const seg = resolveSegments(config.segments)[0]
-      const near = await tomtom.nearest({ lat: a.lat, lng: a.lng, term: seg ? seg.label || seg.term : 'loja', country: config.country })
+      const near = await tomtom.nearest({ lat: a.lat, lng: a.lng, term: seg ? seg.tt || seg.label || seg.term : 'loja', country: config.country })
       if (near) hint = { ...near, segment: seg ? seg.label || seg.term : 'comércio', radius_km: a.radiusKm }
     } catch { /* sem dica */ }
   }
-  return { run_id: run.id, config, stats, sourceErrors, hint }
+  return { run_id: run.id, config, stats, sourceErrors, hint, coverage: { requested: config.maxResults, fresh: fresh.length, alreadyLeads: already.length, available } }
 }
 
 // Resultados de um mapeamento do usuário. Contatos só aparecem para leads capturados.

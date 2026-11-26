@@ -111,7 +111,10 @@ try {
   // sem áreas: usa a localidade geocodificada
   await new Promise(res => setTimeout(res, 8200))
   r = await api('POST', 'mapping/run', { ...config, areas: [], maxResults: 2 }); assert.equal(r.status, 200); assert.equal(r.data.areas.length, 1)
-  assert.equal(r.data.run.total, 2, 'respeita a quantidade pedida')
+  assert.ok(r.data.coverage.fresh <= 2, 'respeita a quantidade pedida (empresas novas)')
+  assert.equal(r.data.coverage.fresh + r.data.coverage.alreadyLeads, 3, 'todas as empresas da área entram: novas até o limite + as que já são leads')
+  assert.equal(r.data.run.total, r.data.coverage.fresh + r.data.coverage.alreadyLeads, 'leads já capturados vêm à parte, sem ocupar vaga')
+  assert.ok(r.data.coverage.alreadyLeads >= 1, 'empresas já capturadas são identificadas')
 
   // créditos e planos
   r = await api('GET', 'credits'); assert.equal(r.data.credits.month_used, 3); assert.equal(r.data.history[0].used, 3)

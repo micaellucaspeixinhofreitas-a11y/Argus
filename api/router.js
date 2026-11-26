@@ -378,7 +378,7 @@ on('POST', 'mapping/run', async ({ req, body }) => {
   const user = await requireUser(req)
   if (!(await getSettings()).mappingEnabled && !user.is_admin) fail(503, 'Os mapeamentos estão pausados no momento. Tente de novo em instantes.', 'MAPPING_PAUSED')
   const result = await runMapping(user, body)
-  return { ...(await runResults(user, result.run_id)), credits: await creditStatus(user.id), sourceErrors: result.sourceErrors, hint: result.hint }
+  return { ...(await runResults(user, result.run_id)), credits: await creditStatus(user.id), sourceErrors: result.sourceErrors, hint: result.hint, coverage: result.coverage }
 })
 
 on('GET', 'mapping/result', async ({ req, url }) => {

@@ -442,3 +442,21 @@ a.activity__num { color: var(--acc-2); }
 .ctl__radios input { accent-color: var(--acc); }
 .ctl__foot { display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
 @media (max-width: 900px) { .ctl__grid { grid-template-columns: minmax(0, 1fr); } .ctl__head { flex-wrap: wrap; } .ctl__head img { width: 72px; height: 72px; } }
+
+/* ---------------- seletor de categorias ---------------- */
+.catpick { display: grid; gap: 8px; }
+.catpick__toggle { justify-self: start; display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 500; color: var(--acc-2, #a78bfa); padding: 2px 0; }
+.catpick__toggle svg { transition: transform .2s; }
+.catpick.is-open .catpick__toggle svg { transform: rotate(180deg); }
+.catpick__panel { display: grid; gap: 10px; padding: 10px; border-radius: 10px; border: 1px solid var(--b1, #1f1f25); background: #0b0b0e; }
+.catpick__search { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--b2, #2a2a32); background: var(--s1, #0f0f12); color: var(--t3, #71717a); }
+.catpick__search:focus-within { border-color: var(--acc, #8b5cf6); }
+.catpick__search input { flex: 1; min-width: 0; height: 100%; border: 0 !important; background: none !important; box-shadow: none !important; padding: 0 !important; color: var(--t1, #ededf0); font: inherit; font-size: 13px; outline: none; }
+.catpick__groups { display: grid; gap: 12px; max-height: 320px; overflow-y: auto; padding-right: 4px; scrollbar-width: thin; }
+.catpick__group { display: grid; gap: 6px; }
+.catpick__label { font-size: 11.5px; font-weight: 600; color: var(--t3, #71717a); }
+.catpick__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.catpick__chip { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 10px; border-radius: 7px; font-size: 12.5px; color: var(--t2, #a1a1aa); background: var(--s2, #141418); border: 1px solid var(--b2, #2a2a32); transition: border-color .15s, color .15s, background .15s; }
+.catpick__chip:hover { color: #fff; border-color: #3a3a44; }
+.catpick__chip.is-on { color: #fff; background: rgba(139, 92, 246, .18); border-color: rgba(139, 92, 246, .55); }
+.catpick__chip svg { font-size: 13px; color: #c4b5fd; }

@@ -71,7 +71,7 @@ export async function searchPlaces({ areas, segments, country, limit = 2500 }) {
         for (let page = 0; page < 3 && budget > 0; page++) {
           budget--
           const data = await call('places:searchText', {
-            textQuery: seg.label || seg.term,
+            textQuery: seg.tt || seg.label || seg.term,
             locationRestriction: { rectangle: bbox(area) },
             pageSize: 20,
             ...(pageToken ? { pageToken } : {}),

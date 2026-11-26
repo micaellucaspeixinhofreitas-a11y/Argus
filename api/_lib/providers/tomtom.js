@@ -49,7 +49,7 @@ export async function searchPlaces({ areas, segments, country, limit = 2500 }) {
     }
     const jobs = segments.length
       ? segments.flatMap(seg => {
-          const term = encodeURIComponent(seg.label || seg.term)
+          const term = encodeURIComponent(seg.tt || seg.label || seg.term)
           const list = [{ path: `categorySearch/${term}.json`, pages: 3 }]
           if (!seg.key) list.push({ path: `poiSearch/${term}.json`, pages: 1 })
           return list
