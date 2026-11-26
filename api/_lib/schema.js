@@ -236,12 +236,11 @@ update plans set monthly_credits = 300, daily_limit = 1, description = 'Para tes
  where id = 'gratuito' and monthly_credits = 1800 and daily_limit = 3;
 
 -- plano Mega retirado por enquanto (arquivado: some do site e do painel; recriar com o id "mega" no admin o traz de volta).
--- Pedidos de Pix ainda não pagos do Mega são cancelados; assinatura paga e ativa impede a retirada.
+-- Pedidos de Pix ainda não pagos do Mega são cancelados.
 update subscriptions set status = 'canceled', updated_at = now()
  where plan_id = 'mega' and status = 'pending_payment'
    and exists (select 1 from plans where id = 'mega' and deleted_at is null and monthly_credits = 3450 and daily_limit = 1200);
+-- (quem já tem o Mega ativo mantém os benefícios até o fim do período pago)
 update plans set active = false, is_default = false, deleted_at = now(), updated_at = now()
- where id = 'mega' and deleted_at is null and monthly_credits = 3450 and daily_limit = 1200
-   and not exists (select 1 from subscriptions s where s.plan_id = 'mega'
-                    and s.status = 'active' and s.current_period_end > now());
+ where id = 'mega' and deleted_at is null and monthly_credits = 3450 and daily_limit = 1200;
 `
