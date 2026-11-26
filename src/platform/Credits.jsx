@@ -32,25 +32,27 @@ export default function Credits() {
         <div className="card stat-card">
             <small>Créditos disponíveis</small><strong><CountUp value={c.available} /></strong><span className="muted">de {fmtInt(c.monthly_credits)} no mês</span></div>
         <div className="card stat-card">
-            <small>Usados hoje</small><strong><CountUp value={c.today_used} /></strong><span className="muted">limite diário de {fmtInt(c.daily_limit)}</span></div>
+            <small>Buscas hoje</small><strong><CountUp value={c.today_used} /></strong><span className="muted">limite de {fmtInt(c.daily_limit)} por dia</span></div>
         <div className="card stat-card">
-            <small>Usados no mês</small><strong><CountUp value={c.month_used} /></strong><span className="muted">renova no dia 1º</span></div>
+            <small>Créditos usados no mês</small><strong><CountUp value={c.month_used} /></strong><span className="muted">renova no dia 1º</span></div>
         <div className="card stat-card">
-            <small>Pode capturar agora</small><strong><CountUp value={c.can_spend} /></strong><span className="muted">leads novos</span></div>
+            <small>Buscas de 20 empresas</small><strong><CountUp value={c.searches_available ?? 0} /></strong><span className="muted">possíveis com o saldo</span></div>
       </div>
       <div className="card meters">
         <label>Mês <span>{fmtInt(c.month_used)} / {fmtInt(c.monthly_credits)}</span></label>
         <div className="meter"><i style={{ width: `${monthPct}%` }} /></div>
-        <label>Hoje <span>{fmtInt(c.today_used)} / {fmtInt(c.daily_limit)}</span></label>
+        <label>Buscas hoje <span>{fmtInt(c.today_used)} / {fmtInt(c.daily_limit)}</span></label>
         <div className="meter"><i style={{ width: `${dayPct}%` }} /></div>
       </div>
       <div className="card rules">
         <h2 className="h2-icon"><img className="h2-ic" src="/icons/lupa.webp" alt="" width="24" height="24" /> Como os créditos funcionam</h2>
         <ul>
-          <li>{fmtInt(c.cost_per_lead || 150)} créditos por <strong>novo</strong> lead capturado ({fmtInt(c.leads_available ?? 0)} {c.leads_available === 1 ? "lead" : "leads"} com o saldo atual). Mapear, ver o radar e salvar buscas não consome créditos.</li>
-          <li>Capturar de novo uma empresa que já é sua não cobra nada (deduplicação).</li>
-          <li>Os créditos renovam todo dia 1º e o limite diário reinicia à meia-noite (horário de Brasília).</li>
-          <li>A contagem é feita no servidor no momento da captura.</li>
+          <li>Cada <strong>busca</strong> custa créditos conforme a quantidade de empresas pedida:
+            <span className="tier-list">{(c.tiers || []).map(t => <span key={t.max}><b>{t.max}</b> empresas = {fmtInt(t.cost)} créditos</span>)}</span>
+          </li>
+          <li>Se a área tiver menos empresas novas do que você pediu, paga só a faixa do que veio. Busca sem nenhuma empresa nova não cobra nada.</li>
+          <li>Capturar leads, ver o radar, salvar buscas e exportar não consomem créditos.</li>
+          <li>Os créditos renovam todo dia 1º e o limite de buscas por dia reinicia à meia-noite (horário de Brasília).</li>
         </ul>
       </div>
       <div className="card">

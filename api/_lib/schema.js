@@ -216,9 +216,17 @@ create index if not exists operations_log_type_idx on operations_log(type, creat
 export const SEED = `
 insert into plans (id, name, description, monthly_credits, daily_limit, price_monthly_cents, price_quarterly_cents, features, is_default, sort)
 values
-  ('gratuito', 'Gratuito', 'Para conhecer a plataforma', 150, 30, 0, 0,
-   '["150 créditos por mês","Até 30 leads por dia","Mapa e radar completos","Buscas salvas"]', true, 0),
-  ('pro', 'Pro', 'Prospecção contínua para quem vende todo dia', 7000, 700, 19700, 53100,
-   '["7.000 créditos por mês","Até 700 leads por dia","1 crédito por novo lead","Lead repetido não é cobrado","Exportação em CSV"]', false, 1)
+  ('gratuito', 'Gratuito', 'Para conhecer a plataforma', 1800, 3, 0, 0,
+   '["Cerca de 12 buscas de 20 empresas por mês","Mapa e radar completos","Buscas salvas"]', true, 0),
+  ('pro', 'Pro', 'Prospecção contínua para quem vende todo dia', 22500, 10, 19700, 53100,
+   '["Cerca de 50 buscas de 100 empresas por mês","Capturar leads não consome créditos","Lead repetido não é cobrado","Exportação em CSV"]', false, 1)
 on conflict (id) do nothing;
+
+-- nova regra (créditos por busca): atualiza os planos que ainda estão com os valores antigos de fábrica
+update plans set monthly_credits = 1800, daily_limit = 3,
+  features = '["Cerca de 12 buscas de 20 empresas por mês","Mapa e radar completos","Buscas salvas"]'
+ where id = 'gratuito' and monthly_credits = 150 and daily_limit = 30;
+update plans set monthly_credits = 22500, daily_limit = 10,
+  features = '["Cerca de 50 buscas de 100 empresas por mês","Capturar leads não consome créditos","Lead repetido não é cobrado","Exportação em CSV"]'
+ where id = 'pro' and monthly_credits = 7000 and daily_limit = 700;
 `

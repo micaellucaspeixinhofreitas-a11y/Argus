@@ -10,7 +10,7 @@ const toLocalInput = iso => {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
 }
 
-const LABELS = { maintenance: 'Manutenção', announcement: 'Aviso no topo', registrationsOpen: 'Cadastros', paymentsEnabled: 'Pagamentos', mappingEnabled: 'Mapeamentos', creditsPerLead: 'Custo por lead' }
+const LABELS = { maintenance: 'Manutenção', announcement: 'Aviso no topo', registrationsOpen: 'Cadastros', paymentsEnabled: 'Pagamentos', mappingEnabled: 'Mapeamentos' }
 
 function Toggle({ checked, onChange, label, hint }) {
   return (
@@ -105,11 +105,6 @@ export default function SiteControl() {
           <Toggle checked={form.registrationsOpen} onChange={v => setForm(f => ({ ...f, registrationsOpen: v }))} label="Cadastros abertos" hint="Desligado: ninguém cria conta nova (e-mail ou Google)." />
           <Toggle checked={form.paymentsEnabled} onChange={v => setForm(f => ({ ...f, paymentsEnabled: v }))} label="Pagamentos ativos" hint="Desligado: não gera novos Pix de assinatura." />
           <Toggle checked={form.mappingEnabled} onChange={v => setForm(f => ({ ...f, mappingEnabled: v }))} label="Mapeamentos ativos" hint="Desligado: clientes não rodam novos mapeamentos (útil se a fonte de dados cair)." />
-          <div className="ctl__sub"><img className="ctl__ic" src="/icons/moeda.webp" alt="" width="22" height="22" /> Créditos</div>
-          <label className="field"><span>Créditos gastos por lead capturado</span>
-            <input type="number" min="1" step="1" value={form.creditsPerLead ?? 150} onChange={e => setForm(f => ({ ...f, creditsPerLead: e.target.value === '' ? '' : Number(e.target.value) }))} />
-            <small className="muted">Vale para as próximas capturas. Lead que o cliente já tem nunca é cobrado de novo.</small>
-          </label>
         </fieldset>
       </div>
 

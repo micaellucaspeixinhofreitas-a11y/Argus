@@ -15,9 +15,9 @@ export const nav = [
 
 // Fatos reais da regra de créditos do plano Pro (configuráveis no painel admin)
 export const stats = [
-  { value: 7000, suffix: '', label: 'Créditos por mês no plano Pro' },
-  { value: 700, suffix: '', label: 'Leads por dia, no máximo' },
-  { value: 150, suffix: '', label: 'Créditos por novo lead capturado' },
+  { value: 50, suffix: '', label: 'Buscas por mês no plano Pro' },
+  { value: 5000, suffix: '', label: 'Empresas por mês no plano Pro' },
+  { value: 150, suffix: '', label: 'Créditos por busca de 20 empresas' },
   { value: 0, suffix: '', label: 'Cobrança por lead repetido' },
 ]
 
@@ -83,7 +83,7 @@ export const segmentsLoop = [
 
 export const faq = [
   { q: 'De onde vêm as empresas encontradas?', a: 'De fontes públicas de dados geográficos (OpenStreetMap). Cada empresa tem localização real e, quando cadastrados, telefone, site, e-mail, horário e redes sociais. A arquitetura permite adicionar outros provedores, como o Google Places.' },
-  { q: 'Como funcionam os créditos?', a: 'Mapear e consultar o radar não consome créditos. Cada novo lead capturado consome 150 créditos. Os créditos e o limite diário de cada plano aparecem na tela de planos. Capturar de novo uma empresa que já é sua não cobra nada.' },
+  { q: 'Como funcionam os créditos?', a: 'Cada busca custa créditos conforme a quantidade de empresas: 20 empresas = 150 créditos, 50 = 300, 100 = 450, e assim por diante. Se vierem menos empresas, você paga só a faixa do que veio. Capturar leads não consome créditos. O Gratuito faz cerca de 12 buscas de 20 empresas por mês e o Pro cerca de 50 buscas de 100. Capturar de novo uma empresa que já é sua não cobra nada.' },
   { q: 'Posso prospectar em várias regiões ao mesmo tempo?', a: 'Sim. Você marca quantas áreas quiser (até 10 por operação), cada uma com seu próprio raio, e a Argus junta tudo sem repetir empresas.' },
   { q: 'O que é a qualificação?', a: 'São critérios que você escolhe — como ter telefone, ter e-mail ou não ter website. A Argus dá uma nota para cada empresa com base nos dados encontrados e destaca as de alta aderência.' },
   { q: 'Funciona fora do Brasil?', a: 'Sim. Você escolhe o país e a busca de cidades, bairros e endereços passa a usar esse país como referência.' },

@@ -3,6 +3,7 @@ import { fail, num, str } from './http.js'
 import { provider } from './providers/index.js'
 import * as tomtom from './providers/tomtom.js'
 import { resolveSegments, ALL_BUSINESS } from './segments.js'
+import { creditStatus, tierFor, searchCost } from './credits.js'
 import { parseQualification, qualify } from './qualify.js'
 
 export const LIMITS = { maxAreas: 10, minRadiusKm: 0.2, maxRadiusKm: 15, maxSegments: 8 }
@@ -27,7 +28,8 @@ export function parseConfig(input = {}) {
       label: str(a.label || `Área ${i + 1}`, 120),
     }
   })
-  const maxResults = Math.round(num(input.maxResults, 1, 1000, 200))
+  // quantidade sempre numa faixa da tabela de créditos (20, 50, 100, 250, 500, 1000)
+  const maxResults = tierFor(Math.round(num(input.maxResults, 1, 1000, 100))).max
   return { segments, country, locality, radiusKm, areas, maxResults, qualification: parseQualification(input.qualification) }
 }
 
@@ -103,6 +105,12 @@ export async function runMapping(user, input) {
     [user.id]
   )
   if (recent.rows.length) fail(429, 'Aguarde alguns segundos antes de iniciar outro mapeamento.')
+
+  // créditos: a busca custa conforme a quantidade pedida
+  const status = await creditStatus(user.id)
+  if (status.today_used >= status.daily_limit) fail(429, `Você atingiu o limite de ${status.daily_limit} busca(s) por dia do seu plano. O limite renova à meia-noite.`, 'DAILY_LIMIT')
+  const price = searchCost(config.maxResults)
+  if (status.available < price) fail(402, `Esta busca (${config.maxResults} empresas) custa ${price} créditos e você tem ${status.available}. Escolha uma quantidade menor ou assine um plano.`, 'NO_CREDITS')
 
   const prov = provider()
   const { rows: [run] } = await query(
@@ -219,7 +227,12 @@ export async function runMapping(user, input) {
     `update mapping_runs set status = 'done', total = $2, high_fit = $3, no_website = $4, finished_at = now() where id = $1`,
     [run.id, stats.total, stats.high_fit, stats.no_website]
   )
-  await query(`insert into operations_log (user_id, type, detail) values ($1, 'mapping', $2)`, [user.id, JSON.stringify({ run_id: run.id, ...stats })])
+  // cobra a faixa do que realmente veio de empresas novas (nada, se não veio nenhuma)
+  const charged = searchCost(Math.min(fresh.length, config.maxResults))
+  if (charged) {
+    await query(`insert into credit_ledger (user_id, amount, reason, note) values ($1, $2, 'search', $3)`, [user.id, -charged, `busca #${run.id} · ${fresh.length} empresa(s)`])
+  }
+  await query(`insert into operations_log (user_id, type, detail) values ($1, 'mapping', $2)`, [user.id, JSON.stringify({ run_id: run.id, ...stats, charged })])
   if (input.savedSearchId) {
     await query(`update saved_searches set last_run_at = now() where id = $1 and user_id = $2`, [Number(input.savedSearchId), user.id])
   }
@@ -237,7 +250,7 @@ export async function runMapping(user, input) {
       if (near) hint = { ...near, segment: seg ? seg.label || seg.term : 'comércio', radius_km: a.radiusKm }
     } catch { /* sem dica */ }
   }
-  return { run_id: run.id, config, stats, sourceErrors, hint, coverage: { requested: config.maxResults, fresh: fresh.length, alreadyLeads: already.length, available } }
+  return { run_id: run.id, config, stats, sourceErrors, hint, charged, coverage: { requested: config.maxResults, fresh: fresh.length, alreadyLeads: already.length, available } }
 }
 
 // Resultados de um mapeamento do usuário. Contatos só aparecem para leads capturados.
@@ -276,12 +289,12 @@ export async function runResults(user, runId) {
   return { run, areas: areas.rows, results: rows }
 }
 
-// Captura leads: N créditos (custo por lead) por lead NOVO, respeitando limites diário e mensal.
-export async function captureLeads(user, { runId, companyIds }, creditStatus) {
+// Captura leads (não consome créditos: a busca já foi cobrada).
+export async function captureLeads(user, { runId, companyIds }) {
   const ids = [...new Set((companyIds || []).map(Number).filter(Number.isInteger))].slice(0, 1000)
   if (!ids.length) fail(400, 'Selecione ao menos uma empresa.')
   return tx(async db => {
-    // trava o usuário para contabilizar créditos sem condição de corrida
+    // trava o usuário para evitar capturas simultâneas duplicadas
     await db.query('select id from users where id = $1 for update', [user.id])
     // só empresas que pertencem a um mapeamento deste usuário
     const { rows: valid } = await db.query(
@@ -297,17 +310,13 @@ export async function captureLeads(user, { runId, companyIds }, creditStatus) {
     )
     const already = new Set(existing.map(e => String(e.company_id)))
     const fresh = valid.filter(v => !already.has(String(v.company_id)))
-    const status = await creditStatus(user.id, db)
-    const allowed = fresh.slice(0, status.can_spend)
+    const allowed = fresh
     for (const v of allowed) {
-      const { rows: [lead] } = await db.query(
+      await db.query(
         `insert into leads (user_id, company_id, run_id, score, high_fit) values ($1, $2, $3, $4, $5)
-         on conflict (user_id, company_id) do nothing returning id`,
+         on conflict (user_id, company_id) do nothing`,
         [user.id, v.company_id, v.run_id, v.score, v.high_fit]
       )
-      if (lead) {
-        await db.query(`insert into credit_ledger (user_id, amount, reason, lead_id) values ($1, $2, 'lead', $3)`, [user.id, -status.cost_per_lead, lead.id])
-      }
     }
     await db.query(`insert into operations_log (user_id, type, detail) values ($1, 'capture', $2)`, [
       user.id, JSON.stringify({ requested: ids.length, captured: allowed.length, already: already.size }),
@@ -315,8 +324,8 @@ export async function captureLeads(user, { runId, companyIds }, creditStatus) {
     return {
       captured: allowed.length,
       already_captured: already.size,
-      blocked_by_limit: fresh.length - allowed.length,
-      credits_spent: allowed.length * status.cost_per_lead,
+      blocked_by_limit: 0,
+      credits_spent: 0,
     }
   })
 }

@@ -92,7 +92,7 @@ function PlatformDock() {
     {
       icon: <LuCoins />, label: credits ? `Créditos · ${fmtInt(credits.available)} disponíveis` : 'Créditos',
       active: at('/app/creditos'), onClick: go('/app/creditos'),
-      badge: credits && credits.can_spend === 0 ? '!' : undefined,
+      badge: credits && credits.can_search === false ? '!' : undefined,
     },
     ...(user.is_admin ? [{ icon: <LuShield />, label: 'Admin', active: at('/app/admin'), onClick: go('/app/admin') }] : []),
     { separator: true },
@@ -151,7 +151,7 @@ function TopBar() {
               <strong>{fmtInt(credits.available)}</strong>
               <span>créditos</span>
               <i aria-hidden="true" />
-              <small>{fmtInt(credits.today_used)}/{fmtInt(credits.daily_limit)} hoje</small>
+              <small>{fmtInt(credits.today_used)}/{fmtInt(credits.daily_limit)} buscas hoje</small>
             </NavLink>
           )}
           <NavLink to="/app/planos" className={`topbar__plan ${pro ? '' : 'is-upgrade'}`}>

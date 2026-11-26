@@ -23,7 +23,7 @@ function PlanForm({ plan, onSave, onDelete }) {
         <label className="field"><span>ID</span><input value={p.id} onChange={set('id')} disabled={Boolean(plan.id)} required /></label>
         <label className="field"><span>Nome</span><input value={p.name} onChange={set('name')} required /></label>
         <label className="field"><span>Créditos/mês</span><input type="number" min="0" value={p.monthly_credits} onChange={set('monthly_credits')} /></label>
-        <label className="field"><span>Limite diário</span><input type="number" min="0" value={p.daily_limit} onChange={set('daily_limit')} /></label>
+        <label className="field"><span>Buscas por dia</span><input type="number" min="0" value={p.daily_limit} onChange={set('daily_limit')} /></label>
         <label className="field"><span>Mensal (centavos)</span><input type="number" min="0" value={p.price_monthly_cents} onChange={set('price_monthly_cents')} /></label>
         <label className="field"><span>Trimestral (centavos)</span><input type="number" min="0" value={p.price_quarterly_cents} onChange={set('price_quarterly_cents')} /></label>
         <label className="field"><span>Ordem</span><input type="number" value={p.sort} onChange={set('sort')} /></label>

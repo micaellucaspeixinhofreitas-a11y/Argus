@@ -1,10 +1,11 @@
 import { query } from './db.js'
-import { getSettings } from './settings.js'
 
 // Regras de créditos (contabilizadas no servidor):
-// - Créditos mensais e limite diário (em leads) vêm do plano ativo (configurável no admin).
-// - Cada NOVO lead capturado custa N créditos ("creditsPerLead", no Controle do site); lead já capturado nunca é cobrado de novo
-//   (garantido pela restrição unique(user_id, company_id) da tabela leads).
+// - Créditos mensais e limite de buscas por dia vêm do plano ativo (configurável no admin).
+// - Cada BUSCA (mapeamento) custa créditos conforme a quantidade de empresas pedida
+//   (tabela SEARCH_TIERS). Se vierem menos empresas novas, cobra a faixa do que veio;
+//   busca sem nenhuma empresa nova não cobra nada.
+// - Capturar leads não consome créditos.
 // - Mês e dia são contados no fuso de São Paulo.
 export const TZ = 'America/Sao_Paulo'
 
@@ -29,11 +30,20 @@ export async function hasPro(user, db = { query }) {
   return Boolean(plan.subscription_id) && (plan.price_monthly_cents > 0 || plan.price_quarterly_cents > 0)
 }
 
-// Créditos gastos por lead novo (definido pelo administrador)
-export async function costPerLead() {
-  const n = Number((await getSettings()).creditsPerLead)
-  return Number.isInteger(n) && n > 0 ? n : 150
+// Quantidade de empresas por busca → créditos
+export const SEARCH_TIERS = [
+  { max: 20, cost: 150 },
+  { max: 50, cost: 300 },
+  { max: 100, cost: 450 },
+  { max: 250, cost: 1050 },
+  { max: 500, cost: 2100 },
+  { max: 1000, cost: 4200 },
+]
+// menor faixa que comporta n empresas
+export function tierFor(n) {
+  return SEARCH_TIERS.find(t => n <= t.max) || SEARCH_TIERS[SEARCH_TIERS.length - 1]
 }
+export const searchCost = n => (n > 0 ? tierFor(n).cost : 0)
 
 export async function creditStatus(userId, db = { query }) {
   const plan = await activePlan(userId, db)
@@ -41,15 +51,12 @@ export async function creditStatus(userId, db = { query }) {
     `select
        coalesce(sum(amount) filter (where created_at >= date_trunc('month', now() at time zone $2) at time zone $2), 0)::int as month_net,
        coalesce(-sum(amount) filter (where amount < 0 and created_at >= date_trunc('month', now() at time zone $2) at time zone $2), 0)::int as month_used,
-       coalesce(-sum(amount) filter (where amount < 0 and created_at >= date_trunc('day', now() at time zone $2) at time zone $2), 0)::int as today_credits,
-       count(*) filter (where reason = 'lead' and amount < 0 and created_at >= date_trunc('day', now() at time zone $2) at time zone $2)::int as today_used
+       count(*) filter (where reason = 'search' and created_at >= date_trunc('day', now() at time zone $2) at time zone $2)::int as today_used
      from credit_ledger where user_id = $1`,
     [userId, TZ]
   )
   const r = rows[0]
-  const cost = await costPerLead()
   const available = Math.max(0, plan.monthly_credits + r.month_net)
-  const leadsAvailable = Math.floor(available / cost)
   return {
     plan: { id: plan.id, name: plan.name },
     monthly_credits: plan.monthly_credits,
@@ -58,10 +65,10 @@ export async function creditStatus(userId, db = { query }) {
     today_used: r.today_used,
     available,
     today_remaining: Math.max(0, plan.daily_limit - r.today_used),
-    cost_per_lead: cost,
-    leads_available: leadsAvailable,
-    // quantos leads novos dá para capturar agora (créditos e limite diário)
-    can_spend: Math.max(0, Math.min(leadsAvailable, plan.daily_limit - r.today_used)),
+    tiers: SEARCH_TIERS,
+    // pode fazer ao menos a menor busca agora (créditos e limite diário de buscas)
+    can_search: available >= SEARCH_TIERS[0].cost && r.today_used < plan.daily_limit,
+    searches_available: Math.floor(available / SEARCH_TIERS[0].cost),
   }
 }
 

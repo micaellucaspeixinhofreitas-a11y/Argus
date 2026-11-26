@@ -144,7 +144,7 @@ export default function Dashboard() {
           <div className="bk__head"><img src="/icons/moeda.webp" alt="" width="34" height="34" /><span>Créditos disponíveis</span></div>
           <strong className="bk__num"><CountUp value={c.available} /></strong>
           <span className="bk__meter"><i style={{ width: `${creditPct}%` }} /></span>
-          <small className="bk__foot">de {fmtInt(c.monthly_credits)} · plano {c.plan?.name} · hoje {fmtInt(c.today_used)}/{fmtInt(c.daily_limit)}</small>
+          <small className="bk__foot">de {fmtInt(c.monthly_credits)} · plano {c.plan?.name} · buscas hoje {fmtInt(c.today_used)}/{fmtInt(c.daily_limit)}</small>
         </div>
       ),
     },

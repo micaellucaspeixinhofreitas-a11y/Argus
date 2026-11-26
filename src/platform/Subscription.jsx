@@ -14,8 +14,7 @@ const STATUS = {
 }
 
 export default function Subscription() {
-  const { refresh, pro, credits } = useAuth()
-  const cost = credits?.cost_per_lead || 150
+  const { refresh, pro } = useAuth()
   const [params] = useSearchParams()
   const [plans, setPlans] = useState([])
   const [state, setState] = useState(null)
@@ -77,7 +76,7 @@ export default function Subscription() {
         <div>
           <small>Plano em uso</small>
           <strong>{current.name}</strong>
-          <span className="muted">{fmtInt(current.monthly_credits)} créditos/mês · até {fmtInt(current.daily_limit)} leads/dia</span>
+          <span className="muted">{fmtInt(current.monthly_credits)} créditos/mês · até {fmtInt(current.daily_limit)} buscas/dia</span>
         </div>
         {latest && (
           <div>
@@ -122,9 +121,9 @@ export default function Subscription() {
               <p className="muted">{p.description}</p>
               <div className="plan-card__price">{free ? 'Grátis' : money(cents)}<small>{free ? '' : period === 'quarterly' ? '/trimestre' : '/mês'}</small></div>
               <ul className="plain">
-                <li><LuCheck /> {fmtInt(p.monthly_credits)} créditos por mês (≈ {fmtInt(Math.floor(p.monthly_credits / cost))} {Math.floor(p.monthly_credits / cost) === 1 ? "lead" : "leads"})</li>
-                <li><LuCheck /> Até {fmtInt(p.daily_limit)} leads por dia</li>
-                {(p.features || []).filter(f => !/créditos por mês|leads por dia/i.test(f)).map(f => <li key={f}><LuCheck /> {f}</li>)}
+                <li><LuCheck /> {fmtInt(p.monthly_credits)} créditos por mês</li>
+                <li><LuCheck /> Até {fmtInt(p.daily_limit)} {p.daily_limit === 1 ? 'busca' : 'buscas'} por dia</li>
+                {(p.features || []).filter(f => !/créditos por mês|leads por dia|buscas por dia/i.test(f)).map(f => <li key={f}><LuCheck /> {f}</li>)}
               </ul>
               {isCurrent ? <span className="flag flag--fit">Plano atual</span>
                 : free ? <span className="muted small">Disponível sem assinatura</span>

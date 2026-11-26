@@ -8,11 +8,11 @@ export default function ProLock({ daily = false, onClose }) {
       <div className="pro-lock__card card">
         {onClose && <button className="pro-lock__close" onClick={onClose} aria-label="Fechar"><LuX /></button>}
         <img className="pro-lock__img" src="/icons/foguete.webp" alt="" width="84" height="84" />
-        <h2 id="pro-lock-title">{daily ? 'Limite diário do plano grátis atingido' : 'Seus créditos grátis acabaram'}</h2>
+        <h2 id="pro-lock-title">{daily ? 'Limite de buscas de hoje atingido' : 'Seus créditos grátis acabaram'}</h2>
         <p className="muted">
           {daily
-            ? 'Você usou todos os leads de hoje. O limite renova à meia-noite — ou assine um plano pago para capturar mais leads por dia.'
-            : 'Assine um plano pago para continuar capturando, com mais créditos por mês e lead repetido sem cobrança.'}
+            ? 'Você fez todas as buscas de hoje do plano grátis. O limite renova à meia-noite — ou assine um plano pago para fazer mais buscas por dia.'
+            : 'Assine um plano pago para continuar buscando: cerca de 50 buscas de 100 empresas por mês no Pro.'}
         </p>
         <Link to="/app/planos" className="btn btn--primary btn--block">Ver planos e assinar</Link>
         {onClose && <button className="link small" onClick={onClose}>Agora não</button>}

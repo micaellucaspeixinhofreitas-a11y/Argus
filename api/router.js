@@ -378,7 +378,7 @@ on('POST', 'mapping/run', async ({ req, body }) => {
   const user = await requireUser(req)
   if (!(await getSettings()).mappingEnabled && !user.is_admin) fail(503, 'Os mapeamentos estão pausados no momento. Tente de novo em instantes.', 'MAPPING_PAUSED')
   const result = await runMapping(user, body)
-  return { ...(await runResults(user, result.run_id)), credits: await creditStatus(user.id), sourceErrors: result.sourceErrors, hint: result.hint, coverage: result.coverage }
+  return { ...(await runResults(user, result.run_id)), charged: result.charged, credits: await creditStatus(user.id), sourceErrors: result.sourceErrors, hint: result.hint, coverage: result.coverage }
 })
 
 on('GET', 'mapping/result', async ({ req, url }) => {
@@ -488,7 +488,7 @@ on('GET', 'dashboard', async ({ req, url }) => {
 // ---------- leads ----------
 on('POST', 'leads/capture', async ({ req, body }) => {
   const user = await requireUser(req)
-  const result = await captureLeads(user, { runId: body.runId, companyIds: body.companyIds }, creditStatus)
+  const result = await captureLeads(user, { runId: body.runId, companyIds: body.companyIds })
   return { ...result, credits: await creditStatus(user.id) }
 })
 
@@ -792,11 +792,6 @@ on('POST', 'admin/settings', async ({ req, body }) => {
     const a = body.announcement
     await saveSetting('announcement', { enabled: a.enabled === true, text: str(a.text, 240), tone: ['info', 'warning', 'success'].includes(a.tone) ? a.tone : 'info' }, admin.id)
     changed.push('announcement')
-  }
-  if (body.creditsPerLead !== undefined) {
-    const n = Number(body.creditsPerLead)
-    if (!Number.isInteger(n) || n < 1 || n > 1_000_000) fail(400, 'Custo por lead deve ser um número inteiro entre 1 e 1.000.000.')
-    if (n !== current.creditsPerLead) { await saveSetting('creditsPerLead', n, admin.id); changed.push('creditsPerLead') }
   }
   for (const key of ['registrationsOpen', 'paymentsEnabled', 'mappingEnabled']) {
     if (typeof body[key] === 'boolean' && body[key] !== current[key]) {

@@ -33,6 +33,9 @@ const catLabel = c => {
   return `${CATEGORY_PT[k] || k} · ${String(v).replace(/_/g, ' ')}`
 }
 
+// faixas padrão (o servidor envia as atuais em credits.tiers)
+const TIERS = [{ max: 20, cost: 150 }, { max: 50, cost: 300 }, { max: 100, cost: 450 }, { max: 250, cost: 1050 }, { max: 500, cost: 2100 }, { max: 1000, cost: 4200 }]
+
 export default function Prospect() {
   const { config, setConfig, result, setResult, meta, pendingRun, setPendingRun } = useProspect()
   const { credits, setCredits, pro } = useAuth()
@@ -54,7 +57,11 @@ export default function Prospect() {
   const [locating, setLocating] = useState(false)
   // aviso de créditos esgotados (só no plano grátis)
   const [lockClosed, setLockClosed] = useState(false)
-  const outOfCredits = !pro && credits && credits.can_spend === 0
+  const outOfCredits = !pro && credits && credits.can_search === false
+  const tiers = credits?.tiers || TIERS
+  const qty = (tiers.find(t => (config.maxResults || 100) <= t.max) || tiers[tiers.length - 1]).max
+  const price = (tiers.find(t => t.max === qty) || {}).cost || 0
+  const short = credits ? credits.available < price : false
 
   useEffect(() => {
     if (!notice || error) return
@@ -186,6 +193,7 @@ export default function Prospect() {
           const cv = data.coverage || {}
           const parts = [`${fmtInt(cv.fresh ?? data.run.total)} empresa(s) nova(s) mapeada(s)`]
           if (cv.alreadyLeads) parts.push(`${fmtInt(cv.alreadyLeads)} já eram seus leads (aba Capturadas)`)
+          if (data.charged) parts.push(`${fmtInt(data.charged)} créditos usados`)
           if (cv.requested && cv.fresh < cv.requested) {
             parts.push(`você pediu ${fmtInt(cv.requested)}, mas a área marcada só tem ${fmtInt(cv.fresh)} empresa(s) nova(s) desse tipo — aumente o raio, adicione áreas ou mude o segmento para encontrar mais`)
           }
@@ -200,6 +208,7 @@ export default function Prospect() {
       setTimeout(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
     } catch (err) {
       setError(err.message)
+      if (!pro && (err.code === 'DAILY_LIMIT' || err.code === 'NO_CREDITS') && credits && !credits.can_search) setLockClosed(false)
     } finally {
       setRunning(false)
       setSavedSearchId(null)
@@ -253,14 +262,12 @@ export default function Prospect() {
     try {
       const data = await api('leads/capture', { method: 'POST', body: { runId: result.run.id, companyIds: fresh } })
       setCredits(data.credits)
-      if (!pro && data.blocked_by_limit) setLockClosed(false)
       const refreshed = await api(`mapping/result?run=${result.run.id}`)
       setResult(r => ({ ...r, ...refreshed }))
       setSelected(new Set())
       setNotice(
-        `${fmtInt(data.captured)} lead(s) capturado(s) · ${fmtInt(data.credits_spent)} créditos usados` +
-          (data.already_captured ? ` · ${data.already_captured} já eram seus (sem cobrança)` : '') +
-          (data.blocked_by_limit ? ` · ${data.blocked_by_limit} não capturado(s) por limite de créditos` : '')
+        `${fmtInt(data.captured)} lead(s) capturado(s)` +
+          (data.already_captured ? ` · ${data.already_captured} já eram seus` : '')
       )
     } catch (err) {
       setError(err.message)
@@ -329,15 +336,19 @@ export default function Prospect() {
             </label>
           </div>
           <div className="field">
-            <span>Quantidade de empresas: <strong>{config.maxResults || 100}</strong></span>
-            <div className="qty">
-              {[20, 50, 100, 250, 500].map(n => (
-                <button key={n} type="button" className={`chip ${(config.maxResults || 100) === n ? 'is-on' : ''}`} onClick={() => update({ maxResults: n })}>{n}</button>
+            <span>Quantidade de empresas: <strong>{qty}</strong> · <strong>{fmtInt(price)} créditos</strong></span>
+            <div className="qty qty--tiers">
+              {tiers.map(t => (
+                <button key={t.max} type="button" className={`chip chip--tier ${qty === t.max ? 'is-on' : ''}`} onClick={() => update({ maxResults: t.max })}
+                  disabled={credits ? credits.available < t.cost && qty !== t.max : false} title={`${t.max} empresas por ${fmtInt(t.cost)} créditos`}>
+                  <b>{t.max}</b><small>{fmtInt(t.cost)} cr</small>
+                </button>
               ))}
-              <input type="number" min="10" max="1000" step="10" value={config.maxResults || 100} aria-label="Quantidade personalizada"
-                onChange={e => update({ maxResults: Math.min(1000, Math.max(10, Number(e.target.value) || 10)) })} />
             </div>
-            <small className="hint">Máximo de empresas trazidas por mapeamento, das mais próximas às mais distantes do centro das áreas.</small>
+            <small className="hint">
+              Cada busca custa conforme a quantidade de empresas pedida. Se vierem menos empresas novas, você paga só a faixa do que veio — e nada se não vier nenhuma. Capturar os leads é grátis.
+              {credits && <> Você tem <strong>{fmtInt(credits.available)}</strong> créditos.</>}
+            </small>
           </div>
           {config.locality.trim().length > 1 && (
             <div className="btn-row">
@@ -420,11 +431,12 @@ export default function Prospect() {
         </section>
 
         <div className="pros__actions">
-          <button id="run-btn" className="btn btn--primary btn--block" onClick={run} disabled={running}>
-            {running ? <><LuLoader className="spin" /> Mapeando oportunidades…</> : <><LuPlay /> Mapear oportunidades</>}
+          <button id="run-btn" className="btn btn--primary btn--block" onClick={run} disabled={running || short}>
+            {running ? <><LuLoader className="spin" /> Mapeando oportunidades…</> : <><LuPlay /> Mapear oportunidades · {fmtInt(price)} créditos</>}
           </button>
           <button className="btn-mini" onClick={saveSearch}><LuSave /> Salvar busca</button>
         </div>
+        {short && <p className="hint hint--warn">Créditos insuficientes para {qty} empresas ({fmtInt(price)} créditos; você tem {fmtInt(credits.available)}). Escolha uma quantidade menor{pro ? '' : ' ou assine um plano'}.</p>}
       </aside>
       {(error || notice) && (
         <div className={`toast ${error ? 'toast--error' : ''}`} role={error ? 'alert' : 'status'}>
@@ -516,11 +528,11 @@ export default function Prospect() {
               <div className="results__actions">
                 <button className="btn-mini" onClick={selectVisible} disabled={!visible.some(r => !r.captured)}>Selecionar visíveis</button>
                 <button className="btn btn--primary btn--sm" disabled={!freshSelected.length || capturing} onClick={() => capture(freshSelected)}>
-                  {capturing ? 'Capturando…' : `Capturar ${fmtInt(freshSelected.length)} lead(s) · ${fmtInt(freshSelected.length * (credits?.cost_per_lead || 150))} créditos`}
+                  {capturing ? 'Capturando…' : `Capturar ${fmtInt(freshSelected.length)} lead(s)`}
                 </button>
               </div>
             </div>
-            {credits && <p className="hint">Você pode capturar mais <strong>{fmtInt(credits.can_spend)}</strong> lead(s) hoje ({fmtInt(credits.available)} créditos no mês). Lead já capturado não é cobrado.</p>}
+            <p className="hint">Capturar leads não consome créditos — a busca já foi cobrada.</p>
             {visible.length === 0 ? (
               <p className="muted empty">Nenhuma empresa neste filtro. Tente aumentar o raio, adicionar áreas ou mudar o segmento.</p>
             ) : (

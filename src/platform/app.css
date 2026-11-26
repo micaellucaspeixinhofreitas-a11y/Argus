@@ -577,3 +577,13 @@ button.topbar__avatar:hover, button.topbar__avatar[aria-expanded="true"] { trans
 .app .ic3d-sm { width: 16px; height: 16px; object-fit: contain; flex: none; vertical-align: -3px; filter: drop-shadow(0 1px 4px rgba(139, 92, 246, .45)); }
 .linked-chip { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; padding: 4px 10px 4px 6px; border-radius: 999px; font-size: 12.5px; color: var(--t1); background: var(--s3); border: 1px solid var(--line, rgba(255,255,255,.08)); }
 .linked-chip img { width: 18px; height: 18px; object-fit: contain; }
+.app .qty--tiers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.app .qty .chip--tier { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 7px 6px; line-height: 1.15; }
+.app .chip--tier b { font-size: 14px; font-weight: 600; }
+.app .chip--tier small { font-size: 11px; color: var(--t3, #8b8799); }
+.app .chip--tier.is-on small { color: inherit; opacity: .85; }
+.app .chip--tier:disabled { opacity: .4; cursor: not-allowed; }
+.app .hint--warn { color: #fbbf24; }
+.app .tier-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.app .tier-list span { padding: 3px 9px; border-radius: 999px; font-size: 12.5px; background: var(--s3); border: 1px solid var(--line, rgba(255,255,255,.08)); }
+.app .tier-list b { font-weight: 600; color: var(--t1); }

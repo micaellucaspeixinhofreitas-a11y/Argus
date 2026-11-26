@@ -107,7 +107,7 @@ function Terms() {
 
       <h2>3. Planos, créditos e pagamento</h2>
       <ul>
-        <li>Cada novo lead capturado consome a quantidade de créditos informada na plataforma (atualmente 150 créditos); capturar de novo uma empresa que já é sua não consome créditos.</li>
+        <li>Cada busca consome créditos conforme a quantidade de empresas pedida, de acordo com a tabela exibida na plataforma (por exemplo, 150 créditos por 20 empresas); capturar leads não consome créditos.</li>
         <li>Os créditos e limites de cada plano são os informados na tela de planos. Créditos não usados não acumulam para o mês seguinte.</li>
         <li>Planos pagos são liberados após a confirmação do pagamento e valem pelo período contratado (mensal ou trimestral).</li>
         <li>Você pode cancelar a renovação quando quiser e mantém o acesso até o fim do período já pago.</li>
