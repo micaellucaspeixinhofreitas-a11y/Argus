@@ -69,12 +69,12 @@ export default function Saved() {
                 <dt>Localidade</dt><dd>{s.config.locality || '—'}</dd>
                 <dt>Qualificação</dt><dd>{s.config.qualification?.criteria?.length ? `${s.config.qualification.criteria.map(critLabel).join(', ')} (mín. ${s.config.qualification.minScore}%)` : 'Sem filtros'}</dd>
                 <dt>Áreas</dt><dd>{s.config.areas?.length ? s.config.areas.map(a => `${a.label} (${a.radiusKm} km)`).join(' · ') : `Localidade com raio de ${s.config.radiusKm} km`}</dd>
-                <dt>Quantidade</dt><dd>{tierOf(s.config.maxResults, tiers).max} empresas · {fmtInt(tierOf(s.config.maxResults, tiers).cost)} créditos por execução</dd>
+                <dt>Quantidade</dt><dd>até {tierOf(s.config.maxResults, tiers).max} empresas · até {fmtInt(tierOf(s.config.maxResults, tiers).cost)} créditos por execução</dd>
                 <dt>Criada em</dt><dd>{fmtDateTime(s.created_at)}</dd>
                 <dt>Última execução</dt><dd>{fmtDateTime(s.last_run_at)}</dd>
               </dl>
               <div className="btn-row">
-                <button className="btn btn--primary btn--sm" onClick={() => open(s, true)}><LuPlay /> Executar · {fmtInt(tierOf(s.config.maxResults, tiers).cost)} créditos</button>
+                <button className="btn btn--primary btn--sm" onClick={() => open(s, true)}><LuPlay /> Executar · até {fmtInt(tierOf(s.config.maxResults, tiers).cost)} créditos</button>
                 <button className="btn-mini" onClick={() => open(s, false)}><LuUpload /> Carregar</button>
                 <button className="btn-mini btn-mini--danger" onClick={() => remove(s)}><LuTrash2 /> Excluir</button>
               </div>

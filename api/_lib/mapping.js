@@ -3,7 +3,7 @@ import { fail, num, str } from './http.js'
 import { provider } from './providers/index.js'
 import * as tomtom from './providers/tomtom.js'
 import { resolveSegments, ALL_BUSINESS } from './segments.js'
-import { creditStatus, tierFor, searchCost } from './credits.js'
+import { creditStatus, tierFor, searchCost, MAX_PER_SEARCH } from './credits.js'
 import { parseQualification, qualify } from './qualify.js'
 
 export const LIMITS = { maxAreas: 10, minRadiusKm: 0.2, maxRadiusKm: 15, maxSegments: 8 }
@@ -28,8 +28,8 @@ export function parseConfig(input = {}) {
       label: str(a.label || `Área ${i + 1}`, 120),
     }
   })
-  // quantidade sempre numa faixa da tabela de créditos (20, 50, 100, 250, 500, 1000)
-  const maxResults = tierFor(Math.round(num(input.maxResults, 1, 1000, 100))).max
+  // quantidade sempre numa faixa da tabela de créditos (20, 50 ou 100; máximo 100 por busca)
+  const maxResults = tierFor(Math.round(num(input.maxResults, 1, 100000, MAX_PER_SEARCH))).max
   return { segments, country, locality, radiusKm, areas, maxResults, qualification: parseQualification(input.qualification) }
 }
 
@@ -172,14 +172,20 @@ export async function runMapping(user, input) {
     }
     places = places.filter(p => p._dist !== Infinity).sort((a, b) => a._dist - b._dist)
     const available = places.length
-    // a quantidade pedida vale para empresas NOVAS: as que já são leads do usuário não ocupam vaga
+    // a quantidade pedida vale para empresas NOVAS: as que o usuário já recebeu antes
+    // (em outra busca concluída ou como lead) vêm junto, sem ocupar vaga e sem cobrança
     const keys = places.map(p => `${p.source}:${p.source_id}`)
     const { rows: mine } = keys.length ? await query(
-      `select c.source || ':' || c.source_id as k from leads l join companies c on c.id = l.company_id
-        where l.user_id = $1 and c.source || ':' || c.source_id = any($2::text[])`, [user.id, keys]) : { rows: [] }
+      `select c.source || ':' || c.source_id as k
+         from unnest($2::text[], $3::text[]) as i(source, source_id)
+         join companies c on c.source = i.source and c.source_id = i.source_id
+        where (exists (select 1 from leads l where l.user_id = $1 and l.company_id = c.id)
+               or exists (select 1 from mapping_results r join mapping_runs m on m.id = r.run_id
+                           where m.user_id = $1 and m.status = 'done' and r.company_id = c.id))`,
+      [user.id, places.map(p => p.source), places.map(p => p.source_id)]) : { rows: [] }
     const owned = new Set(mine.map(r => r.k))
     const fresh = places.filter(p => !owned.has(`${p.source}:${p.source_id}`)).slice(0, config.maxResults)
-    const already = places.filter(p => owned.has(`${p.source}:${p.source_id}`)).slice(0, 1000)
+    const already = places.filter(p => owned.has(`${p.source}:${p.source_id}`)).slice(0, 500)
     places = [...fresh, ...already]
     places.forEach(p => delete p._dist)
 
@@ -287,6 +293,8 @@ export async function runResults(user, runId) {
             (c.email is not null) as has_email, (c.address is not null) as has_address,
             (c.opening_hours is not null) as has_hours, (c.social <> '{}'::jsonb) as has_social,
             (l.id is not null) as captured,
+            exists (select 1 from mapping_results r2 join mapping_runs m2 on m2.id = r2.run_id
+                     where m2.user_id = $2 and m2.id < $1 and m2.status = 'done' and r2.company_id = c.id) as seen_before,
             c.phone, c.website, c.email, c.address
        from mapping_results r
        join companies c on c.id = r.company_id

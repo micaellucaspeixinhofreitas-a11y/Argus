@@ -154,6 +154,7 @@ create table if not exists mapping_results (
   distance_m integer,
   primary key (run_id, company_id)
 );
+create index if not exists mapping_results_company_idx on mapping_results(company_id);
 
 -- Leads capturados (1 por empresa por usuário: base da deduplicação de créditos)
 create table if not exists leads (

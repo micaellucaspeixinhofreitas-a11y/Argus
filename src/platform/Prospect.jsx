@@ -181,7 +181,7 @@ export default function Prospect() {
         if (data.run.total) {
           const cv = data.coverage || {}
           const parts = [`${fmtInt(cv.fresh ?? data.run.total)} empresa(s) nova(s) mapeada(s)`]
-          if (cv.alreadyLeads) parts.push(`${fmtInt(cv.alreadyLeads)} já eram seus leads (aba Capturadas)`)
+          if (cv.alreadyLeads) parts.push(`${fmtInt(cv.alreadyLeads)} você já tinha recebido antes (vêm junto, sem custo)`)
           parts.push(data.charged ? `${fmtInt(data.charged)} créditos usados` : 'nenhum crédito usado')
           if (cv.requested && cv.fresh < cv.requested) {
             parts.push(`você pediu ${fmtInt(cv.requested)}, mas a área marcada só tem ${fmtInt(cv.fresh)} empresa(s) nova(s) desse tipo — aumente o raio, adicione áreas ou mude o segmento para encontrar mais`)
@@ -231,7 +231,7 @@ export default function Prospect() {
   const visible = useMemo(() => {
     if (filter === 'fit') return results.filter(r => r.high_fit)
     if (filter === 'noweb') return results.filter(r => !r.has_website)
-    if (filter === 'open') return results.filter(r => !r.captured)
+    if (filter === 'open') return results.filter(r => !r.captured && !r.seen_before)
     if (filter === 'captured') return results.filter(r => r.captured)
     return results
   }, [results, filter])
@@ -325,17 +325,17 @@ export default function Prospect() {
             </label>
           </div>
           <div className="field">
-            <span>Quantidade de empresas: <strong>{qty}</strong> · <strong>{fmtInt(price)} créditos</strong></span>
+            <span>Quantidade de empresas: <strong>até {qty}</strong> · <strong>até {fmtInt(price)} créditos</strong></span>
             <div className="qty qty--tiers">
               {tiers.map(t => (
                 <button key={t.max} type="button" className={`chip chip--tier ${qty === t.max ? 'is-on' : ''}`} onClick={() => update({ maxResults: t.max })}
-                  disabled={credits && !user?.is_admin ? credits.available < t.cost && qty !== t.max : false} title={`${t.max} empresas por ${fmtInt(t.cost)} créditos`}>
+                  disabled={credits && !user?.is_admin ? credits.available < t.cost && qty !== t.max : false} title={`Até ${t.max} empresas por até ${fmtInt(t.cost)} créditos`}>
                   <b>{t.max}</b><small>{fmtInt(t.cost)} cr</small>
                 </button>
               ))}
             </div>
             <small className="hint">
-              Cada busca custa conforme a quantidade de empresas pedida. Se vierem menos empresas novas, você paga só a faixa do que veio — e nada se não vier nenhuma. Capturar os leads é grátis.
+              Máximo de 100 empresas por busca. Você paga só pelas empresas novas que vierem (proporcional à tabela) — empresas que você já recebeu antes vêm junto sem custo, e se não vier nenhuma nova, não paga nada. Capturar os leads é grátis.
               {credits && <> Você tem <strong>{fmtInt(credits.available)}</strong> créditos.</>}
             </small>
           </div>
@@ -421,7 +421,7 @@ export default function Prospect() {
 
         <div className="pros__actions">
           <button id="run-btn" className="btn btn--primary btn--block" onClick={run} disabled={running || short}>
-            {running ? <><LuLoader className="spin" /> Mapeando oportunidades…</> : <><LuPlay /> Mapear oportunidades · {fmtInt(price)} créditos</>}
+            {running ? <><LuLoader className="spin" /> Mapeando oportunidades…</> : <><LuPlay /> Mapear oportunidades · até {fmtInt(price)} créditos</>}
           </button>
           <button className="btn-mini" onClick={saveSearch}><LuSave /> Salvar busca</button>
         </div>
@@ -533,6 +533,7 @@ export default function Prospect() {
                       <strong>{r.name}</strong>
                       <small>{catLabel(r.category)}{r.distance_m != null && ` · ${(r.distance_m / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km do centro`}</small>
                       <div className="res__flags">
+                        {r.seen_before && !r.captured && <span className="flag">Já recebida antes</span>}
                         {r.high_fit && <span className="flag flag--fit">Alta aderência</span>}
                         {r.score != null && <span className="flag">{r.score}% aderência</span>}
                         {!r.has_website && <span className="flag flag--noweb">Sem website</span>}

@@ -49,10 +49,11 @@ export default function Credits() {
       <div className="card rules">
         <h2 className="h2-icon"><img className="h2-ic" src="/icons/lupa.webp" alt="" width="24" height="24" /> Como os créditos funcionam</h2>
         <ul>
-          <li>Cada <strong>busca</strong> custa créditos conforme a quantidade de empresas pedida:
+          <li>Cada <strong>busca</strong> traz até 100 empresas. O preço segue a tabela:
             <span className="tier-list">{(c.tiers || []).map(t => <span key={t.max}><b>{t.max}</b> empresas = {fmtInt(t.cost)} créditos</span>)}</span>
           </li>
-          <li>Se a área tiver menos empresas novas do que você pediu, paga só a faixa do que veio. Busca sem nenhuma empresa nova não cobra nada.</li>
+          <li>Você paga só pelas empresas <strong>novas</strong> que vierem, proporcionalmente (ex.: 30 empresas = 200 créditos). Empresas que você já recebeu em outra busca vêm junto sem custo, e busca sem nenhuma empresa nova não cobra nada.</li>
+          <li>Toda busca conta no limite de buscas por dia do seu plano.</li>
           <li>Capturar leads, ver o radar, salvar buscas e exportar não consomem créditos.</li>
           <li>Os créditos do plano renovam todo mês (no plano grátis, no dia 1º; nos planos pagos, no dia em que a assinatura começou) — próxima renovação em <strong>{c.renews_at ? fmtDate(c.renews_at) : '—'}</strong>. Créditos não usados não acumulam. O limite de buscas por dia reinicia à meia-noite (horário de Brasília).</li>
         </ul>

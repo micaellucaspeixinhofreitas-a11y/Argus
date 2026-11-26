@@ -2,9 +2,11 @@ import { query } from './db.js'
 
 // Regras de créditos (contabilizadas no servidor):
 // - Créditos mensais e limite de buscas por dia vêm do plano ativo (configurável no admin).
-// - Cada BUSCA (mapeamento) custa créditos conforme a quantidade de empresas pedida
-//   (tabela SEARCH_TIERS). Se vierem menos empresas novas, cobra a faixa do que veio;
-//   busca sem nenhuma empresa nova não cobra nada.
+// - Cada BUSCA (mapeamento) pede até 20, 50 ou 100 empresas e reserva o preço dessa faixa
+//   (tabela SEARCH_TIERS). No fim, cobra só pelas empresas NOVAS que vieram, com preço
+//   proporcional entre as faixas (20 = 150, 50 = 300, 100 = 450; 21 empresas = 155).
+// - Empresa que o usuário já recebeu antes (em outra busca ou como lead) nunca é cobrada de novo.
+// - Toda busca conta no limite diário do plano (mesmo sem empresas novas: as fontes são consultadas).
 // - Capturar leads não consome créditos.
 // - Créditos do plano pago renovam no aniversário da assinatura; no grátis, todo dia 1º.
 // - Dia (limite de buscas) é contado no fuso de São Paulo.
@@ -36,15 +38,23 @@ export const SEARCH_TIERS = [
   { max: 20, cost: 150 },
   { max: 50, cost: 300 },
   { max: 100, cost: 450 },
-  { max: 250, cost: 1050 },
-  { max: 500, cost: 2100 },
-  { max: 1000, cost: 4200 },
 ]
+export const MAX_PER_SEARCH = SEARCH_TIERS[SEARCH_TIERS.length - 1].max
 // menor faixa que comporta n empresas
 export function tierFor(n) {
   return SEARCH_TIERS.find(t => n <= t.max) || SEARCH_TIERS[SEARCH_TIERS.length - 1]
 }
-export const searchCost = n => (n > 0 ? tierFor(n).cost : 0)
+// preço por n empresas: exato nas faixas e proporcional entre elas (nunca degrau injusto)
+export function searchCost(n) {
+  n = Math.min(Math.max(0, Math.floor(n)), MAX_PER_SEARCH)
+  if (!n) return 0
+  let prev = { max: 0, cost: 0 }
+  for (const t of SEARCH_TIERS) {
+    if (n <= t.max) return Math.ceil(prev.cost + ((n - prev.max) * (t.cost - prev.cost)) / (t.max - prev.max))
+    prev = t
+  }
+  return prev.cost
+}
 
 // soma meses mantendo o dia (31/01 + 1 mês = 28 ou 29/02)
 function addMonths(date, n) {
@@ -75,9 +85,10 @@ export async function creditStatus(userId, db = { query }) {
   const { rows } = await db.query(
     `with c as (select coalesce($3::timestamptz, date_trunc('month', now() at time zone $2) at time zone $2) as start)
      select
-       coalesce(sum(amount) filter (where created_at >= c.start), 0)::int as month_net,
-       coalesce(-sum(amount) filter (where amount < 0 and created_at >= c.start), 0)::int as month_used,
-       count(*) filter (where reason = 'search' and created_at >= date_trunc('day', now() at time zone $2) at time zone $2)::int as today_used,
+       coalesce(sum(amount) filter (where created_at >= c.start and reason <> 'lead'), 0)::int as month_net,
+       coalesce(-sum(amount) filter (where amount < 0 and created_at >= c.start and reason <> 'lead'), 0)::int as month_used,
+       (select count(*) from mapping_runs m where m.user_id = $1 and m.status <> 'failed'
+           and m.created_at >= date_trunc('day', now() at time zone $2) at time zone $2)::int as today_used,
        coalesce($4::timestamptz, (date_trunc('month', now() at time zone $2) + interval '1 month') at time zone $2) as renews_at
      from c left join credit_ledger l on l.user_id = $1
      group by c.start`,
@@ -105,7 +116,7 @@ export async function creditStatus(userId, db = { query }) {
 export async function creditHistory(userId, limit = 60) {
   const { rows } = await query(
     `select to_char(created_at at time zone $2, 'YYYY-MM-DD') as day,
-            -sum(amount) filter (where amount < 0) as used,
+            -sum(amount) filter (where amount < 0 and reason <> 'lead') as used,
             sum(amount) filter (where amount > 0) as granted
        from credit_ledger where user_id = $1
       group by 1 order by 1 desc limit $3`,
