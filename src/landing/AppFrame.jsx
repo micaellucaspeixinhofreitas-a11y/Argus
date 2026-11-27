@@ -1,5 +1,5 @@
 import { SiWhatsapp } from 'react-icons/si'
-import { LuPhone, LuGlobe, LuMapPin, LuDownload } from 'react-icons/lu'
+import { LuPhone, LuGlobe, LuMapPin, LuDownload, LuLayoutDashboard, LuRadar, LuUsers, LuBookmark, LuCoins, LuSearch, LuBell } from 'react-icons/lu'
 import { useTick } from './useLive'
 
 // A interface da plataforma, em HTML (não é imagem): uma busca de dentistas em Pinheiros.
@@ -12,16 +12,39 @@ const ROWS = [
 ]
 const EXTRA = [[49, 33], [70, 46], [42, 70], [24, 50], [60, 26], [76, 60], [34, 76], [52, 54], [66, 34], [28, 64]]
 
-export default function AppFrame() {
+export default function AppFrame({ wide = false }) {
   const [ref, tick] = useTick(3000)
   const on = tick % ROWS.length
   return (
-    <div ref={ref} className="af" aria-label="Exemplo da tela de prospecção da Argus" role="img">
-      <div className="af__bar">
-        <span className="af__dots"><i /><i /><i /></span>
-        <span className="af__crumb">Prospectar <b>/</b> Dentistas · Pinheiros, São Paulo</span>
-        <span className="af__credits">450 créditos</span>
-      </div>
+    <div ref={ref} className={`af ${wide ? 'af--wide' : ''}`} aria-label="Exemplo da tela de prospecção da Argus" role="img">
+      {wide ? (
+        <div className="af__top">
+          <img src="/argus-white.webp" alt="" width="1400" height="423" className="af__logo" />
+          <span className="af__search"><LuSearch aria-hidden="true" /> Dentistas em Pinheiros, São Paulo</span>
+          <span className="af__credits">22.050 créditos</span>
+          <LuBell className="af__icon" aria-hidden="true" />
+          <span className="af__avatar">M</span>
+        </div>
+      ) : (
+        <div className="af__bar">
+          <span className="af__dots"><i /><i /><i /></span>
+          <span className="af__crumb">Prospectar <b>/</b> Dentistas · Pinheiros, São Paulo</span>
+          <span className="af__credits">450 créditos</span>
+        </div>
+      )}
+      <div className="af__shell">
+      {wide && (
+        <nav className="af__rail" aria-hidden="true">
+          <i><LuLayoutDashboard /></i><i className="is-on"><LuRadar /></i><i><LuUsers /></i><i><LuBookmark /></i><i><LuCoins /></i>
+        </nav>
+      )}
+      <div className="af__main">
+      {wide && (
+        <div className="af__title">
+          <strong>Prospectar</strong>
+          <span className="af__chips"><em className="is-on">Todas</em><em>Alta aderência</em><em>Sem website</em><em>Novas</em></span>
+        </div>
+      )}
       <div className="af__body">
         <div className="af__map">
           <svg className="af__streets" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
@@ -58,6 +81,8 @@ export default function AppFrame() {
           ))}
           <li className="af__foot"><span>Capturar 4 leads</span><span><LuDownload aria-hidden="true" /> CSV</span></li>
         </ul>
+      </div>
+      </div>
       </div>
     </div>
   )
