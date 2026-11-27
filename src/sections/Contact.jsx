@@ -17,6 +17,7 @@ export default function Contact() {
             Crie sua conta grátis, marque seu território e veja em minutos quais empresas da região têm mais
             aderência ao que você vende.
           </p>
+          <p className="cta__myth">Na mitologia grega, Argus era o gigante de cem olhos que nada deixava escapar. A plataforma nasceu dessa ideia.</p>
           <div className="cta__actions">
             <SpecularLink to={user ? '/app' : '/entrar?modo=cadastro'}>
               {user ? 'Abrir plataforma' : 'Criar conta grátis'} <Icon name="arrow" size={18} />

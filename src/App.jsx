@@ -7,11 +7,8 @@ import LiquidEther from './components/LiquidEther'
 import Header from './sections/Header'
 import Hero from './sections/Hero'
 import Marquee from './sections/Marquee'
-import About from './sections/About'
-import Services from './sections/Services'
-import Process from './sections/Process'
-import RadarPreview from './sections/RadarPreview'
-import Differentials from './sections/Differentials'
+import Demo from './sections/Demo'
+import Steps from './sections/Steps'
 import Plans from './sections/Plans'
 import Faq from './sections/Faq'
 import Contact from './sections/Contact'
@@ -23,26 +20,15 @@ export default function App() {
   const [ready, setReady] = useState(false)
   const done = useCallback(() => setReady(true), [])
 
-  // revelação genérica: qualquer elemento com data-reveal surge ao entrar na tela
+  // sem revelação ao rolar em cada seção (o conteúdo já está lá para quem rola rápido);
+  // só a barra de progresso de leitura acompanha a rolagem
   useEffect(() => {
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (reduce) return
-    const els = gsap.utils.toArray('[data-reveal]')
-    gsap.set(els, { opacity: 0, y: 40 })
-    const triggers = ScrollTrigger.batch(els, {
-      start: 'top 88%',
-      once: true,
-      onEnter: batch => gsap.to(batch, {
-        opacity: 1, y: 0, duration: 1, ease: 'power3.out', stagger: 0.08, overwrite: true,
-      }),
-    })
-
     // barra de progresso de leitura
     const bar = gsap.to('.progress', {
       scaleX: 1, ease: 'none',
       scrollTrigger: { start: 0, end: 'max', scrub: 0.3 },
     })
-    return () => { triggers.forEach(t => t.kill()); bar.scrollTrigger?.kill() }
+    return () => { bar.scrollTrigger?.kill() }
   }, [])
 
   useEffect(() => {
@@ -82,11 +68,8 @@ export default function App() {
       <main>
         <Hero ready={ready} />
         <Marquee />
-        <About />
-        <Services />
-        <Process />
-        <RadarPreview />
-        <Differentials />
+        <Demo />
+        <Steps />
         <Plans />
         <Faq />
         <Contact />

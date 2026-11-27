@@ -25,8 +25,7 @@ export default function Header() {
 
   return (
     <header className={`header ${scrolled ? 'is-scrolled' : ''} ${open ? 'is-open' : ''}`}>
-      <div className="container header__inner header__bar has-glass">
-        <Glass radius={34} />
+      <div className="container header__inner header__bar">
         <a href="#top" className="brand" aria-label="Argus — início">
           <img src={`${import.meta.env.BASE_URL}argus-white.webp`} alt="Argus" className="brand__word" width="1400" height="423" />
         </a>
