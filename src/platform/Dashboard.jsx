@@ -7,6 +7,7 @@ import { useAuth } from '../lib/auth'
 import { useProspect, emptyConfig } from './Platform'
 import MagicBento from '../components/MagicBento'
 import CountUp from '../components/CountUp'
+import { PageSkeleton } from './Skeleton'
 
 const PERIODS = [[7, '7 dias'], [30, '30 dias'], [90, '90 dias']]
 const pct = (part, total) => (total ? Math.round((part / total) * 100) : 0)
@@ -95,7 +96,7 @@ export default function Dashboard() {
   const firstName = (user.name || '').trim().split(/\s+/)[0]
 
   if (error) return <div className="page"><p className="form-error">{error}</p></div>
-  if (!data) return <div className="page"><p className="muted">Carregando seu dashboard…</p></div>
+  if (!data) return <PageSkeleton cards={6} rows={2} />
 
   const { totals: t, previous: p, quality: q, credits: c } = data
   const periodSum = data.series.reduce((s, d) => s + d[metric], 0)

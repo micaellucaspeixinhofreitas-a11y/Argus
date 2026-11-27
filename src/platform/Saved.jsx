@@ -6,6 +6,7 @@ import { countryByCode } from '../lib/countries'
 import { useProspect, emptyConfig } from './Platform'
 import { useAuth } from '../lib/auth'
 import { tierOf, TIERS } from '../lib/tiers'
+import { ListSkeleton } from './Skeleton'
 
 // Converte a configuração salva no servidor para o formato da tela de prospecção
 const toDraft = c => ({
@@ -56,7 +57,7 @@ export default function Saved() {
         </div>
       </header>
       {error && <p className="form-error">{error}</p>}
-      {searches === null ? <p className="muted">Carregando…</p> : searches.length === 0 ? (
+      {searches === null ? <ListSkeleton rows={3} /> : searches.length === 0 ? (
         <div className="card empty-state"><img className="empty-state__icon" src="/icons/pasta.webp" alt="" width="88" height="88" /><p><strong>Nenhuma busca salva.</strong> Na tela Prospectar, configure sua busca e clique em <em>Salvar busca</em>.</p></div>
       ) : (
         <div className="saved-grid">

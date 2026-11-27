@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { api, fmtDate, fmtDateTime, fmtInt } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import CountUp from '../components/CountUp'
+import { PageSkeleton } from './Skeleton'
 
 const REASONS = { search: 'Busca', admin_adjustment: 'Ajuste do administrador', lead: 'Captura (regra antiga)' }
 
@@ -16,7 +17,7 @@ export default function Credits() {
   }, [setCredits])
 
   if (error) return <div className="page"><p className="form-error">{error}</p></div>
-  if (!data) return <div className="page"><p className="muted">Carregando…</p></div>
+  if (!data) return <PageSkeleton cards={4} rows={2} />
   const c = data.credits
   const max = Math.max(1, ...data.history.map(h => h.used))
   const monthPct = c.monthly_credits ? Math.min(100, (c.month_used / c.monthly_credits) * 100) : 0

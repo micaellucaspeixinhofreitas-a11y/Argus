@@ -9,6 +9,10 @@ import CategoryPicker from './CategoryPicker'
 import CountUp from '../components/CountUp'
 import ProLock from './ProLock'
 import { TIERS } from '../lib/tiers'
+import { burst } from './fx'
+
+// mensagens que aparecem sobre o mapa enquanto a busca roda
+const SCAN_STEPS = ['Varrendo o território…', 'Consultando as fontes de empresas…', 'Removendo duplicadas…', 'Calculando a aderência…', 'Organizando os resultados…']
 import { useProspect } from './Platform'
 import { useAuth } from '../lib/auth'
 import { api, fmtInt } from '../lib/api'
@@ -33,6 +37,7 @@ export default function Prospect() {
   const [selected, setSelected] = useState(new Set())
   const [focusId, setFocusId] = useState(null)
   const [capturing, setCapturing] = useState(false)
+  const [scanStep, setScanStep] = useState(0)
   const [savedSearchId, setSavedSearchId] = useState(null)
   const listRef = useRef(null)
   const mapView = useRef(null)
@@ -51,6 +56,13 @@ export default function Prospect() {
     if (fit && fit.max !== qty) update({ maxResults: fit.max })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [short, credits?.available])
+
+  // troca a mensagem do radar enquanto a busca roda
+  useEffect(() => {
+    if (!running) { setScanStep(0); return }
+    const t = setInterval(() => setScanStep(n => n + 1), 1800)
+    return () => clearInterval(t)
+  }, [running])
 
   useEffect(() => {
     if (!notice || error) return
@@ -254,6 +266,10 @@ export default function Prospect() {
       const refreshed = await api(`mapping/result?run=${result.run.id}`)
       setResult(r => ({ ...r, ...refreshed }))
       setSelected(new Set())
+      if (data.captured) {
+        const b = document.querySelector('.results__bar')?.getBoundingClientRect()
+        burst(b ? b.right - 90 : undefined, b ? b.top + 20 : undefined, 22)
+      }
       setNotice(
         `${fmtInt(data.captured)} lead(s) capturado(s)` +
           (data.already_captured ? ` · ${data.already_captured} já eram seus` : '')
@@ -430,13 +446,21 @@ export default function Prospect() {
       {(error || notice) && (
         <div className={`toast ${error ? 'toast--error' : ''}`} role={error ? 'alert' : 'status'}>
           <span>{error || notice}</span>
+          {!error && <i className="toast__timer" key={notice} aria-hidden="true" />}
           <button onClick={() => { setError(''); setNotice('') }} aria-label="Fechar aviso"><LuX /></button>
         </div>
       )}
 
       {/* ===== mapa + resultados ===== */}
       <section className="pros__work">
-        <div className="map-wrap card">
+        <div className={`map-wrap card ${running ? 'is-scanning' : ''}`}>
+          {running && (
+            <div className="scan" aria-hidden="true">
+              <div className="scan__sweep" />
+              <span className="scan__ring" /><span className="scan__ring" /><span className="scan__ring" />
+            </div>
+          )}
+          {running && <div className="scan__msg" role="status"><LuLoader className="spin" /> <span key={scanStep}>{SCAN_STEPS[scanStep % SCAN_STEPS.length]}</span></div>}
           <form className="map-search" onSubmit={e => { e.preventDefault(); searchPlace() }}>
             <LuSearch aria-hidden="true" />
             <input value={geo.q} onChange={e => setGeo(g => ({ ...g, q: e.target.value }))} placeholder={`Pesquisar cidade, bairro ou endereço em ${country.name}`} aria-label="Pesquisar local" />

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, fmtDate } from '../lib/api'
 import { useAuth } from '../lib/auth'
+import { PageSkeleton } from './Skeleton'
 
 // Minha conta: dados pessoais, senha e exclusão da conta (LGPD)
 export default function Account() {
@@ -62,7 +63,7 @@ export default function Account() {
   }
 
   if (error) return <div className="page"><p className="form-error">{error}</p></div>
-  if (!account) return <div className="page"><p className="muted">Carregando…</p></div>
+  if (!account) return <PageSkeleton cards={3} rows={0} />
   const emailChanged = profile.email.trim().toLowerCase() !== account.email
   const Note = ({ k }) => msg[k] ? <p className={msg[k].ok ? 'form-notice' : 'form-error'} role="status">{msg[k].text}</p> : null
 

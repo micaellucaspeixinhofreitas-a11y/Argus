@@ -5,6 +5,8 @@ import { api, money, fmtDate, fmtInt } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import Payment from './Payment'
 import { planIcon } from '../lib/planIcon'
+import { burst } from './fx'
+import { PageSkeleton } from './Skeleton'
 
 const STATUS = {
   pending_payment: 'Aguardando pagamento',
@@ -58,7 +60,7 @@ export default function Subscription() {
     try { setState(await api('subscription/cancel', { method: 'POST', body: { resume } })); refresh() } catch (e) { setError(e.message) } finally { setBusy(false) }
   }
 
-  if (!state) return <div className="page">{error ? <p className="form-error">{error}</p> : <p className="muted">Carregando…</p>}</div>
+  if (!state) return error ? <div className="page"><p className="form-error">{error}</p></div> : <PageSkeleton cards={3} rows={1} />
   const current = state.current
   const latest = state.subscriptions[0]
   const daysLeft = latest?.current_period_end ? Math.ceil((new Date(latest.current_period_end) - Date.now()) / 86400000) : null
@@ -169,7 +171,7 @@ export default function Subscription() {
             )}
             {couponError && <p className="form-error">{couponError}</p>}
           </form>
-          <Payment planId={checkout} period={period} couponCode={coupon?.code || ''} onActivated={plan => { setCheckout(null); setCoupon(null); setCouponInput(''); setMessage(`Pagamento confirmado: plano ${plan?.name || ''} liberado.`); load() }} />
+          <Payment planId={checkout} period={period} couponCode={coupon?.code || ''} onActivated={plan => { burst(); setCheckout(null); setCoupon(null); setCouponInput(''); setMessage(`Pagamento confirmado: plano ${plan?.name || ''} liberado.`); load() }} />
         </section>
       )}
     </div>

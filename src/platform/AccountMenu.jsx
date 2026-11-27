@@ -22,7 +22,7 @@ export default function AccountMenu() {
   }, [open])
 
   const item = (to, icon, label) => (
-    <Link to={to} role="menuitem" className="acct__item" onClick={() => setOpen(false)}>
+    <Link to={to} viewTransition role="menuitem" className="acct__item" onClick={() => setOpen(false)}>
       <img src={`/icons/${icon}.webp`} alt="" width="22" height="22" />{label}
     </Link>
   )

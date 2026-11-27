@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, money, fmtDate, fmtDateTime, fmtInt } from '../lib/api'
 import SiteControl from './SiteControl'
+import { PageSkeleton } from './Skeleton'
 
 const SUB_STATUS = { pending_payment: 'aguardando pagamento', active: 'ativa', canceled: 'cancelada', expired: 'expirada' }
 const blankPlan = { id: '', name: '', description: '', monthly_credits: 0, daily_limit: 0, price_monthly_cents: 0, price_quarterly_cents: 0, features: [], is_default: false, active: true, sort: 10 }
@@ -110,7 +111,7 @@ export default function Admin() {
     try { await fn(); setMsg(okMsg); load() } catch (e) { setError(e.message) }
   }
 
-  if (!data) return <div className="page">{error ? <p className="form-error">{error}</p> : <p className="muted">Carregando…</p>}</div>
+  if (!data) return error ? <div className="page"><p className="form-error">{error}</p></div> : <PageSkeleton cards={4} rows={3} />
 
   return (
     <div className="page">

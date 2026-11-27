@@ -7,6 +7,7 @@ import { useSite } from '../lib/site'
 import Maintenance from '../pages/Maintenance'
 import AnnouncementBar from '../components/AnnouncementBar'
 import AccountMenu from './AccountMenu'
+import { initFx } from './fx'
 import { api, fmtInt } from '../lib/api'
 import Prospect from './Prospect'
 import Dashboard from './Dashboard'
@@ -69,7 +70,8 @@ function PlatformDock() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const at = path => (path === '/app' ? pathname === '/app' || pathname === '/app/' : pathname.startsWith(path))
-  const go = path => () => navigate(path)
+  // transição suave entre páginas nos navegadores que suportam (View Transitions)
+  const go = path => () => navigate(path, { viewTransition: true })
 
   const items = [
     { icon: <LuLayoutDashboard />, label: 'Dashboard', active: at('/app'), onClick: go('/app') },
@@ -92,7 +94,7 @@ function PlatformDock() {
     {
       icon: <LuCoins />, label: credits ? `Créditos · ${fmtInt(credits.available)} disponíveis` : 'Créditos',
       active: at('/app/creditos'), onClick: go('/app/creditos'),
-      badge: credits && credits.can_search === false ? '!' : undefined,
+      badge: credits && credits.can_search === false && !user?.is_admin ? '!' : undefined,
     },
     ...(user.is_admin ? [{ icon: <LuShield />, label: 'Admin', active: at('/app/admin'), onClick: go('/app/admin') }] : []),
     { separator: true },
@@ -146,15 +148,15 @@ function TopBar() {
         <span className="topbar__title">{title}</span>
         <div className="topbar__actions">
           {credits && (
-            <NavLink to="/app/creditos" className="topbar__credits" title="Créditos disponíveis no mês · leads capturados hoje">
+            <NavLink to="/app/creditos" viewTransition className="topbar__credits" title="Créditos disponíveis · buscas feitas hoje">
               <img className="topbar__coin" src="/icons/moeda.webp" alt="" width="20" height="20" />
-              <strong>{fmtInt(credits.available)}</strong>
+              <strong key={credits.available} className="topbar__num">{fmtInt(credits.available)}</strong>
               <span>créditos</span>
               <i aria-hidden="true" />
               <small>{fmtInt(credits.today_used)}/{fmtInt(credits.daily_limit)} buscas hoje</small>
             </NavLink>
           )}
-          <NavLink to="/app/planos" className={`topbar__plan ${pro ? '' : 'is-upgrade'}`}>
+          <NavLink to="/app/planos" viewTransition className={`topbar__plan ${pro ? '' : 'is-upgrade'}`}>
             <LuCrown aria-hidden="true" /> <span>{pro ? 'Planos' : 'Assinar Pro'}</span>
           </NavLink>
           <AccountMenu />
@@ -162,6 +164,12 @@ function TopBar() {
       </div>
     </header>
   )
+}
+
+// liga os efeitos de interação enquanto a plataforma está aberta
+function Fx() {
+  useEffect(() => initFx(), [])
+  return null
 }
 
 export default function Platform() {
@@ -175,6 +183,8 @@ export default function Platform() {
   return (
     <ProspectProvider>
       <div className="pf app">
+        <Fx />
+        <div className="app__aura" aria-hidden="true"><i /><i /><i /></div>
         {site?.maintenance?.enabled && (
           <div className="announce announce--warning announce--admin" role="status">
             <span>Modo manutenção ligado{site.maintenance.scope === 'all' ? ' (site inteiro)' : ''}: só administradores estão vendo a plataforma.</span>

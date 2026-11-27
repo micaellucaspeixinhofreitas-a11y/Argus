@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { LuDownload, LuSearch, LuPhone, LuMail, LuMapPin } from 'react-icons/lu'
 import { api, fmtDateTime, fmtInt } from '../lib/api'
 import { catLabel } from '../lib/category'
+import { ListSkeleton } from './Skeleton'
 
 // WhatsApp exige o número com código do país (Brasil = 55 quando vier só DDD + número)
 const waLink = phone => {
@@ -37,7 +38,7 @@ export default function Leads() {
         <input value={q} onChange={e => setQ(e.target.value)} placeholder="Filtrar por nome, categoria ou cidade" aria-label="Filtrar leads" />
       </div>
       {error && <p className="form-error">{error}</p>}
-      {leads === null ? <p className="muted">Carregando…</p> : leads.length === 0 ? (
+      {leads === null ? <ListSkeleton rows={6} /> : leads.length === 0 ? (
         <div className="card empty-state"><img className="empty-state__icon" src="/icons/robo.webp" alt="" width="88" height="88" /><p><strong>Nenhum lead ainda.</strong> Mapeie uma região e capture as empresas que interessam.</p></div>
       ) : (
         <>
