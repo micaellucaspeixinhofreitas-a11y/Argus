@@ -5,7 +5,7 @@ import { useAuth } from '../lib/auth'
 import CountUp from '../components/CountUp'
 import { PageSkeleton } from './Skeleton'
 
-const REASONS = { search: 'Busca', admin_adjustment: 'Ajuste do administrador', lead: 'Captura (regra antiga)' }
+const REASONS = { search: 'Busca', admin_adjustment: 'Ajuste do administrador', lead: 'Captura (regra antiga)', easter_neymar: 'Easter egg do Neymar ⚽' }
 
 export default function Credits() {
   const [data, setData] = useState(null)

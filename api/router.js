@@ -576,6 +576,16 @@ on('GET', 'credits', async ({ req }) => {
   return { credits: await creditStatus(user.id), history: await creditHistory(user.id), adjustments: ledger, timezone: TZ }
 })
 
+// Easter egg do Neymar: 1000 créditos, uma única vez por conta (índice único garante)
+const NEYMAR_BONUS = 1000
+on('POST', 'easter/neymar', async ({ req }) => {
+  const user = await requireUser(req)
+  const { rowCount } = await query(
+    `insert into credit_ledger (user_id, amount, reason, note) values ($1, $2, 'easter_neymar', 'Easter egg do Neymar')
+     on conflict (user_id) where reason = 'easter_neymar' do nothing`, [user.id, NEYMAR_BONUS])
+  return { granted: rowCount > 0, amount: rowCount > 0 ? NEYMAR_BONUS : 0, credits: await creditStatus(user.id) }
+})
+
 // ---------- planos e assinaturas ----------
 on('GET', 'plans', async () => {
   const { rows } = await query('select * from plans where active order by sort, monthly_credits')

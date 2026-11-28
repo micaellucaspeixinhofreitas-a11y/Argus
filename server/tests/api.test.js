@@ -137,6 +137,11 @@ try {
 
   // créditos e planos
   r = await api('GET', 'credits'); assert.equal(r.data.credits.month_used, 23); assert.equal(r.data.history[0].used, 23)
+  // easter egg do Neymar: +1000 uma única vez por conta (mesmo com cliques simultâneos)
+  const beforeEgg = (await api('GET', 'credits')).data.credits.available
+  const eggs = await Promise.all([api('POST', 'easter/neymar', {}), api('POST', 'easter/neymar', {})])
+  assert.equal(eggs.filter(e => e.data.granted).length, 1, 'bônus do Neymar só uma vez')
+  r = await api('POST', 'easter/neymar', {}); assert.equal(r.data.granted, false); assert.equal(r.data.credits.available, beforeEgg + 1000)
   r = await api('GET', 'plans'); assert.ok(r.data.plans.find(p => p.id === 'pro' && p.monthly_credits === 22500 && p.daily_limit === 10) && r.data.plans.find(p => p.id === 'gratuito' && p.monthly_credits === 300 && p.daily_limit === 1))
   r = await api('POST', 'subscription', { planId: 'pro', period: 'quarterly', paymentMethod: 'pix' })
   assert.equal(r.status, 201); assert.equal(r.data.subscription.status, 'pending_payment')

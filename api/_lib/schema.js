@@ -85,6 +85,8 @@ create table if not exists credit_ledger (
   created_at timestamptz not null default now()
 );
 create index if not exists credit_ledger_user_idx on credit_ledger(user_id, created_at desc);
+-- Easter egg do Neymar: o bônus só pode ser resgatado uma vez por conta
+create unique index if not exists credit_ledger_neymar_once on credit_ledger(user_id) where reason = 'easter_neymar';
 
 -- Cache de geocodificação de localidades
 create table if not exists locations (

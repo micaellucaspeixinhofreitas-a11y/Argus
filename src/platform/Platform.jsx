@@ -17,6 +17,7 @@ import Credits from './Credits'
 import Subscription from './Subscription'
 import Admin from './Admin'
 import Account from './Account'
+import { NEYMAR_PENDING, claimNeymar } from '../components/NeymarEgg'
 import './platform.css'
 import './app.css'
 
@@ -172,6 +173,27 @@ function Fx() {
   return null
 }
 
+// resgata o easter egg do Neymar achado na página inicial antes de a pessoa entrar
+function NeymarPending() {
+  const { setCredits } = useAuth()
+  const [msg, setMsg] = useState('')
+  useEffect(() => {
+    let pending = false
+    try { pending = localStorage.getItem(NEYMAR_PENDING) === '1'; localStorage.removeItem(NEYMAR_PENDING) } catch { /* armazenamento indisponível */ }
+    if (!pending) return
+    claimNeymar()
+      .then(r => { if (r.credits) setCredits(r.credits); setMsg(r.granted ? 'Golaço! Você ganhou 1000 créditos do easter egg do Neymar. ⚽' : 'Você já resgatou o bônus do Neymar. 😉') })
+      .catch(() => {})
+  }, [setCredits])
+  if (!msg) return null
+  return (
+    <div className="announce announce--admin" role="status">
+      <span>{msg}</span>
+      <button type="button" onClick={() => setMsg('')}>Fechar</button>
+    </div>
+  )
+}
+
 export default function Platform() {
   const { user, loading } = useAuth()
   const { status: site } = useSite()
@@ -184,6 +206,7 @@ export default function Platform() {
     <ProspectProvider>
       <div className="pf app">
         <Fx />
+        <NeymarPending />
         <div className="app__aura" aria-hidden="true"><i /><i /><i /></div>
         {site?.maintenance?.enabled && (
           <div className="announce announce--warning announce--admin" role="status">

@@ -16,6 +16,7 @@ import Plans from './sections/Plans'
 import Faq from './sections/Faq'
 import Contact from './sections/Contact'
 import Footer from './sections/Footer'
+import NeymarEgg from './components/NeymarEgg'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -92,6 +93,7 @@ export default function App() {
         <Contact />
       </main>
       <Footer />
+      <NeymarEgg />
     </>
   )
 }
