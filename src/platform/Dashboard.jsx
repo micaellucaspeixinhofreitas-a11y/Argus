@@ -8,6 +8,19 @@ import { useProspect, emptyConfig } from './Platform'
 import MagicBento from '../components/MagicBento'
 import CountUp from '../components/CountUp'
 import { PageSkeleton } from './Skeleton'
+import SwipeRow from '../components/SwipeRow'
+import { HugeiconsIcon } from '@hugeicons/react'
+import { Delete02Icon, WhatsappIcon, PlayIcon } from '@hugeicons/core-free-icons'
+import { toDraft } from './Saved'
+
+// WhatsApp exige o número com código do país (Brasil = 55 quando vier só DDD + número)
+const waLink = phone => {
+  let d = String(phone || '').replace(/\D/g, '').replace(/^0+/, '')
+  if (d.length === 10 || d.length === 11) d = '55' + d
+  return d.length >= 12 ? `https://wa.me/${d}` : null
+}
+// cores das linhas deslizáveis, no tom dos cartões da plataforma
+const SWIPE = { actionColor: '#e5484d', drawerColor: '#27272f', rowColor: '#141418', textColor: '#ededf0', height: 60, radius: 12, actionWidth: 84 }
 
 const PERIODS = [[7, '7 dias'], [30, '30 dias'], [90, '90 dias']]
 const pct = (part, total) => (total ? Math.round((part / total) * 100) : 0)
@@ -77,7 +90,7 @@ function BarList({ rows, empty }) {
 
 export default function Dashboard() {
   const { user } = useAuth()
-  const { setConfig, setResult } = useProspect()
+  const { setConfig, setResult, setPendingRun } = useProspect()
   const navigate = useNavigate()
   const [days, setDays] = useState(30)
   const [metric, setMetric] = useState('leads')
@@ -88,6 +101,22 @@ export default function Dashboard() {
     api(`dashboard?dias=${days}`).then(setData).catch(e => setError(e.message))
   }, [days])
 
+  // ações das linhas deslizáveis
+  const removeLead = async id => {
+    setData(d => ({ ...d, recentLeads: d.recentLeads.filter(l => l.id !== id) }))
+    try { await api(`leads?id=${id}`, { method: 'DELETE' }) } catch (e) { setError(e.message) }
+    api(`dashboard?dias=${days}`).then(setData).catch(() => {})
+  }
+  const removeSaved = async id => {
+    setData(d => ({ ...d, savedSearches: d.savedSearches.filter(s => s.id !== id) }))
+    try { await api(`searches?id=${id}`, { method: 'DELETE' }) } catch (e) { setError(e.message) }
+  }
+  const runSaved = s => {
+    setConfig(toDraft(s.config || {}))
+    setResult(null)
+    setPendingRun({ savedSearchId: s.id })
+    navigate('/app/prospectar')
+  }
   const newProspect = () => { setConfig(emptyConfig()); setResult(null); navigate('/app/prospectar') }
   const hello = useMemo(() => {
     const h = new Date().getHours()
@@ -205,6 +234,7 @@ export default function Dashboard() {
           <button className="btn btn--primary btn--sm" onClick={newProspect}><LuPlus /> Nova prospecção</button>
         </div>
       </header>
+      {error && <p className="form-error">{error}</p>}
 
       {empty && (
         <div className="card dash__welcome">
@@ -320,18 +350,32 @@ export default function Dashboard() {
             </span>
           </div>
           {data.recentLeads.length ? (
-            <ul className="activity">
-              {data.recentLeads.map(l => (
-                <li key={l.id}>
-                  <span className={`activity__dot ${l.high_fit ? 'is-fit' : ''}`} />
-                  <div>
-                    <strong>{l.name}</strong>
-                    <small>{[l.city, fmtDate(l.captured_at)].filter(Boolean).join(' · ')}</small>
-                  </div>
-                  {l.phone ? <a className="activity__num" href={`tel:${l.phone}`}><LuPhone /> ligar</a> : <span className="activity__num muted">sem telefone</span>}
-                </li>
-              ))}
-            </ul>
+            <div className="swipe-list">
+              <p className="swipe-hint">Arraste uma linha para o lado para ver as ações.</p>
+              {data.recentLeads.map(l => {
+                const wa = waLink(l.phone)
+                return (
+                  <SwipeRow
+                    key={l.id}
+                    {...SWIPE}
+                    label={`Lead ${l.name}`}
+                    actions={[
+                      { id: 'delete', label: 'Excluir', icon: <HugeiconsIcon icon={Delete02Icon} size={20} /> },
+                      ...(wa ? [{ id: 'whatsapp', label: 'WhatsApp', color: '#16a34a', icon: <HugeiconsIcon icon={WhatsappIcon} size={20} />, onSelect: () => window.open(wa, '_blank', 'noopener') }] : []),
+                    ]}
+                    onCommit={a => a.id === 'delete' && removeLead(l.id)}
+                    style={{ marginBottom: 8 }}
+                  >
+                    <span className={`activity__dot ${l.high_fit ? 'is-fit' : ''}`} />
+                    <div className="swipe-text">
+                      <strong>{l.name}</strong>
+                      <small>{[l.city, fmtDate(l.captured_at)].filter(Boolean).join(' · ')}</small>
+                    </div>
+                    {l.phone ? <a className="activity__num" href={`tel:${l.phone}`} onPointerDown={e => e.stopPropagation()}><LuPhone /> ligar</a> : <span className="activity__num muted">sem telefone</span>}
+                  </SwipeRow>
+                )
+              })}
+            </div>
           ) : <p className="muted small">Nenhum lead capturado ainda.</p>}
         </div>
       </section>
@@ -342,11 +386,23 @@ export default function Dashboard() {
             <h2 className="h2-icon"><img className="h2-ic" src="/icons/pasta.webp" alt="" width="24" height="24" /> Buscas salvas</h2>
             <Link to="/app/buscas" className="dash__more">Abrir <LuChevronRight /></Link>
           </div>
-          <div className="dash__chips">
+          <div className="swipe-list swipe-list--grid">
             {data.savedSearches.map(s => (
-              <Link key={s.id} to="/app/buscas" className="dash__chip">
-                {s.name}<small>{s.last_run_at ? `última execução ${fmtDate(s.last_run_at)}` : 'nunca executada'}</small>
-              </Link>
+              <SwipeRow
+                key={s.id}
+                {...SWIPE}
+                label={`Busca salva ${s.name}`}
+                actions={[
+                  { id: 'delete', label: 'Excluir', icon: <HugeiconsIcon icon={Delete02Icon} size={20} /> },
+                  { id: 'run', label: 'Executar', color: '#7c3aed', icon: <HugeiconsIcon icon={PlayIcon} size={20} />, onSelect: () => runSaved(s) },
+                ]}
+                onCommit={a => a.id === 'delete' && removeSaved(s.id)}
+              >
+                <div className="swipe-text">
+                  <strong>{s.name}</strong>
+                  <small>{s.last_run_at ? `última execução ${fmtDate(s.last_run_at)}` : 'nunca executada'}</small>
+                </div>
+              </SwipeRow>
             ))}
           </div>
         </section>

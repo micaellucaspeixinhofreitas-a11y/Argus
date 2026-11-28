@@ -729,3 +729,14 @@ button.topbar__avatar:hover, button.topbar__avatar[aria-expanded="true"] { trans
   .topbar__num { animation: none; }
 }
 .app .pro-lock__card { position: sticky; }
+
+/* linhas deslizáveis (SwipeRow) no Dashboard */
+.app .swipe-list { display: grid; }
+.app .swipe-list--grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 8px; }
+.app .swipe-hint { margin: 0 0 10px; font-size: 12px; color: var(--t3); }
+.app .swipe-row .swipe-row__clip { border: 1px solid var(--b1); }
+.app .swipe-row__surface .activity__dot { flex: none; }
+.app .swipe-text { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.app .swipe-text strong { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.app .swipe-text small { font-size: 12px; color: var(--t2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.app .swipe-row__surface .activity__num { flex: none; }

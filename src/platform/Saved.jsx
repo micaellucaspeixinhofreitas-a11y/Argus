@@ -9,7 +9,7 @@ import { tierOf, TIERS } from '../lib/tiers'
 import { ListSkeleton } from './Skeleton'
 
 // Converte a configuração salva no servidor para o formato da tela de prospecção
-const toDraft = c => ({
+export const toDraft = c => ({
   ...emptyConfig(),
   segments: c.segments || [],
   country: c.country || 'BR',

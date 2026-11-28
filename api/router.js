@@ -479,7 +479,7 @@ on('GET', 'dashboard', async ({ req, url }) => {
     query(
       `select l.id, l.captured_at, l.high_fit, c.name, c.city, c.category, c.phone
          from leads l join companies c on c.id = l.company_id where l.user_id = $1 order by l.captured_at desc limit 6`, [uid]),
-    query('select id, name, last_run_at from saved_searches where user_id = $1 order by coalesce(last_run_at, created_at) desc limit 4', [uid]),
+    query('select id, name, config, last_run_at from saved_searches where user_id = $1 order by coalesce(last_run_at, created_at) desc limit 4', [uid]),
   ])
   return {
     days, totals: totals.rows[0], previous: prev.rows[0], series: series.rows,
@@ -511,6 +511,14 @@ on('GET', 'leads', async ({ req, url }) => {
   const total = rows.length < 1000 ? rows.length
     : (await query(`select count(*)::int as n from (${leadsQuery}) t`, [user.id, q])).rows[0].n
   return { leads: rows, total }
+})
+
+// excluir um lead (a empresa continua como "já recebida": não é cobrada de novo numa busca)
+on('DELETE', 'leads', async ({ req, url }) => {
+  const user = await requireUser(req)
+  const { rowCount } = await query('delete from leads where id = $1 and user_id = $2', [Number(url.searchParams.get('id')), user.id])
+  if (!rowCount) fail(404, 'Lead não encontrado.')
+  return { ok: true }
 })
 
 on('GET', 'leads/export', async ({ req }) => {

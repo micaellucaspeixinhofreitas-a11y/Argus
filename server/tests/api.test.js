@@ -107,6 +107,13 @@ try {
   // leads e exportação
   r = await api('GET', 'leads'); assert.equal(r.data.leads.length, 3)
   r = await api('GET', 'leads/export'); assert.ok(String(r.data).includes('Odonto Vida'))
+  {
+    const lid = (await api('GET', 'leads')).data.leads.find(l => l.name === 'Dente Feliz').id
+    assert.equal((await api('DELETE', `leads?id=${lid}`)).status, 200, 'exclui o lead')
+    assert.equal((await api('DELETE', `leads?id=${lid}`)).status, 404, 'lead já excluído')
+    assert.equal((await api('GET', 'leads')).data.leads.length, 2)
+    await api('POST', 'leads/capture', { runId, companyIds: ids })
+  }
 
   // buscas salvas
   r = await api('POST', 'searches', { config }); assert.equal(r.status, 201)
