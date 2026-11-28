@@ -34,7 +34,7 @@ export default function NeymarEgg() {
     const onClick = e => {
       if (!e.target.closest?.('.brand')) return
       const now = Date.now()
-      taps.current = now - taps.current.t < 600 ? { n: taps.current.n + 1, t: now } : { n: 1, t: now }
+      taps.current = now - taps.current.t < 1500 ? { n: taps.current.n + 1, t: now } : { n: 1, t: now }
       if (taps.current.n >= TAPS) { taps.current = { n: 0, t: 0 }; setOpen(true) }
     }
     window.addEventListener('keydown', onKey)
